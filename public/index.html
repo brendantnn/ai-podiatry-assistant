@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Podiatry Chatbot</title>
+  <style>
+    #chatbox {
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .user { color: blue; margin: 5px 0; }
+    .bot { color: green; margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h2>Podiatry Chatbot</h2>
+  <div id="chatbox"></div>
+  <input id="message" placeholder="Type your message..." />
+  <button onclick="sendMessage()">Send</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
