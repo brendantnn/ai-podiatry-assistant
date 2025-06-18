@@ -15,11 +15,13 @@
   </style>
 </head>
 <body>
-  <h2>Podiatry Chatbot</h2>
-  <div id="chatbox"></div>
-  <input id="message" placeholder="Type your message..." />
-  <button onclick="sendMessage()">Send</button>
+  <h2>Patient Chatbot</h2>
+  <div id="chatbox"></div>  <!-- Message shown to user, is updated in patient.js -->
 
-  <script src="script.js"></script>
+  <input id="message" placeholder="Type your message..." />
+
+  <button onclick="sendMessage()">Send</button> <!-- When user click on send button, run sendMessage() function in patient.js-->
+
+  <script src="patient.js"></script>
 </body>
 </html>

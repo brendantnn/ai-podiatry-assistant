@@ -1,47 +1,49 @@
-// What the chatbot sends to user on startup
+// Add welccome message to div id "chatbox" in HTML page
 window.onload = () => {
   const chatbox = document.getElementById("chatbox");
   chatbox.innerHTML += `
-    <div class="bot">
-      <b>Bot:</b> Welcome! Are you a <b>patient</b> or a <b>podiatrist</b>?
+      <div class="bot">
+      <b>Bot:</b> Welcome back! Type <b>'triage'</b> to begin an assessment or <b>'appointment'</b> to view your upcoming visit.
     </div>
   `;
 };
 
 
-
+// Called when user clicks send button in HTML page
 async function sendMessage() {
-  const input = document.getElementById("message");
-  const chatbox = document.getElementById("chatbox");
-  const userText = input.value.trim();
 
+  // store input and chatbox values
+  const input = document.getElementById("message");
+  const userText = input.value.trim(); 
+  const chatbox = document.getElementById("chatbox");
+ 
+
+  // if user input is empty, stop function 
   if (!userText) return;
 
-  // Display user message
+  // Adds user message into chatbox, the clear input box so user can type new message
   chatbox.innerHTML += `<div class="user"><b>You:</b> ${userText}</div>`;
   input.value = "";
 
   try {
-    // sends HTTP POST request to /chat route, this is listened for in server.js
+    // Send user text via HTTP POST request to /chat route, which is read in server.js
     const response = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userText })
+      body: JSON.stringify({ message: userText }) //user text sent in JSON so server can read
     });
 
+    // Wait for server reply, and convert it from JSON to javascript object
     const data = await response.json();
 
-    // Handle call from server.js to redirect when podiatrist login)
-    if (data.redirect) {
-      window.location.href = data.redirect;
-      return;
-    }
 
-    // Normal chatbot response
+    // Display the chatbot's reply in chatbox, then scroll chatbot down to show latest message
     chatbox.innerHTML += `<div class="bot"><b>Bot:</b> ${data.reply}</div>`;
     chatbox.scrollTop = chatbox.scrollHeight;
 
-  } catch (err) {
+  } 
+  // Catch any errors 
+  catch (err) {
     chatbox.innerHTML += `<div class="bot"><b>Bot:</b> Error talking to server.</div>`;
   }
 }
