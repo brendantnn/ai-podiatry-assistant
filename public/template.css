@@ -1,0 +1,1428 @@
+/* ========================================
+   MODERN HEALTHCARE UI TEMPLATE - BEIGE THEME
+   Singapore General Hospital - Clean & Professional
+   Inspired by modern healthcare platforms
+   ======================================== */
+
+/* ========================================
+   CSS VARIABLES - ENHANCED BEIGE PALETTE WITH MORE CONTRAST
+   ======================================== */
+:root {
+  /* Enhanced Beige/Cream Palette - More Contrast */
+  --cream-50: #f8f5f1;
+  --cream-100: #f0e9e0;
+  --cream-200: #e5d6c3;
+  --cream-300: #d7c0a1;
+  --cream-400: #c4a47a;
+  --cream-500: #b08968;
+  --cream-600: #9a7356;
+  --cream-700: #7f5d47;
+  --cream-800: #69493a;
+  --cream-900: #553a2e;
+  
+  /* Modern Blue Accents */
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-300: #93c5fd;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+  --blue-800: #1e40af;
+  --blue-900: #1e3a8a;
+  
+  /* Neutral Modern Grays */
+  --gray-25: #fefefe;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  
+  /* Status Colors */
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: var(--blue-500);
+  
+  /* Background Colors - Enhanced Contrast */
+  --bg-primary: var(--cream-100);  /* Deeper beige background */
+  --bg-secondary: var(--cream-50);
+  --bg-accent: var(--blue-50);
+  --bg-card: #ffffff;
+  
+  /* Typography */
+  --font-primary: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-black: 800;
+  
+  /* Spacing (8px base) */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --radius-full: 9999px;
+  
+  /* Modern Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   RESET AND BASE STYLES
+   ======================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-primary);
+  color: var(--gray-800);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  padding: var(--space-6);
+}
+
+/* ========================================
+   MODERN LAYOUT COMPONENTS
+   ======================================== */
+
+/* Main Container */
+.medical-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border-radius: var(--radius-3xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  min-height: calc(100vh - 3rem);
+  border: 1px solid var(--gray-100);
+}
+
+/* Modern Header */
+.medical-header {
+  background: linear-gradient(135deg, var(--cream-200) 0%, var(--blue-50) 100%);
+  padding: var(--space-12) var(--space-8);
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+  position: relative;
+}
+
+.medical-header h1 {
+  font-size: 2.5rem;
+  font-weight: var(--font-weight-black);
+  color: var(--gray-800);
+  margin-bottom: var(--space-2);
+  letter-spacing: -0.025em;
+}
+
+.medical-header h2 {
+  font-size: 2rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-800);
+  margin-bottom: var(--space-2);
+  letter-spacing: -0.025em;
+}
+
+.medical-header .subtitle {
+  font-size: 1rem;
+  color: var(--gray-600);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.025em;
+}
+
+/* Content Area */
+.medical-content {
+  padding: var(--space-8);
+  background: var(--bg-secondary);
+  min-height: 500px;
+}
+
+/* ========================================
+   MODERN FORM COMPONENTS
+   ======================================== */
+
+.medical-form {
+  background: var(--bg-card);
+  padding: var(--space-8);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--gray-100);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-group {
+  margin-bottom: var(--space-6);
+}
+
+.medical-label {
+  display: block;
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-700);
+  margin-bottom: var(--space-2);
+  font-size: 0.875rem;
+}
+
+.medical-input, .medical-select {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-800);
+  background: var(--bg-card);
+  transition: all var(--transition-normal);
+  outline: none;
+}
+
+.medical-input:focus, .medical-select:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+  background: var(--bg-card);
+}
+
+.medical-input::placeholder {
+  color: var(--gray-400);
+  font-weight: var(--font-weight-normal);
+}
+
+/* ========================================
+   MODERN BUTTON COMPONENTS
+   ======================================== */
+
+.medical-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  text-decoration: none;
+  outline: none;
+  letter-spacing: 0.025em;
+}
+
+.medical-btn-primary {
+  background: var(--blue-600);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.medical-btn-primary:hover {
+  background: var(--blue-700);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.medical-btn-secondary {
+  background: var(--bg-card);
+  color: var(--gray-700);
+  border: 1.5px solid var(--gray-200);
+}
+
+.medical-btn-secondary:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-300);
+}
+
+.medical-btn-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.medical-btn-success:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.medical-btn-warning {
+  background: var(--warning-color);
+  color: white;
+}
+
+.medical-btn-warning:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+.medical-btn-danger {
+  background: var(--error-color);
+  color: white;
+}
+
+.medical-btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.medical-btn-sm {
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.75rem;
+}
+
+.medical-btn-lg {
+  padding: var(--space-4) var(--space-8);
+  font-size: 1rem;
+}
+
+/* ========================================
+   MODERN CHAT COMPONENTS
+   ======================================== */
+
+.medical-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.medical-chatbox {
+  flex: 1;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: var(--space-6);
+  background: var(--bg-card);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-6);
+  scroll-behavior: smooth;
+}
+
+.medical-chatbox::-webkit-scrollbar {
+  width: 6px;
+}
+
+.medical-chatbox::-webkit-scrollbar-track {
+  background: var(--gray-50);
+  border-radius: var(--radius-full);
+}
+
+.medical-chatbox::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-full);
+}
+
+.medical-chatbox::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* Message Styles - Support both old and new classes */
+.user, .message-user {
+  background: var(--blue-600);
+  color: white;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+  margin: var(--space-3) 0 var(--space-3) auto;
+  max-width: 80%;
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-sm);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.bot, .message-bot {
+  background: var(--cream-50);
+  color: var(--gray-800);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
+  margin: var(--space-3) auto var(--space-3) 0;
+  max-width: 80%;
+  border: 1px solid var(--cream-200);
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-xs);
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.medical-input-group {
+  display: flex;
+  gap: var(--space-3);
+  align-items: stretch;
+  background: var(--bg-card);
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--gray-100);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ========================================
+   MODERN CARD COMPONENTS - IMPROVED SPACING
+   ======================================== */
+
+.medical-card {
+  background: var(--bg-card);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8); /* Increased from space-6 to space-8 */
+  margin-bottom: var(--space-6); /* Increased from space-4 to space-6 */
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.medical-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.medical-card-header {
+  border-bottom: 1px solid var(--gray-100);
+  padding-bottom: var(--space-6); /* Increased from space-4 to space-6 */
+  margin-bottom: var(--space-8); /* Increased from space-6 to space-8 */
+}
+
+.medical-card-title {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-800);
+  margin-bottom: var(--space-3); /* Increased from space-1 to space-3 */
+  letter-spacing: -0.025em;
+  padding-bottom: var(--space-2); /* Added padding below title */
+}
+
+.medical-card-subtitle {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--space-2); /* Added top margin */
+}
+
+/* ========================================
+   MODERN BADGES AND STATUS
+   ======================================== */
+
+.medical-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4); /* Increased padding */
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  margin: var(--space-1) 0; /* Added vertical margin */
+}
+
+.badge-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.badge-warning {
+  background: var(--warning-color);
+  color: white;
+}
+
+.badge-danger {
+  background: var(--error-color);
+  color: white;
+}
+
+.badge-info {
+  background: var(--blue-500);
+  color: white;
+}
+
+.badge-secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: var(--space-2);
+}
+
+.status-online { 
+  background: var(--success-color);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--success-color);
+  animation: pulse 2s infinite;
+}
+
+.status-away { 
+  background: var(--warning-color);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--warning-color);
+}
+
+.status-offline { 
+  background: var(--gray-400);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--gray-400);
+}
+
+/* ========================================
+   MODERN DASHBOARD COMPONENTS - ENHANCED SPACING
+   ======================================== */
+
+.medical-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-8); /* Increased from space-6 to space-8 */
+  margin-bottom: var(--space-10); /* Increased from space-8 to space-10 */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Responsive grid adjustments */
+@media (min-width: 1200px) {
+  .medical-dashboard {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .medical-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .medical-dashboard {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+}
+
+.dashboard-widget {
+  background: var(--bg-card);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8); /* Increased from space-6 to space-8 */
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+  width: 100%;
+  min-height: 220px; /* Increased from 200px */
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-widget:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   SPACING FIX FOR QUICK ACTIONS
+   ======================================== */
+
+/* Add extra spacing after Quick Actions widget */
+.quick-actions-widget {
+  margin-bottom: var(--space-16); /* 64px spacing */
+}
+
+/* Alternative - increase general spacing between dashboard and main content */
+.medical-dashboard.mb-xl {
+  margin-bottom: var(--space-16); /* Increase from default to 64px */
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6); /* Increased from space-4 to space-6 */
+  padding-bottom: var(--space-4); /* Increased from space-3 to space-4 */
+  border-bottom: 1px solid var(--gray-100);
+  flex-shrink: 0;
+}
+
+.widget-title {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-800);
+  letter-spacing: -0.025em;
+  margin-bottom: var(--space-2); /* Added bottom margin */
+}
+
+.widget-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: var(--space-2); /* Added top padding */
+}
+
+/* ========================================
+   DASHBOARD METRICS - ENHANCED LAYOUT WITH BETTER SPACING
+   ======================================== */
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4); /* Increased from space-2 to space-4 */
+  width: 100%;
+  max-width: 100%;
+}
+
+.metric-item {
+  text-align: center;
+  padding: var(--space-5); /* Increased from space-3 to space-5 */
+  background: var(--cream-100); /* Deeper beige background */
+  border-radius: var(--radius-lg); /* Increased radius */
+  border: 1px solid var(--cream-300);
+  transition: all var(--transition-normal);
+  min-height: 90px; /* Increased from 75px */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.metric-item:hover {
+  background: var(--cream-200); /* Deeper hover state */
+  transform: translateY(-2px); /* Increased transform */
+  box-shadow: var(--shadow-md); /* Enhanced shadow */
+}
+
+.metric-number {
+  font-size: 1.75rem; /* Increased from 1.5rem */
+  font-weight: var(--font-weight-black);
+  margin-bottom: var(--space-2); /* Increased from space-1 */
+  line-height: 1;
+  color: inherit;
+}
+
+.metric-label {
+  font-size: 0.75rem; /* Slightly increased from 0.7rem */
+  color: var(--gray-600);
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2); /* Increased from space-1 */
+  text-align: center;
+  line-height: 1.3; /* Improved line height */
+  margin-top: var(--space-1); /* Added top margin */
+}
+
+/* Color coding for metrics */
+.metric-appointments .metric-number { color: var(--blue-600); }
+.metric-urgent .metric-number { color: var(--warning-color); }
+.metric-completed .metric-number { color: var(--success-color); }
+.metric-cancelled .metric-number { color: var(--error-color); }
+
+/* ========================================
+   MODERN TABLE COMPONENTS - COMPLETELY REDESIGNED
+   ======================================== */
+
+.medical-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  table-layout: auto; /* Changed from fixed to auto */
+  margin-top: var(--space-4);
+  min-width: 1200px; /* Increased minimum width */
+}
+
+.medical-table th {
+  background: var(--cream-200);
+  padding: var(--space-4) var(--space-4);
+  text-align: left;
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-700);
+  font-size: 0.8rem; /* Increased font size */
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--gray-200);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.medical-table td {
+  padding: var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--gray-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-700);
+  font-size: 0.9rem; /* Increased font size */
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+/* COMPLETELY NEW COLUMN APPROACH - NO FIXED WIDTHS */
+.medical-table th:nth-child(1),
+.medical-table td:nth-child(1) {
+  width: auto;
+  min-width: 100px;
+}
+
+.medical-table th:nth-child(2),
+.medical-table td:nth-child(2) {
+  width: auto;
+  min-width: 80px;
+}
+
+.medical-table th:nth-child(3),
+.medical-table td:nth-child(3) {
+  width: auto;
+  min-width: 120px;
+}
+
+.medical-table th:nth-child(4),
+.medical-table td:nth-child(4) {
+  width: auto;
+  min-width: 140px;
+}
+
+.medical-table th:nth-child(5),
+.medical-table td:nth-child(5) {
+  width: auto;
+  min-width: 250px;
+  max-width: 350px;
+}
+
+.medical-table th:nth-child(6),
+.medical-table td:nth-child(6) {
+  width: auto;
+  min-width: 100px;
+}
+
+.medical-table th:nth-child(7),
+.medical-table td:nth-child(7) {
+  width: auto;
+  min-width: 180px;
+}
+
+/* Priority column - better badge display */
+.medical-table td:nth-child(1) {
+  text-align: center;
+  padding: var(--space-3) var(--space-2);
+}
+
+.medical-table td:nth-child(1) .medical-badge {
+  font-size: 0.75rem;
+  padding: var(--space-2) var(--space-3);
+  white-space: nowrap;
+  display: inline-block;
+  margin: 0;
+}
+
+/* Patient ID column */
+.medical-table td:nth-child(2) {
+  font-weight: var(--font-weight-semibold);
+  color: var(--blue-600);
+  text-align: center;
+}
+
+/* Name column */
+.medical-table td:nth-child(3) {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Category column */
+.medical-table td:nth-child(4) {
+  white-space: nowrap;
+}
+
+/* Symptoms column */
+.medical-table td:nth-child(5) {
+  white-space: normal;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+/* Wait Time column */
+.medical-table td:nth-child(6) {
+  text-align: center;
+  font-weight: var(--font-weight-semibold);
+  color: var(--warning-color);
+  white-space: nowrap;
+}
+
+/* Actions column */
+.medical-table td:nth-child(7) {
+  text-align: center;
+  padding: var(--space-3) var(--space-2);
+  white-space: nowrap;
+}
+
+.medical-table td:nth-child(7) .medical-btn {
+  font-size: 0.75rem;
+  padding: var(--space-2) var(--space-3);
+  margin: 0 var(--space-1);
+  white-space: nowrap;
+}
+
+.medical-table tr:hover {
+  background: var(--cream-50);
+}
+
+.medical-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* TABLE CONTAINER - ALWAYS ALLOW HORIZONTAL SCROLL */
+.medical-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  margin-top: var(--space-4);
+  width: 100%;
+}
+
+/* ========================================
+   SCHEDULE TAB FIXES - BETTER ALIGNMENT
+   ======================================== */
+
+/* Schedule widget header improvements */
+.dashboard-widget .widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* Changed from center to flex-start */
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--gray-100);
+  flex-shrink: 0;
+  gap: var(--space-4); /* Add gap between elements */
+}
+
+/* Schedule appointment title styling */
+.dashboard-widget .widget-title {
+  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-800);
+  letter-spacing: -0.025em;
+  margin-bottom: 0;
+  line-height: 1.2;
+  flex: 1; /* Take available space */
+}
+
+/* Schedule appointment badge positioning */
+.dashboard-widget .widget-header .medical-badge {
+  flex-shrink: 0; /* Prevent shrinking */
+  margin-left: auto; /* Push to right */
+  margin-top: var(--space-1); /* Slight top margin for better alignment */
+}
+
+/* Schedule content spacing */
+.dashboard-widget .text-muted {
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-2);
+  line-height: 1.4;
+}
+
+.dashboard-widget .text-muted:last-child {
+  margin-bottom: 0;
+}
+
+/* ========================================
+   FLOATING AI ASSISTANT
+   ======================================== */
+
+.floating-ai-assistant {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+}
+
+/* Floating Button */
+.ai-floating-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--blue-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-weight: var(--font-weight-semibold);
+  font-size: 0.875rem;
+}
+
+.ai-floating-btn:hover {
+  background: var(--blue-700);
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+.ai-floating-btn.ai-btn-active {
+  background: var(--blue-700);
+  transform: scale(0.95);
+}
+
+.ai-icon {
+  font-size: 1.2rem;
+}
+
+.ai-text {
+  white-space: nowrap;
+}
+
+/* AI Chat Popup */
+.ai-chat-popup {
+  position: fixed;
+  bottom: 6rem;
+  right: 2rem;
+  width: 400px;
+  height: 500px;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2xl);
+  border: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px) scale(0.95);
+  transition: all var(--transition-normal);
+}
+
+.ai-chat-popup.ai-popup-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+/* AI Chat Header */
+.ai-chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--gray-200);
+  background: linear-gradient(135deg, var(--blue-50) 0%, var(--cream-50) 100%);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.ai-header-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ai-status-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--success-color);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.ai-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-800);
+  font-size: 0.875rem;
+}
+
+.ai-close-btn {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.ai-close-btn:hover {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+/* AI Chat Content */
+.ai-chat-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ai-chatbox {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ai-chatbox::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ai-chatbox::-webkit-scrollbar-track {
+  background: var(--gray-50);
+}
+
+.ai-chatbox::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-full);
+}
+
+/* AI Message Styles */
+.ai-chatbox .message-user {
+  background: var(--blue-600);
+  color: white;
+  padding: var(--space-3);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+  margin-left: auto;
+  max-width: 80%;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  animation: slideInRight 0.3s ease-out;
+}
+
+.ai-chatbox .message-bot {
+  background: var(--cream-50);
+  color: var(--gray-800);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+  margin-right: auto;
+  max-width: 80%;
+  border: 1px solid var(--cream-200);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  animation: slideInLeft 0.3s ease-out;
+}
+
+/* AI Input Section */
+.ai-input-section {
+  padding: var(--space-4);
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.ai-quick-buttons {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ai-quick-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.75rem;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.ai-quick-btn:hover {
+  background: var(--blue-50);
+  border-color: var(--blue-200);
+  color: var(--blue-700);
+}
+
+.ai-input-group {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.ai-input {
+  flex: 1;
+  padding: var(--space-3);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.ai-input:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 2px var(--blue-100);
+}
+
+.ai-send-btn {
+  background: var(--blue-600);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+}
+
+.ai-send-btn:hover {
+  background: var(--blue-700);
+  transform: translateY(-1px);
+}
+
+/* Responsive Design for AI Assistant */
+@media (max-width: 768px) {
+  .floating-ai-assistant {
+    bottom: 1rem;
+    right: 1rem;
+  }
+  
+  .ai-chat-popup {
+    width: calc(100vw - 2rem);
+    max-width: 350px;
+    height: 450px;
+    bottom: 5rem;
+    right: 1rem;
+  }
+  
+  .ai-floating-btn {
+    padding: var(--space-2) var(--space-3);
+  }
+  
+  .ai-text {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-chat-popup {
+    width: calc(100vw - 1rem);
+    right: 0.5rem;
+    height: 400px;
+  }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Text Utilities */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.text-primary { color: var(--blue-600); }
+.text-success { color: var(--success-color); }
+.text-warning { color: var(--warning-color); }
+.text-danger { color: var(--error-color); }
+.text-muted { color: var(--gray-500); }
+
+/* Spacing Utilities - Enhanced */
+.mt-sm { margin-top: var(--space-2); }
+.mt-md { margin-top: var(--space-4); }
+.mt-lg { margin-top: var(--space-6); }
+.mt-xl { margin-top: var(--space-8); }
+
+.mb-sm { margin-bottom: var(--space-2); }
+.mb-md { margin-bottom: var(--space-4); }
+.mb-lg { margin-bottom: var(--space-6); }
+.mb-xl { margin-bottom: var(--space-8); }
+
+.ml-sm { margin-left: var(--space-2); }
+.ml-md { margin-left: var(--space-4); }
+.ml-lg { margin-left: var(--space-6); }
+.ml-xl { margin-left: var(--space-8); }
+
+.p-sm { padding: var(--space-2); }
+.p-md { padding: var(--space-4); }
+.p-lg { padding: var(--space-6); }
+.p-xl { padding: var(--space-8); }
+
+/* Display Utilities */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.items-center { align-items: center; }
+
+.hidden { display: none; }
+.block { display: block; }
+.inline-block { display: inline-block; }
+
+/* Tab System */
+.tab-content { 
+  display: block; 
+  padding-top: var(--space-4); /* Added padding to tab content */
+}
+.tab-content.hidden { display: none; }
+
+.tab-button {
+  background: transparent !important;
+  border-bottom: 2px solid transparent !important;
+  color: var(--gray-600) !important;
+  border-radius: 0 !important;
+  padding: var(--space-4) var(--space-6) !important; /* Increased tab padding */
+}
+
+.tab-button.active {
+  color: var(--blue-600) !important;
+  border-bottom-color: var(--blue-600) !important;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+  }
+  to { 
+    opacity: 1; 
+  }
+}
+
+/* ========================================
+   RESPONSIVE DESIGN WITH TABLE IMPROVEMENTS
+   ======================================== */
+
+@media (max-width: 768px) {
+  body {
+    padding: var(--space-4);
+  }
+
+  .medical-container {
+    border-radius: var(--radius-xl);
+    min-height: calc(100vh - 2rem);
+  }
+
+  .medical-header {
+    padding: var(--space-8) var(--space-6);
+  }
+
+  .medical-header h1 {
+    font-size: 2rem;
+  }
+
+  .medical-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .medical-content {
+    padding: var(--space-6);
+  }
+
+  .medical-form {
+    padding: var(--space-6);
+  }
+
+  .medical-card {
+    padding: var(--space-6);
+    margin-bottom: var(--space-4);
+  }
+
+  .dashboard-widget {
+    padding: var(--space-6);
+    min-height: 180px;
+  }
+
+  .user, .message-user, .bot, .message-bot {
+    max-width: 90%;
+    padding: var(--space-3);
+  }
+
+  .medical-input-group {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .medical-dashboard {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  .medical-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .medical-table {
+    font-size: 0.75rem;
+  }
+
+  .medical-table th,
+  .medical-table td {
+    padding: var(--space-2);
+    font-size: 0.75rem;
+  }
+  
+  .medical-table td:nth-child(1) .medical-badge {
+    font-size: 0.6rem;
+    padding: 1px var(--space-1);
+  }
+  
+  .medical-table td:nth-child(7) .medical-btn {
+    font-size: 0.65rem;
+    padding: 2px var(--space-1);
+  }
+  
+  /* Adjust column widths for mobile */
+  .medical-table th:nth-child(1) { width: 12%; }  /* Priority */
+  .medical-table th:nth-child(2) { width: 8%; }   /* Patient ID */
+  .medical-table th:nth-child(3) { width: 12%; }  /* Name */
+  .medical-table th:nth-child(4) { width: 12%; }  /* Category */
+  .medical-table th:nth-child(5) { width: 30%; }  /* Symptoms */
+  .medical-table th:nth-child(6) { width: 8%; }   /* Wait Time */
+  .medical-table th:nth-child(7) { width: 18%; }  /* Actions */
+  
+  .medical-table td:nth-child(1) { width: 12%; }
+  .medical-table td:nth-child(2) { width: 8%; }
+  .medical-table td:nth-child(3) { width: 12%; }
+  .medical-table td:nth-child(4) { width: 12%; }
+  .medical-table td:nth-child(5) { width: 30%; }
+  .medical-table td:nth-child(6) { width: 8%; }
+  .medical-table td:nth-child(7) { width: 18%; }
+
+  .metric-item {
+    padding: var(--space-4);
+    min-height: 80px;
+  }
+
+  .metric-number {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .medical-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .medical-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .medical-content {
+    padding: var(--space-4);
+  }
+
+  .medical-form {
+    padding: var(--space-4);
+  }
+
+  .medical-card {
+    padding: var(--space-4);
+  }
+
+  .dashboard-widget {
+    padding: var(--space-4);
+    min-height: 160px;
+  }
+
+  .widget-header {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+  }
+
+  .widget-title {
+    font-size: 1rem;
+  }
+
+  .dashboard-metrics {
+    gap: var(--space-3);
+  }
+
+  .metric-item {
+    padding: var(--space-3);
+    min-height: 70px;
+  }
+
+  .metric-number {
+    font-size: 1.25rem;
+  }
+
+  .metric-label {
+    font-size: 0.7rem;
+    gap: var(--space-1);
+  }
+
+  .medical-table {
+    font-size: 0.7rem;
+  }
+  
+  .medical-table th {
+    font-size: 0.65rem;
+    padding: var(--space-1) var(--space-2);
+  }
+  
+  .medical-table td {
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.7rem;
+  }
+  
+  .medical-table td:nth-child(7) .medical-btn {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    margin: 0 1px;
+  }
+}

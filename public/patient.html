@@ -1,26 +1,238 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Patient Page</title>
-  <style>
-    #chatbox {
-      height: 300px;
-      overflow-y: scroll;
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    .user { color: blue; margin: 5px 0; }
-    .bot { color: green; margin: 5px 0; }
-  </style>
+  <title>SGH Podiatry - Patient Portal</title>
+  <link rel="stylesheet" href="template.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-  <h2>Patient Chatbot</h2>
-  <div id="chatbox"></div>  <!-- Message shown to user, is updated in patient.js -->
+  <div class="medical-container">
+    <div class="medical-header">
+      <h1>🏥 Patient Portal</h1>
+      <div class="subtitle">Singapore General Hospital - Podiatry Digital Assistant</div>
+    </div>
+    
+    <div class="medical-content">
+      <!-- 
+      ========================================
+      PATIENT INFORMATION - LOGIC NEEDED BY BRENDAN
+      ========================================
+      TODO: Replace hardcoded patient data with real user data
+      - Fetch patient name from authentication
+      - Show appointment status and upcoming appointments
+      - Display medical history summary
+      ======================================== 
+      -->
+      <div class="medical-card mb-lg">
+        <div class="flex justify-between items-center">
+          <div>
+            <!-- TODO: Replace with actual patient name from login session -->
+            <h3 class="medical-card-title">👤 Welcome, [PATIENT_NAME]</h3>
+            <!-- TODO: Replace with actual appointment information -->
+            <p class="medical-card-subtitle">📅 Next Appointment: [APPOINTMENT_DATE] with Dr. [DOCTOR_NAME]</p>
+            <!-- TODO: Replace with actual patient ID -->
+            <p class="text-muted" style="font-size: 0.875rem;">🆔 Patient ID: [PATIENT_ID]</p>
+          </div>
+          <div class="flex items-center">
+            <!-- TODO: Replace with actual appointment status -->
+            <span class="medical-badge badge-success">✅ [APPOINTMENT_STATUS]</span>
+            <!-- TODO: Connect to settings page -->
+            <button class="medical-btn medical-btn-secondary medical-btn-sm ml-md">⚙️ Settings</button>
+            <!-- TODO: Connect to logout functionality -->
+            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
 
-  <input id="message" placeholder="Type your message..." />
+      <!-- Main Chat Interface -->
+      <div class="medical-card">
+        <div class="medical-card-header">
+          <h2 class="medical-card-title">🤖 Digital Nurse Assistant</h2>
+          <p class="medical-card-subtitle">Get help with your foot health concerns, appointment booking, and medical guidance</p>
+        </div>
 
-  <button onclick="sendMessage()">Send</button> <!-- When user click on send button, run sendMessage() function in patient.js-->
+        <!-- 
+        ========================================
+        PATIENT CHATBOT - LOGIC NEEDED BY BRENDAN
+        ========================================
+        TODO: Connect to AI chatbot system for patients
+        - Integrate with OpenAI/LLM API
+        - Add medical triage functionality
+        - Implement symptom assessment
+        - Add appointment scheduling integration
+        ======================================== 
+        -->
+        <div class="medical-chat">
+          <div id="chatbox" class="medical-chatbox">
+            <!-- TODO: Replace with dynamic welcome message -->
+            <div class="message-bot">
+              <b>🤖 Digital Nurse:</b> Hello! I'm your digital healthcare assistant. I can help you with:
+              <br>• Assessing your foot health symptoms
+              <br>• Scheduling appointments
+              <br>• Providing care instructions
+              <br>• Answering medical questions
+              <br><br>How can I assist you today?
+            </div>
+          </div>
+          
+          <div class="medical-input-group">
+            <!-- TODO: Connect to patient chat processing function -->
+            <input 
+              id="message" 
+              class="medical-input" 
+              placeholder="Describe your symptoms or ask a question..."
+              onkeypress="handleEnter(event)"
+            />
+            <!-- TODO: Implement sendMessage() function -->
+            <button class="medical-btn medical-btn-primary" onclick="sendMessage()">
+              📤 Send
+            </button>
+          </div>
+
+          <div class="mt-lg">
+            <p class="medical-label">💡 Quick options:</p>
+            <div class="flex" style="gap: var(--space-sm); flex-wrap: wrap;">
+              <!-- TODO: Connect these to specific chat functions -->
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('book appointment')">
+                📅 Book Appointment
+              </button>
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('foot pain')">
+                🦶 Foot Pain
+              </button>
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('wound care')">
+                🩹 Wound Care
+              </button>
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('nail problems')">
+                💅 Nail Problems
+              </button>
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('diabetic foot')">
+                🩺 Diabetic Foot
+              </button>
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('emergency')">
+                🚨 Emergency
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional Information Cards -->
+      <div class="medical-dashboard mt-xl">
+        <div class="dashboard-widget">
+          <div class="widget-header">
+            <h3 class="widget-title">📋 Your Health Summary</h3>
+          </div>
+          <div class="widget-content">
+            <!-- TODO: Replace with actual patient health data -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+              <div class="flex justify-between items-center">
+                <span>Last Visit:</span>
+                <span class="text-primary">[LAST_VISIT_DATE]</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span>Current Condition:</span>
+                <span class="medical-badge badge-info">[CONDITION_STATUS]</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span>Treatment Plan:</span>
+                <span class="text-muted">[TREATMENT_PLAN]</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-widget">
+          <div class="widget-header">
+            <h3 class="widget-title">📅 Upcoming Appointments</h3>
+          </div>
+          <div class="widget-content">
+            <!-- TODO: Replace with actual appointment data -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+              <div class="medical-card" style="padding: var(--space-md); margin: 0;">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <p class="text-primary font-semibold">[APPOINTMENT_DATE]</p>
+                    <p class="text-muted" style="font-size: 0.8rem;">Dr. [DOCTOR_NAME] - [APPOINTMENT_TYPE]</p>
+                  </div>
+                  <span class="medical-badge badge-success">Confirmed</span>
+                </div>
+              </div>
+              <!-- TODO: Add more appointments dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-widget">
+          <div class="widget-header">
+            <h3 class="widget-title">💊 Care Instructions</h3>
+          </div>
+          <div class="widget-content">
+            <!-- TODO: Replace with actual care instructions -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+              <div class="flex items-center">
+                <span style="margin-right: var(--space-2);">🏃‍♂️</span>
+                <span>Daily foot exercises</span>
+              </div>
+              <div class="flex items-center">
+                <span style="margin-right: var(--space-2);">🧼</span>
+                <span>Keep feet clean and dry</span>
+              </div>
+              <div class="flex items-center">
+                <span style="margin-right: var(--space-2);">👟</span>
+                <span>Wear proper footwear</span>
+              </div>
+              <div class="flex items-center">
+                <span style="margin-right: var(--space-2);">🔍</span>
+                <span>Daily foot inspection</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Emergency Contact Information -->
+      <div class="medical-card mt-xl">
+        <div class="medical-card-header">
+          <h3 class="medical-card-title">🚨 Emergency Contacts</h3>
+        </div>
+        <div class="medical-dashboard">
+          <div class="dashboard-widget">
+            <div class="widget-header">
+              <h4 class="widget-title">📞 Hospital Contacts</h4>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+              <div class="flex items-center">
+                <span>🏥</span>
+                <span class="ml-sm">SGH Main Line: 6222 3322</span>
+              </div>
+              <div class="flex items-center">
+                <span>🦶</span>
+                <span class="ml-sm">Podiatry Clinic: 6321 4377</span>
+              </div>
+              <div class="flex items-center">
+                <span>🚨</span>
+                <span class="ml-sm">Emergency: 995</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-widget">
+            <div class="widget-header">
+              <h4 class="widget-title">ℹ️ Important Notes</h4>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+              <p class="text-muted" style="font-size: 0.875rem; line-height: 1.4;">
+                If you experience severe pain, bleeding, or signs of infection, please seek immediate medical attention.
+              </p>
+              <p class="text-muted" style="font-size: 0.875rem; line-height: 1.4;">
+                For urgent concerns outside clinic hours, visit the Emergency Department.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="patient.js"></script>
 </body>
