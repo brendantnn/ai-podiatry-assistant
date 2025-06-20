@@ -16,7 +16,6 @@ const openai = new OpenAI({
 // key = fake session ID (for now, assume 1 user)
 const session = {}; 
 
-
 // PATIENT CHATBOT LOGIC
 // This function runs when patient.js sends a HTTP POST request to /chat route
 app.post("/chat", async (req, res) => {
@@ -80,6 +79,113 @@ Respond with:
   } catch (err) {
     console.error("Chat error (patient):", err);
     return res.status(500).json({ reply: "Something went wrong." });
+  }
+});
+
+// PROFESSIONAL PODIATRIST AI ASSISTANT ROUTE
+app.post("/podiatrist-chat", async (req, res) => {
+  const userMessage = req.body.message;
+  const podiatristId = req.body.podiatristId || "pod1";
+
+  try {
+    const chatCompletion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `You are an AI clinical assistant for podiatrists at Singapore General Hospital. 
+
+RESPONSE FORMATTING RULES:
+- Use clear, professional medical language
+- Structure responses with headers and bullet points for readability
+- Bold important medical terms and conditions
+- Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
+- Keep responses concise but comprehensive
+- Always provide evidence-based recommendations
+
+You help with:
+1. **Clinical Decision Support** - Evidence-based treatment recommendations
+2. **Medical Knowledge** - Information about podiatry conditions and protocols  
+3. **Patient Management** - Guidance on case prioritization and workflow
+4. **Treatment Protocols** - Step-by-step treatment approaches
+5. **Drug Information** - Interactions, dosages, and contraindications
+
+PODIATRY CATEGORIES:
+**Wound Care** (Priority 1 - Most Urgent)
+- Diabetic foot ulcers, infections, neuropathic/ischemic wounds
+- Signs: redness, swelling, pus, warmth, gangrene
+
+**Nail Surgery** (Priority 2)  
+- Ingrown toenails, nail disorders, onychomycosis
+
+**High Risk Footcare** (Priority 3)
+- Callus, corns, warts in diabetic/high-risk patients
+- Pathological toenails, foot deformities
+
+**MSK Conditions** (Priority 4)
+- Plantar fasciitis, bunions, tendon issues
+- Footwear problems, biomechanical issues
+
+FORMAT EXAMPLE:
+## Treatment for Diabetic Foot Infections
+
+**First-Line Antibiotics:**
+• **Clindamycin** 300-450mg q6h (anaerobic coverage)
+• **Cephalexin** 500mg q6h (gram-positive coverage)
+• **Augmentin** 875mg q12h (broad spectrum)
+
+**Severe Infections:**
+• **Vancomycin** + **Piperacillin-tazobactam**
+• Consider MRSA coverage if risk factors present
+
+**Key Considerations:**
+• Duration: 7-14 days for soft tissue, 4-6 weeks for osteomyelitis
+• Monitor renal function with vancomycin
+• Culture-guided therapy when possible
+
+**Warning Signs:** Spreading erythema, systemic symptoms, poor glycemic control
+
+Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`
+        },
+        { 
+          role: "user", 
+          content: userMessage 
+        },
+      ],
+    });
+
+    return res.json({
+      reply: chatCompletion.choices[0].message.content,
+    });
+
+  } catch (err) {
+    console.error("Podiatrist chat error:", err);
+    return res.status(500).json({ reply: "Something went wrong with the clinical assistant." });
+  }
+});
+
+// PATIENT-SPECIFIC QUERIES (for when database is ready)
+app.post("/podiatrist-patient-query", async (req, res) => {
+  const { query, patientId } = req.body;
+
+  try {
+    // TODO: Fetch patient data from database when Yin Er has it ready
+    // const patientData = await getPatientData(patientId);
+    
+    // For now, return a placeholder response
+    if (patientId) {
+      return res.json({
+        reply: `I understand you're asking about patient ${patientId}: "${query}". Once the patient database is connected, I'll be able to provide specific information about this patient's history, symptoms, and treatment plan.`
+      });
+    }
+
+    return res.json({
+      reply: "Please specify a patient ID for patient-specific queries."
+    });
+
+  } catch (err) {
+    console.error("Patient query error:", err);
+    return res.status(500).json({ reply: "Error accessing patient information." });
   }
 });
 

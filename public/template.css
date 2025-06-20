@@ -311,18 +311,21 @@ body {
 }
 
 /* ========================================
-   MODERN CHAT COMPONENTS
+   ENHANCED CHAT COMPONENTS - BIGGER AND BETTER FORMATTED
    ======================================== */
 
+/* Main AI Chat Tab - Make it bigger */
 .medical-chat {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 600px; /* Increased from default */
 }
 
 .medical-chatbox {
   flex: 1;
-  max-height: 500px;
+  max-height: 600px; /* Increased from 500px */
+  min-height: 450px; /* Added minimum height */
   overflow-y: auto;
   padding: var(--space-6);
   background: var(--bg-card);
@@ -350,30 +353,69 @@ body {
   background: var(--gray-400);
 }
 
-/* Message Styles - Support both old and new classes */
-.user, .message-user {
-  background: var(--blue-600);
-  color: white;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
-  margin: var(--space-3) 0 var(--space-3) auto;
-  max-width: 80%;
-  font-weight: var(--font-weight-medium);
-  box-shadow: var(--shadow-sm);
-  animation: slideInRight 0.3s ease-out;
-}
-
-.bot, .message-bot {
+/* Enhanced message styling for better structure */
+.medical-chatbox .message-bot, .bot {
   background: var(--cream-50);
   color: var(--gray-800);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5); /* Increased padding */
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
-  margin: var(--space-3) auto var(--space-3) 0;
-  max-width: 80%;
+  margin: var(--space-4) auto var(--space-4) 0; /* Increased margin */
+  max-width: 85%; /* Slightly wider */
   border: 1px solid var(--cream-200);
   font-weight: var(--font-weight-medium);
   box-shadow: var(--shadow-xs);
   animation: slideInLeft 0.3s ease-out;
+  line-height: 1.6; /* Better line height for readability */
+  font-size: 0.95rem; /* Slightly larger font */
+}
+
+.medical-chatbox .message-user, .user {
+  background: var(--blue-600);
+  color: white;
+  padding: var(--space-4) var(--space-5); /* Increased padding */
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
+  margin: var(--space-4) 0 var(--space-4) auto; /* Increased margin */
+  max-width: 85%; /* Slightly wider */
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-sm);
+  animation: slideInRight 0.3s ease-out;
+  line-height: 1.6; /* Better line height for readability */
+  font-size: 0.95rem; /* Slightly larger font */
+}
+
+/* Style lists and bullet points in AI responses */
+.medical-chatbox .message-bot ul {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-4);
+  list-style-type: disc;
+}
+
+.medical-chatbox .message-bot ol {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-4);
+  list-style-type: decimal;
+}
+
+.medical-chatbox .message-bot li {
+  margin-bottom: var(--space-2);
+  line-height: 1.5;
+}
+
+.medical-chatbox .message-bot p {
+  margin-bottom: var(--space-3);
+  line-height: 1.6;
+}
+
+.medical-chatbox .message-bot strong {
+  color: var(--blue-700);
+  font-weight: var(--font-weight-bold);
+}
+
+.medical-chatbox .message-bot h4 {
+  color: var(--blue-700);
+  margin: var(--space-4) 0 var(--space-2) 0;
+  font-size: 1.1rem;
+  font-weight: var(--font-weight-bold);
 }
 
 .medical-input-group {
@@ -852,7 +894,7 @@ body {
 }
 
 /* ========================================
-   FLOATING AI ASSISTANT
+   ENHANCED FLOATING AI ASSISTANT
    ======================================== */
 
 .floating-ai-assistant {
@@ -898,13 +940,13 @@ body {
   white-space: nowrap;
 }
 
-/* AI Chat Popup */
+/* Enhanced floating AI assistant sizing */
 .ai-chat-popup {
   position: fixed;
   bottom: 6rem;
   right: 2rem;
-  width: 400px;
-  height: 500px;
+  width: 450px; /* Increased from 400px */
+  height: 600px; /* Increased from 500px */
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2xl);
@@ -985,6 +1027,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-height: 350px; /* Added minimum height */
 }
 
 .ai-chatbox::-webkit-scrollbar {
@@ -1000,30 +1043,59 @@ body {
   border-radius: var(--radius-full);
 }
 
-/* AI Message Styles */
-.ai-chatbox .message-user {
-  background: var(--blue-600);
-  color: white;
-  padding: var(--space-3);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
-  margin-left: auto;
-  max-width: 80%;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  animation: slideInRight 0.3s ease-out;
-}
-
+/* Enhanced floating AI message styling */
 .ai-chatbox .message-bot {
   background: var(--cream-50);
   color: var(--gray-800);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4); /* Increased padding */
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
   margin-right: auto;
-  max-width: 80%;
+  max-width: 85%; /* Increased from 80% */
   border: 1px solid var(--cream-200);
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 0.9rem; /* Slightly larger font */
+  line-height: 1.5;
   animation: slideInLeft 0.3s ease-out;
+}
+
+.ai-chatbox .message-user {
+  background: var(--blue-600);
+  color: white;
+  padding: var(--space-3) var(--space-4); /* Increased padding */
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+  margin-left: auto;
+  max-width: 85%; /* Increased from 80% */
+  font-size: 0.9rem; /* Slightly larger font */
+  line-height: 1.5;
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* Style lists in floating AI too */
+.ai-chatbox .message-bot ul,
+.ai-chatbox .message-bot ol {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-3);
+}
+
+.ai-chatbox .message-bot li {
+  margin-bottom: var(--space-1);
+  line-height: 1.4;
+}
+
+.ai-chatbox .message-bot p {
+  margin-bottom: var(--space-2);
+  line-height: 1.5;
+}
+
+.ai-chatbox .message-bot strong {
+  color: var(--blue-700);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ai-chatbox .message-bot h4 {
+  color: var(--blue-700);
+  margin: var(--space-3) 0 var(--space-1) 0;
+  font-size: 1rem;
+  font-weight: var(--font-weight-bold);
 }
 
 /* AI Input Section */
@@ -1096,38 +1168,6 @@ body {
 .ai-send-btn:hover {
   background: var(--blue-700);
   transform: translateY(-1px);
-}
-
-/* Responsive Design for AI Assistant */
-@media (max-width: 768px) {
-  .floating-ai-assistant {
-    bottom: 1rem;
-    right: 1rem;
-  }
-  
-  .ai-chat-popup {
-    width: calc(100vw - 2rem);
-    max-width: 350px;
-    height: 450px;
-    bottom: 5rem;
-    right: 1rem;
-  }
-  
-  .ai-floating-btn {
-    padding: var(--space-2) var(--space-3);
-  }
-  
-  .ai-text {
-    display: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .ai-chat-popup {
-    width: calc(100vw - 1rem);
-    right: 0.5rem;
-    height: 400px;
-  }
 }
 
 /* ========================================
@@ -1246,6 +1286,7 @@ body {
    RESPONSIVE DESIGN WITH TABLE IMPROVEMENTS
    ======================================== */
 
+/* Responsive Design for AI Assistant */
 @media (max-width: 768px) {
   body {
     padding: var(--space-4);
@@ -1351,6 +1392,32 @@ body {
   .metric-number {
     font-size: 1.5rem;
   }
+
+  .medical-chatbox {
+    max-height: 450px;
+    min-height: 350px;
+  }
+  
+  .floating-ai-assistant {
+    bottom: 1rem;
+    right: 1rem;
+  }
+  
+  .ai-chat-popup {
+    width: calc(100vw - 2rem);
+    max-width: 400px;
+    height: 550px;
+    bottom: 5rem;
+    right: 1rem;
+  }
+  
+  .ai-floating-btn {
+    padding: var(--space-2) var(--space-3);
+  }
+  
+  .ai-text {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1424,5 +1491,16 @@ body {
     font-size: 0.6rem;
     padding: 1px 4px;
     margin: 0 1px;
+  }
+
+  .medical-chatbox {
+    max-height: 400px;
+    min-height: 300px;
+  }
+  
+  .ai-chat-popup {
+    width: calc(100vw - 1rem);
+    right: 0.5rem;
+    height: 500px;
   }
 }

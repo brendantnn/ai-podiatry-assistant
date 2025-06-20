@@ -49,14 +49,176 @@ function viewReports() {
 }
 
 function accessResources() {
-  alert('📚 Accessing clinical resources...');
+  alert('Accessing clinical resources...');
   // TODO: JUNJIE - Replace with actual resources backend integration
   // TODO: JONATHAN - Add resources UI and navigation
 }
 
 // ========================================
-// FLOATING AI ASSISTANT FUNCTIONALITY
-// TODO: Connect to actual AI/chatbot system
+// BERNICE'S PROFESSIONAL AI CHATBOT IMPLEMENTATION
+// Enhanced formatting with professional styling
+// ========================================
+
+// Enhanced helper function to format AI responses with better structure
+function formatAIResponse(message) {
+  // Convert markdown-style formatting to HTML
+  let formatted = message
+    // Bold text: **text** -> <strong>text</strong>
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Headers: ## Title -> <h4>Title</h4>
+    .replace(/^## (.+)$/gm, '<h4 style="color: var(--blue-700); margin: var(--space-4) 0 var(--space-2) 0; font-size: 1.1rem;">$1</h4>')
+    // Single bullet points: • text -> <li>text</li>
+    .replace(/^[•·]\s+(.+)$/gm, '<li>$1</li>')
+    // Numbered lists: 1. text -> <li>text</li> 
+    .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+    // Line breaks
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+    
+  // Wrap in paragraphs and handle lists
+  formatted = '<p>' + formatted + '</p>';
+  
+  // Fix lists by wrapping consecutive <li> items in <ul>
+  formatted = formatted.replace(/(<li>.*?<\/li>)(\s*<br>\s*<li>.*?<\/li>)*/g, function(match) {
+    const listItems = match.match(/<li>.*?<\/li>/g);
+    return '<ul>' + listItems.join('') + '</ul>';
+  });
+  
+  // Clean up empty paragraphs
+  formatted = formatted.replace(/<p><\/p>/g, '').replace(/<p><br><\/p>/g, '');
+  
+  return formatted;
+}
+
+// PROFESSIONAL Main AI Chat Function
+async function sendPodiatristMessage() {
+  const input = document.getElementById('podiatristMessage');
+  const chatbox = document.getElementById('podiatristChatbox');
+  
+  if (!input || !chatbox) return;
+  
+  const message = input.value.trim();
+  if (!message) return;
+  
+  // Add user message to chat - Professional styling
+  chatbox.innerHTML += `<div class="message-user"><strong>Dr. [NAME]:</strong> ${message}</div>`;
+  input.value = '';
+  chatbox.scrollTop = chatbox.scrollHeight;
+
+  try {
+    // Send to podiatrist chat endpoint
+    const response = await fetch("/podiatrist-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        message: message,
+        podiatristId: "current_podiatrist"
+      })
+    });
+
+    const data = await response.json();
+
+    // Format and display AI response with professional structure
+    const formattedReply = formatAIResponse(data.reply);
+    chatbox.innerHTML += `<div class="message-bot"><strong>Clinical Assistant:</strong><br>${formattedReply}</div>`;
+    chatbox.scrollTop = chatbox.scrollHeight;
+
+  } catch (err) {
+    console.error("AI chat error:", err);
+    chatbox.innerHTML += `<div class="message-bot"><strong>Clinical Assistant:</strong> I'm currently unable to connect. Please try again.</div>`;
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
+}
+
+// Enhanced Quick Query Function with Patient Support
+async function sendQuickQuery(query) {
+  const chatbox = document.getElementById('podiatristChatbox') || document.getElementById('aiChatbox');
+  
+  // Add user query to chat
+  addMessageToChat(query, 'user', chatbox);
+  
+  try {
+    let response;
+    
+    // Check if it's a patient-specific query
+    if (query.includes('patient summary') || query.includes('Patient')) {
+      // This will work better once database is ready
+      response = await fetch("/podiatrist-patient-query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          query: query,
+          patientId: "P001" // Default for now, will be dynamic later
+        })
+      });
+    } else {
+      // General medical queries
+      response = await fetch("/podiatrist-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          message: generateQueryPrompt(query),
+          podiatristId: "current_podiatrist"
+        })
+      });
+    }
+
+    const data = await response.json();
+    addMessageToChat(data.reply, 'bot', chatbox);
+
+  } catch (err) {
+    console.error("Quick query error:", err);
+    addMessageToChat("Error processing your request. Please try again.", 'bot', chatbox);
+  }
+}
+
+// Helper function to generate specific prompts for quick queries
+function generateQueryPrompt(query) {
+  const prompts = {
+    'patient summary': 'Can you provide guidance on reviewing patient cases and what key information I should focus on during consultations?',
+    'treatment options': 'What are the standard treatment protocols for common podiatry conditions like diabetic foot ulcers, plantar fasciitis, and ingrown toenails?',
+    'drug interactions': 'What are important drug interactions I should be aware of when treating foot conditions, especially for diabetic patients?',
+    'clinical guidelines': 'Can you summarize the latest clinical guidelines for podiatry care, particularly for wound management and diabetic foot care?',
+    'urgent cases': 'What are the red flags and criteria I should use to identify urgent cases that need immediate attention in podiatry?',
+    'scheduling': 'What factors should I consider when prioritizing patient appointments based on condition severity?'
+  };
+  
+  return prompts[query] || query;
+}
+
+// PROFESSIONAL addMessageToChat function with formatting
+function addMessageToChat(message, sender, chatbox) {
+  if (!chatbox) return;
+  
+  const messageDiv = document.createElement('div');
+  messageDiv.className = sender === 'user' ? 'message-user' : 'message-bot';
+  
+  if (sender === 'user') {
+    messageDiv.innerHTML = `<strong>Dr. [NAME]:</strong> ${message}`;
+  } else {
+    const formattedMessage = formatAIResponse(message);
+    messageDiv.innerHTML = `<strong>Clinical Assistant:</strong><br>${formattedMessage}`;
+  }
+  
+  chatbox.appendChild(messageDiv);
+  chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+// Add Enter key support for main chat
+function addEnterKeySupport() {
+  const mainInput = document.getElementById('podiatristMessage');
+  if (mainInput) {
+    mainInput.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        sendPodiatristMessage();
+      }
+    });
+  }
+}
+
+// ========================================
+// PROFESSIONAL FLOATING AI ASSISTANT
+// Enhanced with professional styling
 // ========================================
 
 // Toggle AI Chat Popup
@@ -64,59 +226,48 @@ function toggleAIChat() {
   const popup = document.getElementById('aiChatPopup');
   const btn = document.getElementById('aiFloatingBtn');
   
-  if (popup.classList.contains('ai-popup-open')) {
-    popup.classList.remove('ai-popup-open');
-    btn.classList.remove('ai-btn-active');
-  } else {
-    popup.classList.add('ai-popup-open');
-    btn.classList.add('ai-btn-active');
+  if (popup && btn) {
+    if (popup.classList.contains('ai-popup-open')) {
+      popup.classList.remove('ai-popup-open');
+      btn.classList.remove('ai-btn-active');
+    } else {
+      popup.classList.add('ai-popup-open');
+      btn.classList.add('ai-btn-active');
+    }
   }
 }
 
-// Send AI Message
-function sendAIMessage() {
+// PROFESSIONAL sendAIMessage function for floating chat
+async function sendAIMessage() {
   const input = document.getElementById('aiMessage');
   const message = input.value.trim();
   if (message) {
     // Add user message to chat
-    addAIMessage(message, 'user');
+    addFormattedAIMessage(message, 'user');
     input.value = '';
     
-    // TODO: Replace with actual AI integration
-    // Simulate AI response
-    setTimeout(() => {
-      addAIMessage('I understand your query about "' + message + '". This is where the AI response would appear based on your medical knowledge base. Your team can integrate real AI functionality here.', 'bot');
-    }, 1000);
+    try {
+      const response = await fetch("/podiatrist-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          message: message,
+          podiatristId: "current_podiatrist"
+        })
+      });
+
+      const data = await response.json();
+      addFormattedAIMessage(data.reply, 'bot');
+
+    } catch (err) {
+      console.error("Floating AI chat error:", err);
+      addFormattedAIMessage("Unable to connect to clinical assistant. Please try again.", 'bot');
+    }
   }
 }
 
-// Send Quick Query
-function sendQuickQuery(query) {
-  addAIMessage(query, 'user');
-  
-  // TODO: Replace with actual AI integration
-  // Simulate AI response for quick queries
-  setTimeout(() => {
-    let response = '';
-    switch(query) {
-      case 'patient summary':
-        response = 'Here are the current patients requiring attention: 2 urgent cases, 3 high priority cases. Would you like details on any specific patient?';
-        break;
-      case 'treatment options':
-        response = 'Based on current cases: Wound care protocols for diabetic ulcers, nail surgery procedures, and MSK rehabilitation options are most relevant.';
-        break;
-      case 'urgent cases':
-        response = 'Current urgent cases: Patient P001 (diabetic foot ulcer with infection signs) - requires immediate attention. Patient queue shows 2h 15m wait time.';
-        break;
-      default:
-        response = 'I can help you with ' + query + '. What specific information do you need?';
-    }
-    addAIMessage(response, 'bot');
-  }, 1000);
-}
-
-// Add Message to AI Chat
-function addAIMessage(message, sender) {
+// Professional Add Message function with formatting for floating AI
+function addFormattedAIMessage(message, sender) {
   const chatbox = document.getElementById('aiChatbox');
   const messageDiv = document.createElement('div');
   messageDiv.className = sender === 'user' ? 'message-user' : 'message-bot';
@@ -124,7 +275,8 @@ function addAIMessage(message, sender) {
   if (sender === 'user') {
     messageDiv.innerHTML = '<strong>You:</strong> ' + message;
   } else {
-    messageDiv.innerHTML = '<strong>🤖 AI:</strong> ' + message;
+    const formattedMessage = formatAIResponse(message);
+    messageDiv.innerHTML = '<strong>Clinical Assistant:</strong><br>' + formattedMessage;
   }
   
   chatbox.appendChild(messageDiv);
@@ -139,33 +291,51 @@ function handleAIEnter(event) {
 }
 
 // ========================================
+// PATIENT-SPECIFIC QUERY FUNCTIONS
+// These will work better once Yin Er has the database ready
+// ========================================
+
+// Function to query specific patient information
+async function queryPatientInfo(patientId, question) {
+  try {
+    const response = await fetch("/podiatrist-patient-query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        query: question,
+        patientId: patientId
+      })
+    });
+
+    const data = await response.json();
+    
+    // Display in the active chatbox
+    const chatbox = document.getElementById('podiatristChatbox') || document.getElementById('aiChatbox');
+    addMessageToChat(`Question about ${patientId}: ${question}`, 'user', chatbox);
+    addMessageToChat(data.reply, 'bot', chatbox);
+
+  } catch (err) {
+    console.error("Patient query error:", err);
+  }
+}
+
+// Quick patient query buttons (you can add these to HTML later)
+function quickPatientQuery(patientId) {
+  const questions = [
+    "What is the current treatment plan?",
+    "What are the latest symptoms reported?",
+    "When was the last appointment?",
+    "Are there any urgent concerns?"
+  ];
+  
+  // For now, just ask the first question
+  queryPatientInfo(patientId, questions[0]);
+}
+
+// ========================================
 // LEGACY AI ASSISTANT FUNCTIONALITY (For backwards compatibility)
 // TODO: Remove these once floating AI is fully integrated
 // ========================================
-
-function sendPodiatristMessage() {
-  const input = document.getElementById('podiatristMessage');
-  const chatbox = document.getElementById('podiatristChatbox');
-  
-  // Check if elements exist (for backwards compatibility)
-  if (!input || !chatbox) return;
-  
-  const message = input.value.trim();
-  
-  if (!message) return;
-  
-  // Add user message
-  chatbox.innerHTML += `<div class="message-user"><b>👨‍⚕️ You:</b> ${message}</div>`;
-  input.value = '';
-  
-  // TODO: Replace this simulation with actual AI integration
-  setTimeout(() => {
-    chatbox.innerHTML += `<div class="message-bot"><b>🤖 AI Assistant:</b> I'm processing your query about "${message}". This is a simulation response. Your team can integrate real AI functionality here.</div>`;
-    chatbox.scrollTop = chatbox.scrollHeight;
-  }, 1000);
-  
-  chatbox.scrollTop = chatbox.scrollHeight;
-}
 
 // ========================================
 // PATIENT QUEUE MANAGEMENT
@@ -274,6 +444,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Set default active tab
   showTab('patients');
+  
+  // Add enter key support for AI chat
+  addEnterKeySupport();
   
   // TODO: Load initial data
   // loadDashboardData();
