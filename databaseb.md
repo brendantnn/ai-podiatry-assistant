@@ -33,4 +33,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 
 # step 3:
-i have enabled the Authentication -> email/password.
+i have enabled the Authentication -> email/password on firebase.
+
+# step 4:
+get/download the serviceAccountKey.json given personally.
