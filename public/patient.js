@@ -33,7 +33,7 @@ window.onload = async () => {
     // Show combined message
     chatbox.innerHTML += `
       <div class="bot">
-        <b>🤖 Digital Nurse Assistant:</b> Hello <b>${name}</b>! I'm your digital healthcare assistant.<br>
+        <b>🤖 Digital Nurse Assistant:</b> <br>Hello <b>${name}</b>! I'm your digital healthcare assistant.<br>
         ${appointmentText}<br>
         Type <b>'triage'</b> to begin an assessment or <b>'appointment'</b> to view your upcoming visit.
       </div>

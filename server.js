@@ -36,8 +36,11 @@ app.post("/chat", async (req, res) => {
   session[userId] = session[userId] || { state: "idle" };
   const s = session[userId];
 
+  // State now is idle, waiting for user to type triage or appointemnt to change state
+
   try {
-    // Step 1: User starts triage
+
+    // Step 1: User starts triage,
     if (userMessage.toLowerCase().includes("triage")) {
       s.state = "triage";
       return res.json({
@@ -46,13 +49,13 @@ app.post("/chat", async (req, res) => {
     }
 
     // Step 2: User is in triage mode, describe symptoms
-    if (s.state === "triage") {
-      const chatCompletion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are a podiatry triage assistant.
+   if (s.state === "triage") {
+  const chatCompletion = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: `You are a podiatry triage assistant.
 Given a user's description of their foot-related symptoms, classify it into one of the following categories based on symptoms and urgency:
 
 1. Wound care (most urgent): wounds, redness, swelling, pain, pus, warmth, gangrene, infection, ulcers, neuropathic/ischemic wounds.
@@ -63,17 +66,131 @@ Given a user's description of their foot-related symptoms, classify it into one 
 Respond with:
 - Category
 - Explanation
-- Urgency level (e.g., 'Requires immediate attention' or 'Can be reviewed in a few weeks').`,
-          },
-          { role: "user", content: userMessage },
-        ],
-      });
+- Urgency level (e.g., 'Requires immediate attention' or 'Can be reviewed in a few weeks').`
+      },
+      { role: "user", content: userMessage },
+    ],
+  });
 
-      s.state = "idle"; // Reset state after handling triage
+  const reply = chatCompletion.choices[0].message.content;
+
+  const categoryMatch = reply.match(/Category:\s*(.*)/i);
+  const urgencyMatch = reply.match(/Urgency level:\s*(.*)/i);
+  const category = categoryMatch?.[1] || "Unknown";
+  const urgency = urgencyMatch?.[1] || "";
+
+  let daysRange = 14;
+  if (urgency.toLowerCase().includes("immediate")) daysRange = 2;
+  else if (category.toLowerCase().includes("nail")) daysRange = 7;
+  else if (category.toLowerCase().includes("msk")) daysRange = 21;
+
+  const now = new Date();
+  const endDate = new Date();
+  endDate.setDate(now.getDate() + daysRange);
+
+  try {
+    const slotQuery = await db.collection("Availability")
+      .where("status", "==", "available")
+      .where("availableDate", ">=", now)
+      .where("availableDate", "<=", endDate)
+      .orderBy("availableDate")
+      .limit(1)
+      .get();
+
+    if (slotQuery.empty) {
+      s.state = "idle";
       return res.json({
-        reply: chatCompletion.choices[0].message.content,
+        reply: `${reply}\n\n❌ No available appointment slots found in the recommended timeframe.`
       });
     }
+
+    const slotDoc = slotQuery.docs[0];
+    const slotData = slotDoc.data();
+
+    // Store slot temporarily in session
+    s.state = "awaiting_confirmation";
+    s.pendingSlot = slotDoc;
+    s.pendingSlotData = slotData;
+
+    const formattedDate = new Date(slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate)
+      .toLocaleString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      });
+
+    return res.json({
+      reply: `${reply}\n\n📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.\nWould you like to book this appointment? (yes/no)`
+    });
+
+  } catch (err) {
+    console.error("❌ Error finding available slot:", err);
+    s.state = "idle";
+    return res.json({ reply: `${reply}\n\n⚠️ An error occurred while checking availability.` });
+  }
+}
+  
+
+//end of if state triage
+
+// Step 3: User is confirming the proposed slot
+if (s.state === "awaiting_confirmation") {
+  const answer = userMessage.toLowerCase();
+
+  if (answer.includes("yes")) {
+    const slotDoc = s.pendingSlot;
+    const slotData = s.pendingSlotData;
+
+    await db.collection("Appointments").add({
+      patientId: "patient_1",
+      podId: slotData.podId,
+      scheduledDate: slotData.availableDate,
+      status: "scheduled"
+    });
+
+    await slotDoc.ref.update({ status: "booked" });
+
+    const formattedDate = new Date(slotData.availableDate.toDate())
+      .toLocaleString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      });
+
+    s.state = "idle";
+    s.pendingSlot = null;
+    s.pendingSlotData = null;
+
+    return res.json({
+      reply: `✅ Appointment confirmed for <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.`
+    });
+  }
+
+  if (answer.includes("no")) {
+    s.state = "idle";
+    s.pendingSlot = null;
+    s.pendingSlotData = null;
+
+    return res.json({
+      reply: "❌ No worries. Let me know if you'd like me to check another slot or start over."
+    });
+  }
+
+  return res.json({
+    reply: "❓ Please reply with 'yes' or 'no' to confirm your appointment."
+  });
+}
+
 
     // Appointment logic
     if (userMessage.toLowerCase().includes("appointment")) {
