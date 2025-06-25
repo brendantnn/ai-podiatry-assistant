@@ -21,7 +21,7 @@
 
         <!-- 
         ========================================
-        LOGIN FORM - LOGIC NEEDED BY JUNJIE
+        LOGIN FORM - LOGIC NEEDED BY JUNJIE -> YE started on it
         ========================================
         TODO: Implement authentication logic in login.js
         - Form validation for userType, userId, password
@@ -46,14 +46,14 @@
 
           <div class="form-group">
             <label class="medical-label" for="userId">
-              <span>🆔</span> User ID / NRIC
+              <span>🆔</span> Email Address
             </label>
-            <!-- TODO: Add validation for NRIC format -->
+            <!-- TODO: Add validation for email format -->
             <input 
-              type="text" 
-              id="userId" 
+              type="email" 
+              id="email" 
               class="medical-input" 
-              placeholder="Enter your ID or NRIC (e.g., S1234567A)"
+              placeholder="Enter your email address"
               required
             />
           </div>
@@ -90,7 +90,7 @@
         <div class="mt-xl">
           <!-- 
           ========================================
-          NEW ACCOUNT CREATION - LOGIC NEEDED BY JUNJIE
+          NEW ACCOUNT CREATION - LOGIC NEEDED BY JUNJIE -> YE started on it
           ========================================
           TODO: Implement new account creation functionality
           - Account registration form
@@ -112,7 +112,7 @@
             </div>
             <div class="flex" style="gap: var(--space-3); align-items: center;">
               <!-- TODO: Connect to account creation function in login.js -->
-              <button class="medical-btn medical-btn-success" onclick="createNewAccount()">
+              <button class="medical-btn medical-btn-success" onclick="window.location.href='register.html'">
                 <span style="margin-right: var(--space-2);">👤</span>
                 Create New Account
               </button>
@@ -157,6 +157,6 @@
     </div>
   </div>
 
-  <script src="login.js"></script>
+  <script type="module" src="login.js"></script>
 </body>
 </html>

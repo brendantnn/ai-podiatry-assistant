@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Register - SGH Podiatry</title>
+  <link rel="stylesheet" href="template.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <div class="medical-container">
+    <div class="medical-header">
+      <h1>📝 Register New Account</h1>
+      <div class="subtitle">SGH Podiatry System - Secure Registration</div>
+    </div>
+
+    <div class="medical-content">
+      <form id="registerForm" class="medical-form" style="max-width: 500px; margin: 0 auto;">
+        <div class="form-group">
+          <label class="medical-label" for="role">👤 Role</label>
+          <select id="role" class="medical-select" required>
+            <option value="">Select role...</option>
+            <option value="patient">🩹 Patient</option>
+            <option value="podiatrist">👨‍⚕️ Podiatrist</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="firstName">🧍 First Name</label>
+          <input type="text" id="firstName" class="medical-input" placeholder="Enter first name" required />
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="lastName">🧍 Last Name</label>
+          <input type="text" id="lastName" class="medical-input" placeholder="Enter last name" required />
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="gender">⚧️ Gender</label>
+          <select id="gender" class="medical-select" required>
+            <option value="">Select gender...</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="dob">🎂 Date of Birth</label>
+          <input type="date" id="dob" class="medical-input" required />
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="phone">📞 Phone</label>
+          <input type="tel" id="phone" class="medical-input" placeholder="Enter phone number" required />
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="email">📧 Email</label>
+          <input type="email" id="email" class="medical-input" placeholder="Enter email" required />
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="password">🔒 Password</label>
+          <input type="password" id="password" class="medical-input" placeholder="Enter password" required />
+        </div>
+
+        <div class="form-group">
+          <label class="medical-label" for="confirmPassword">🔐 Confirm Password</label>
+          <input type="password" id="confirmPassword" class="medical-input" placeholder="Re-enter password" required />
+        </div>
+
+        <div class="form-group">
+          <button type="submit" class="medical-btn medical-btn-success medical-btn-lg" style="width: 100%;">
+            ✅ Register Account
+          </button>
+        </div>
+
+        <div class="text-center mt-md">
+          <a href="login.html" class="text-primary">← Back to Login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="register.js"></script>
+</body>
+</html>
