@@ -1,44 +1,38 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>SGH Podiatry - Patient Portal</title>
   <link rel="stylesheet" href="template.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+
 <body>
   <div class="medical-container">
     <div class="medical-header">
       <h1>🏥 Patient Portal</h1>
       <div class="subtitle">Singapore General Hospital - Podiatry Digital Assistant</div>
     </div>
-    
+
     <div class="medical-content">
-      <!-- 
-      ========================================
-      PATIENT INFORMATION - LOGIC NEEDED BY BRENDAN
-      ========================================
-      TODO: Replace hardcoded patient data with real user data
-      - Fetch patient name from authentication
-      - Show appointment status and upcoming appointments
-      - Display medical history summary
-      ======================================== 
-      -->
+
+      <!-- Top card with brief patient details -->
       <div class="medical-card mb-lg">
         <div class="flex justify-between items-center">
           <div>
-            <!-- TODO: Replace with actual patient name from login session -->
-            <h3 class="medical-card-title">👤 Welcome, [PATIENT_NAME]</h3>
-            <!-- TODO: Replace with actual appointment information -->
-            <p class="medical-card-subtitle">📅 Next Appointment: [APPOINTMENT_DATE] with Dr. [DOCTOR_NAME]</p>
-            <!-- TODO: Replace with actual patient ID -->
-            <p class="text-muted" style="font-size: 0.875rem;">🆔 Patient ID: [PATIENT_ID]</p>
+            <h3 class="medical-card-title">👤 Welcome, <span id="patient-name"></span></h3>
+            <p class="medical-card-subtitle">
+
+            <div id="appointment"></div> 
+    
+            </p>
+            <p class="text-muted" style="font-size: 0.875rem;">
+              🆔 Patient ID: <span id="patient-id"></span>
+            </p>
           </div>
           <div class="flex items-center">
-            <!-- TODO: Replace with actual appointment status -->
             <span class="medical-badge badge-success">✅ [APPOINTMENT_STATUS]</span>
-            <!-- TODO: Connect to settings page -->
             <button class="medical-btn medical-btn-secondary medical-btn-sm ml-md">⚙️ Settings</button>
-            <!-- TODO: Connect to logout functionality -->
             <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm">🚪 Logout</button>
           </div>
         </div>
@@ -47,34 +41,20 @@
       <!-- Main Chat Interface -->
       <div class="medical-card">
         <div class="medical-card-header">
-          <h2 class="medical-card-title">🤖 Digital Nurse Assistant</h2>
-          <p class="medical-card-subtitle">Get help with your foot health concerns, appointment booking, and medical guidance</p>
+          <h2 class="medical-card-title">🤖 Digital Nurse Assistant Chatbot</h2>
+          <p class="medical-card-subtitle">Talk to our digital nurse assistant to get help with your foot health
+            concerns, appointment booking, and medical guidance!</p>
         </div>
 
-        <!-- 
-        ========================================
-        PATIENT CHATBOT - LOGIC NEEDED BY BRENDAN
-        ========================================
-        TODO: Connect to AI chatbot system for patients
-        - Integrate with OpenAI/LLM API
-        - Add medical triage functionality
-        - Implement symptom assessment
-        - Add appointment scheduling integration
-        ======================================== 
-        -->
+        <!-- Chatbox text which is updated in patient.js -->
         <div class="medical-chat">
           <div id="chatbox" class="medical-chatbox">
           </div>
-          
+
+          <!-- Input field and submit button for patient -->
           <div class="medical-input-group">
-            <!-- TODO: Connect to patient chat processing function -->
-            <input 
-              id="message" 
-              class="medical-input" 
-              placeholder="Describe your symptoms or ask a question..."
-              onkeypress="handleEnter(event)"
-            />
-            <!-- TODO: Implement sendMessage() function -->
+            <input id="message" class="medical-input" placeholder="Describe your symptoms or ask a question..."
+              onkeypress="handleEnter(event)" />
             <button class="medical-btn medical-btn-primary" onclick="sendMessage()">
               📤 Send
             </button>
@@ -84,7 +64,8 @@
             <p class="medical-label">💡 Quick options:</p>
             <div class="flex" style="gap: var(--space-sm); flex-wrap: wrap;">
               <!-- TODO: Connect these to specific chat functions -->
-              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('book appointment')">
+              <button class="medical-btn medical-btn-secondary medical-btn-sm"
+                onclick="quickMessage('book appointment')">
                 📅 Book Appointment
               </button>
               <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="quickMessage('foot pain')">
@@ -227,4 +208,5 @@
 
   <script src="patient.js"></script>
 </body>
+
 </html>

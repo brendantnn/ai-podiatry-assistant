@@ -1,19 +1,30 @@
 window.onload = async () => {
-  const chatbox = document.getElementById("chatbox");
   const patientId = "patient_1"; // Simulated logged-in patient
 
+  const chatbox = document.getElementById("chatbox");
+  
   try {
     const res = await fetch("/chat-patient-details", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ patientId })
     });
-
+  
+    // Get patient name, appointment from database and assgin to variables
     const data = await res.json();
-    const name = data.name || "Patient";
+    const name = data.name; 
     const appointment = data.appointment;
 
+    // Set patient name at top bar
+    document.getElementById("patient-name").textContent = name || "no patient name";
+
+          
+    // Set patient id at top bar
+    document.getElementById("patient-id").textContent = patientId || "no patient id";
+
     let appointmentText = "You have no upcoming confirmed appointments.";
+    let appointmentTextTwo = "You have no upcoming confirmed appointments.";
+
     if (appointment && appointment.date) {
       const formattedDate = new Date(appointment.date).toLocaleString("en-SG", {
         weekday: "long",
@@ -28,6 +39,11 @@ window.onload = async () => {
 
       const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
       appointmentText = `📅 You have an upcoming appointment on <b>${formattedDate}</b> with <b>${doctor}</b>.`;
+      appointmentTextTwo = `📅 Next appointment: ${formattedDate} with ${doctor}`;
+      
+      document.getElementById("appointment").textContent = appointmentTextTwo;
+
+
     }
 
     // Show combined message
