@@ -8,6 +8,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
+
+// FIREBASE SETUP
+const admin = require("firebase-admin");
+const serviceAccount = require("./config/serviceAccountKey.json"); 
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
+
 // Declare openai api key here
 const openai = new OpenAI({
     apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
@@ -16,8 +25,10 @@ const openai = new OpenAI({
 // key = fake session ID (for now, assume 1 user)
 const session = {}; 
 
-// PATIENT CHATBOT LOGIC
-// This function runs when patient.js sends a HTTP POST request to /chat route
+
+// ******************************** PATIENT LOGIC *****************************************
+
+// Patient chat route
 app.post("/chat", async (req, res) => {
   const userMessage = req.body.message;
   const userId = "session1"; // Simplified single-session setup
@@ -81,6 +92,82 @@ Respond with:
     return res.status(500).json({ reply: "Something went wrong." });
   }
 });
+
+
+// Fetch patient appointment and
+app.post('/chat-patient-details', async (req, res) => {
+  const { patientId } = req.body;
+  console.log("🔍 Fetching patient info for:", patientId);
+
+  try {
+    // Get user info using where instead of doc()
+    const userSnapshot = await db.collection("Users")
+      .where("userId", "==", patientId)
+      .limit(1)
+      .get();
+
+    if (userSnapshot.empty) {
+      console.log("❌ No matching user found");
+      return res.json({
+        name: "Name not found",
+        appointment: null
+      });
+    }
+
+    const userData = userSnapshot.docs[0].data();
+    console.log("✅ Found user:", userData.firstName, userData.lastName);
+
+    // Get appointment
+    const apptSnapshot = await db.collection("Appointments")
+      .where("patientId", "==", patientId)
+      .where("status", "==", "scheduled")
+      .orderBy("scheduledDate")
+      .limit(1)
+      .get();
+
+    let appointment = null;
+    if (!apptSnapshot.empty) {
+      const appt = apptSnapshot.docs[0].data();
+    
+
+  let podiatristName = "Unknown podiatrist";
+  if (appt.podId) {
+    const podQuery = await db.collection("Users")
+      .where("userId", "==", appt.podId)
+      .limit(1)
+      .get();
+
+    if (!podQuery.empty) {
+      const podData = podQuery.docs[0].data();
+      podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
+    }
+  }
+
+  appointment = {
+    date: appt.scheduledDate.toDate(),
+    podiatrist: podiatristName
+  };
+}
+
+    
+
+    res.json({
+      name: `${userData.firstName} ${userData.lastName}`.trim(),
+      appointment
+    });
+
+  } catch (error) {
+    console.error("❌ Error in /chat-patient-details:", error);
+    res.status(500).json({ error: "Failed to fetch patient details" });
+  }
+});
+
+
+
+
+
+
+// ******************************** PODIATRIST LOGIC *****************************************
 
 // PROFESSIONAL PODIATRIST AI ASSISTANT ROUTE
 app.post("/podiatrist-chat", async (req, res) => {
