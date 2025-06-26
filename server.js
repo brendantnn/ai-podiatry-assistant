@@ -86,16 +86,18 @@ app.post("/chat", async (req, res) => {
 - Trauma, pain severity or location
 - Infection signs or diabetic complications
 
-The categories are
-1. wound care: presence of wound, signs of infection like redness, swelling , pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers
+Ensure you are clear and can give an accurate initial diagnosis and category
+
+The urgency categories are
+1 (most urgent). wound care: presence of wound, signs of infection like redness, swelling , pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers
 2. nail surgery: ingrown toenail, involuted toenail
 3. high risk footcare: callus, corns, warts, pathological toenails
-4. MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
+4 (least urgent). MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
             
   Only ask **questions** at this stage. Do NOT attempt to diagnose or categorize yet. Your questions must help determine if the case could fall under wound care, nail surgery, high-risk footcare, or MSK.
 
 If the patient already answered clearly, you can still confirm: 
-> "Just to clarify, is there any visible swelling, wound, or pus?"
+> "Is there any visible swelling, wound, or pus?"
 
 Respond with 1–3 concise, specific follow-up questions.`
           },
@@ -125,36 +127,88 @@ Respond with 1–3 concise, specific follow-up questions.`
         messages: [
           {
             role: "system",
-            content: `You are a podiatry triage assistant. Given the patient's conversation history, classify their condition into one of the following:
-1. wound care: presence of wound, signs of infection like redness, swelling , pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers2. Nail surgery
-2. nail surgery: ingrown toenail, involuted toenail4. MSK
-3. high risk footcare: callus, corns, warts, pathological toenails
-4. MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
+            content: `You are a podiatry triage assistant. Given the patient's conversation history, classify their condition into one of the following categories:
 
-Respond with:
-- Category
-- Explanation
-- Urgency level (e.g., 'Requires immediate attention')`
+      - wound care: presence of wound, signs of infection like redness, swelling , pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcersy
+      - nail surgery: ingrown toenail, involuted toenail
+      - high risk footcare: callus, corns, warts, pathological toenails
+      - MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
+
+   After assesing the category, determine the urgency level based on thuis : wound care(level 1:most urgent), nail surgery(level 2), high risk footcare(level 3), MSK (level 4: least urgent)
+   Also determine an Initial diagnosis: e.g. plantar fasciitis, ingrown toenail
+
+   Then generate a natural message for the patient that includes:
+    - A simple, empathetic explanation
+    - A sentence offering an appointment
+    - A sentence giving basic care advice while they wait
+
+🧠 GPT response MUST follow this exact format with three dashes (---) on its own line between the internal data and the display message. Do NOT omit the separator.
+
+[INTERNAL DATA]
+Category: ...
+Diagnosis: ...
+Urgency level: ...
+
+---
+
+[DISPLAY MESSAGE, SH]
+You need to see a podiatrist urgently. Would Tuesday 2 July at 10:00 AM work for you?<br>
+While you wait for your appointment, here’s what you should do:<br>
+• Tip 1<br>
+• Tip 2<br>
+• Tip 3<br>
+
+Do not show internal data to the patient.
+      `
           },
           { role: "user", content: fullSymptomHistory }
         ]
       });
 
-      const reply = classification.choices[0].message.content;
+      const fullReply = classification.choices[0].message.content;
+      console.log("🧠 Full GPT reply:\n", fullReply);
 
-      const categoryMatch = reply.match(/Category:\s*(.*)/i);
-      const urgencyMatch = reply.match(/Urgency level:\s*(.*)/i);
-      const category = categoryMatch?.[1] || "Unknown";
-      const urgency = urgencyMatch?.[1] || "";
+ 
+      // Split based on the last valid separator in case multiple '---' blocks exist
+const splitReply = fullReply.trim().split(/-{3,}/);
+const lastInternal = splitReply.length > 1 ? splitReply[splitReply.length - 2] : "";
+const lastDisplay = splitReply[splitReply.length - 1] || "";
+
+// Clean display message (remove tag and trim)
+const cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
+
+// Extract internal info
+const categoryMatch = lastInternal.match(/Category:\s*(.*)/i);
+const diagnosisMatch = lastInternal.match(/Diagnosis:\s*(.*)/i);
+const urgencyMatch = lastInternal.match(/Urgency level:\s*(\d)/i);
+
+const category = categoryMatch?.[1]?.trim() || "Unknown";
+const diagnosis = diagnosisMatch?.[1]?.trim() || "Unclear";
+const urgencyLevel = parseInt(urgencyMatch?.[1]) || 4;
+
+// Store to session
+s.urgencyLevel = urgencyLevel;
+s.category = category;
+s.diagnosis = diagnosis;
+
+console.log("🧠 Full GPT reply:\n", fullReply);
+console.log("✅ GPT classification reply:\n", cleanedDisplay);
+console.log("📊 Parsed category:", category);
+console.log("➡️ Diagnosis:", diagnosis);
+console.log("⚠️  Parsed urgency:", urgencyLevel);
+
+
 
       let daysRange = 14;
-      if (urgency.toLowerCase().includes("immediate")) daysRange = 2;
-      else if (category.toLowerCase().includes("nail")) daysRange = 7;
-      else if (category.toLowerCase().includes("msk")) daysRange = 21;
+      if (urgencyLevel === 1) daysRange = 2;
+      else if (urgencyLevel === 2) daysRange = 7;
+      else if (urgencyLevel === 3) daysRange = 14;
+      else if (urgencyLevel === 4) daysRange = 21;
 
-      console.log("✅ GPT classification reply:\n", reply);
+
+      console.log("✅ GPT classification reply:\n", cleanedDisplay);
       console.log("📊 Parsed category:", category);
-      console.log("⚠️  Parsed urgency:", urgency);
+      console.log("⚠️  Parsed urgency:", urgencyLevel);
 
       const now = new Date();
       const endDate = new Date();
@@ -174,7 +228,7 @@ Respond with:
           s.triageStage = null;
           s.messages = [];
           return res.json({
-            reply: `${reply}\n\n❌ No available appointment slots found in the recommended timeframe.`
+            reply: `${ cleanedDisplay}\n\n⚠️ An error occurred while checking availability.`
           });
         }
 
@@ -199,16 +253,16 @@ Respond with:
         s.pendingSlot = slotDoc;
         s.pendingSlotData = slotData;
 
-        return res.json({
-          reply: `${reply}\n\n📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment? (yes/no)`
-        });
+        const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment? (yes/no)`;
+
+        return res.json({ reply: responseMessage });
 
       } catch (err) {
         console.error("❌ Error finding available slot:", err);
         s.state = "idle";
         s.triageStage = null;
         s.messages = [];
-        return res.json({ reply: `${reply}\n\n⚠️ An error occurred while checking availability.` });
+        return res.json({ reply: `${cleanedDisplay}\n\n⚠️ An error occurred while checking availability.` });
       }
     }
 
@@ -221,11 +275,15 @@ Respond with:
         const slotData = s.pendingSlotData;
 
         await db.collection("Appointments").add({
-          patientId: "patient_1",
+          patientId: "patient_1", // ******************* HARDCODED CHANGE AFTER LOGIN IS DONE ************************* 
           podId: slotData.podId,
           scheduledDate: slotData.availableDate,
-          status: "scheduled"
-        });
+          status: "scheduled",
+            urgencyLevel: s.urgencyLevel,
+  category: s.category,
+  diagnosis: s.diagnosis
+});
+      
 
         await slotDoc.ref.update({ status: "booked" });
 
@@ -260,7 +318,7 @@ Respond with:
       return res.json({ reply: "❓ Please reply with 'yes' or 'no' to confirm your appointment." });
     }
 
-    // Appointment query
+    // Appointment query ****************** TO BE CHANGED, HARCODED CURRENTLY************
     if (userMessage.toLowerCase().includes("appointment")) {
       return res.json({
         reply: "📅 You have an appointment on June 5 at 10:00 AM with Dr. Lee."
