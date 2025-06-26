@@ -1283,6 +1283,414 @@ body {
 }
 
 /* ========================================
+   CALENDAR VIEW STYLES - FIXED LAYOUT
+   ======================================== */
+
+.calendar-container {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  max-width: 100%;
+}
+
+.calendar-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--cream-200);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.calendar-day-header {
+  padding: var(--space-4);
+  text-align: center;
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-700);
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  border-right: 1px solid var(--gray-200);
+}
+
+.calendar-day-header:last-child {
+  border-right: none;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(140px, auto);
+  width: 100%;
+}
+
+.calendar-cell {
+  border-right: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--gray-200);
+  padding: var(--space-3);
+  background: var(--bg-card);
+  position: relative;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow: hidden;
+}
+
+.calendar-cell:nth-child(7n) {
+  border-right: none;
+}
+
+.calendar-cell.month-transition {
+  background: var(--cream-50);
+}
+
+.calendar-date {
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-700);
+  margin-bottom: var(--space-2);
+  flex-shrink: 0;
+}
+
+.month-label {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-weight: var(--font-weight-medium);
+}
+
+.calendar-event {
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-1);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.calendar-event:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.calendar-placeholder {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  font-style: italic;
+  padding: var(--space-2);
+  text-align: center;
+  border: 1px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.calendar-placeholder:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+  color: var(--gray-600);
+}
+
+/* Appointment Type Colors */
+.calendar-event.consultation {
+  background: var(--blue-100);
+  color: var(--blue-700);
+  border-left: 3px solid var(--blue-500);
+}
+
+.calendar-event.follow-up {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-left: 3px solid #22c55e;
+}
+
+.calendar-event.surgery {
+  background: #fee2e2;
+  color: #dc2626;
+  border-left: 3px solid #ef4444;
+}
+
+.calendar-event.wound-care {
+  background: #fef3c7;
+  color: #d97706;
+  border-left: 3px solid #f59e0b;
+}
+
+/* Calendar View States */
+.calendar-grid.week-view {
+  grid-auto-rows: minmax(200px, auto);
+}
+
+.calendar-grid.day-view {
+  grid-template-columns: 1fr;
+  grid-auto-rows: minmax(300px, auto);
+}
+
+.calendar-grid.day-view .calendar-cell {
+  min-height: 300px;
+}
+
+/* Calendar Month Header Styles - Simple Light Blue */
+.calendar-month-header {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1565c0;
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin-bottom: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #90caf9;
+}
+
+.calendar-header-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: #0d47a1;
+}
+
+.calendar-header-info {
+  margin-top: var(--space-sm);
+  opacity: 0.9;
+}
+
+.today-indicator {
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.8);
+  color: #1565c0;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid #90caf9;
+}
+
+/* Today Highlighting Styles - Simple Light Gray Outline */
+.calendar-cell.today {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+.calendar-date.today-date {
+  color: #424242;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+/* Today button highlighting - light blue theme */
+.today-button-highlight {
+  background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 6px rgba(66, 165, 245, 0.3);
+  border-color: #1e88e5 !important;
+}
+
+.today-button-highlight:hover {
+  background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%) !important;
+  box-shadow: 0 3px 8px rgba(66, 165, 245, 0.4);
+}
+
+/* Calendar container - white theme */
+.calendar-container {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: visible;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  background: white;
+}
+
+/* Calendar grid - white */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #f5f5f5;
+  padding: 1px;
+}
+
+/* Calendar header - white theme */
+.calendar-header {
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  margin: 0;
+}
+
+.calendar-day-header {
+  background: white;
+  color: #616161;
+  font-weight: 600;
+  text-align: center;
+  padding: var(--space-md);
+  border-right: 1px solid #e0e0e0;
+  font-size: 0.85rem;
+}
+
+/* Today's appointments styling - clean white look */
+.calendar-cell.today .calendar-event {
+  background: white;
+  color: #424242;
+  border: 1px solid #e0e0e0;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-cell.today .calendar-event:hover {
+  background: #fafafa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Month transition cells - subtle gray */
+.calendar-cell.month-transition {
+  opacity: 0.4;
+  background: #fafafa;
+}
+
+.calendar-cell.today.month-transition {
+  opacity: 1;
+}
+
+/* White calendar cells */
+.calendar-cell {
+  transition: all 0.2s ease;
+  background: white;
+  border: 1px solid #f0f0f0;
+  min-height: 120px;
+  position: relative;
+  overflow: visible;
+}
+
+.calendar-cell:hover {
+  background: #fafafa;
+}
+
+.calendar-date {
+  color: #424242;
+  font-weight: 500;
+  padding: var(--space-sm);
+  font-size: 0.95rem;
+}
+
+/* Calendar events - clean white styling */
+.calendar-event {
+  margin: 1px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  color: #616161;
+}
+
+/* Appointment type specific colors - clean and simple */
+.calendar-event.consultation {
+  background: #e3f2fd;
+  border-color: #90caf9;
+  color: #1565c0;
+}
+
+.calendar-event.follow-up {
+  background: #e8f5e8;
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+.calendar-event.surgery {
+  background: #fce4ec;
+  border-color: #f48fb1;
+  color: #c2185b;
+}
+
+.calendar-event.wound-care {
+  background: #fff3e0;
+  border-color: #ffcc02;
+  color: #f57c00;
+}
+
+/* Responsive Calendar - FIXED */
+@media (max-width: 1024px) {
+  .calendar-grid {
+    grid-auto-rows: minmax(120px, auto);
+  }
+  
+  .calendar-cell {
+    min-height: 120px;
+    padding: var(--space-2);
+  }
+  
+  .calendar-event {
+    font-size: 0.7rem;
+    padding: 2px var(--space-1);
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-grid {
+    grid-auto-rows: minmax(100px, auto);
+  }
+  
+  .calendar-cell {
+    min-height: 100px;
+    padding: var(--space-2);
+  }
+  
+  .calendar-event {
+    font-size: 0.65rem;
+    padding: 1px var(--space-1);
+  }
+  
+  .calendar-date {
+    font-size: 0.8rem;
+    margin-bottom: var(--space-1);
+  }
+  
+  .calendar-day-header {
+    padding: var(--space-2);
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-grid {
+    grid-auto-rows: minmax(80px, auto);
+  }
+  
+  .calendar-cell {
+    min-height: 80px;
+    padding: var(--space-1);
+  }
+  
+  .calendar-event {
+    font-size: 0.6rem;
+    padding: 1px 2px;
+    margin-bottom: 1px;
+  }
+  
+  .calendar-date {
+    font-size: 0.75rem;
+  }
+  
+  .calendar-day-header {
+    padding: var(--space-1);
+    font-size: 0.7rem;
+  }
+}
+
+/* ========================================
    RESPONSIVE DESIGN WITH TABLE IMPROVEMENTS
    ======================================== */
 
@@ -1397,6 +1805,7 @@ body {
     max-height: 450px;
     min-height: 350px;
   }
+
   
   .floating-ai-assistant {
     bottom: 1rem;
