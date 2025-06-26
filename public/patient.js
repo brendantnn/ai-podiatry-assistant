@@ -38,7 +38,7 @@ window.onload = async () => {
       });
 
       const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
-      appointmentText = `📅 You have an upcoming appointment on <b>${formattedDate}</b> with <b>${doctor}</b>.`;
+      appointmentText = `You have an upcoming appointment on <b>${formattedDate}</b> with <b>${doctor}</b>.`;
       appointmentTextTwo = `📅 Next appointment: ${formattedDate} with ${doctor}`;
       
       document.getElementById("appointment").textContent = appointmentTextTwo;
