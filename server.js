@@ -8,7 +8,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-
 // FIREBASE SETUP
 const admin = require("firebase-admin");
 const serviceAccount = require("./config/serviceAccountKey.json");
@@ -24,7 +23,6 @@ const openai = new OpenAI({
 
 // key = fake session ID (for now, assume 1 user)
 const session = {};
-
 
 // ******************************** PATIENT LOGIC *****************************************
 
@@ -153,7 +151,7 @@ Urgency level: ...
 
 [DISPLAY MESSAGE, SH]
 You need to see a podiatrist urgently. Would Tuesday 2 July at 10:00 AM work for you?<br>
-While you wait for your appointment, here’s what you should do:<br>
+While you wait for your appointment, here's what you should do:<br>
 • Tip 1<br>
 • Tip 2<br>
 • Tip 3<br>
@@ -197,14 +195,11 @@ console.log("📊 Parsed category:", category);
 console.log("➡️ Diagnosis:", diagnosis);
 console.log("⚠️  Parsed urgency:", urgencyLevel);
 
-
-
       let daysRange = 14;
       if (urgencyLevel === 1) daysRange = 2;
       else if (urgencyLevel === 2) daysRange = 7;
       else if (urgencyLevel === 3) daysRange = 14;
       else if (urgencyLevel === 4) daysRange = 21;
-
 
       console.log("✅ GPT classification reply:\n", cleanedDisplay);
       console.log("📊 Parsed category:", category);
@@ -336,8 +331,6 @@ console.log("⚠️  Parsed urgency:", urgencyLevel);
   }
 });
 
-
-
 // Fetch patient appointment and
 app.post('/chat-patient-details', async (req, res) => {
   const { patientId } = req.body;
@@ -373,7 +366,6 @@ app.post('/chat-patient-details', async (req, res) => {
     if (!apptSnapshot.empty) {
       const appt = apptSnapshot.docs[0].data();
 
-
       let podiatristName = "Unknown podiatrist";
       if (appt.podId) {
         const podQuery = await db.collection("Users")
@@ -393,8 +385,6 @@ app.post('/chat-patient-details', async (req, res) => {
       };
     }
 
-
-
     res.json({
       name: `${userData.firstName} ${userData.lastName}`.trim(),
       appointment
@@ -406,25 +396,103 @@ app.post('/chat-patient-details', async (req, res) => {
   }
 });
 
-
-
-
-
-
 // ******************************** PODIATRIST LOGIC *****************************************
 
-// PROFESSIONAL PODIATRIST AI ASSISTANT ROUTE
+// UPDATED PODIATRIST AI ASSISTANT ROUTE - WORKS WITH YOUR EXACT DATABASE STRUCTURE
 app.post("/podiatrist-chat", async (req, res) => {
   const userMessage = req.body.message;
   const podiatristId = req.body.podiatristId || "pod1";
 
   try {
-    const chatCompletion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are an AI clinical assistant for podiatrists at Singapore General Hospital. 
+    // Check if the message contains patient-specific queries
+    const patientIdMatch = userMessage.match(/patient\s*#?(\w+)/i) || 
+                          userMessage.match(/(\w+)'s\s+(wound|condition|case|treatment|symptoms)/i);
+    
+    let patientData = null;
+    let patientContext = "";
+
+    // If patient-specific query detected, fetch patient data
+    if (patientIdMatch) {
+      const patientId = patientIdMatch[1];
+      console.log(`🔍 Fetching data for patient: ${patientId}`);
+      
+      try {
+        // Find user by userId field
+        const userQuery = await db.collection("Users")
+          .where("userId", "==", patientId)
+          .where("role", "==", "patient")
+          .limit(1)
+          .get();
+
+        if (!userQuery.empty) {
+          const userDoc = userQuery.docs[0];
+          const userData = userDoc.data();
+          const userDocId = userDoc.id; // e.g., "user_1"
+          
+          // Get patient profile using the document ID
+          const profileSnapshot = await db.collection("PatientProfiles").doc(userDocId).get();
+          
+          let profile = { 
+            riskLevel: "unknown", 
+            assignedPodId: "", 
+            medicalAlerts: [],
+            nricLast4: "",
+            preferredLang: "en"
+          };
+          
+          if (profileSnapshot.exists) {
+            profile = profileSnapshot.data();
+          }
+
+          patientData = {
+            name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+            email: userData.email,
+            gender: userData.gender,
+            phone: userData.phone,
+            dob: userData.dob,
+            isActive: userData.isActive,
+            lastLoginAt: userData.lastLoginAt,
+            riskLevel: profile.riskLevel,
+            assignedPodId: profile.assignedPodId,
+            medicalAlerts: profile.medicalAlerts || [],
+            nricLast4: profile.nricLast4,
+            preferredLang: profile.preferredLang
+          };
+
+          // Create context for AI using your actual data structure
+          patientContext = `
+PATIENT INFORMATION FOR ${patientId.toUpperCase()}:
+- Name: ${patientData.name}
+- Email: ${patientData.email}
+- Gender: ${patientData.gender}
+- Date of Birth: ${patientData.dob}
+- Phone: ${patientData.phone}
+- NRIC Last 4: ${patientData.nricLast4}
+- Account Status: ${patientData.isActive ? 'Active' : 'Inactive'}
+- Last Login: ${patientData.lastLoginAt ? new Date(patientData.lastLoginAt.toDate()).toLocaleDateString() : 'Never'}
+- Risk Level: ${patientData.riskLevel}
+- Assigned Podiatrist: ${patientData.assignedPodId}
+- Medical Alerts: ${patientData.medicalAlerts.join(', ') || 'None recorded'}
+- Preferred Language: ${patientData.preferredLang}
+
+Based on this patient's profile information, please provide detailed clinical guidance.
+Note: Appointment history will be available once the appointment fields are finalized.
+`;
+
+          console.log(`✅ Found complete patient data for ${patientId}`);
+        } else {
+          patientContext = `Patient ${patientId} not found in database. Please verify the patient ID.`;
+        }
+      } catch (error) {
+        console.error("Error fetching patient data:", error);
+        patientContext = `Error retrieving patient ${patientId} data: ${error.message}`;
+      }
+    }
+
+    // Enhanced system prompt with patient context
+    const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+
+${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n` : ''}
 
 RESPONSE FORMATTING RULES:
 - Use clear, professional medical language
@@ -435,11 +503,12 @@ RESPONSE FORMATTING RULES:
 - Always provide evidence-based recommendations
 
 You help with:
-1. **Clinical Decision Support** - Evidence-based treatment recommendations
-2. **Medical Knowledge** - Information about podiatry conditions and protocols  
-3. **Patient Management** - Guidance on case prioritization and workflow
-4. **Treatment Protocols** - Step-by-step treatment approaches
-5. **Drug Information** - Interactions, dosages, and contraindications
+1. **Patient-Specific Queries** - Detailed case analysis based on patient history
+2. **Clinical Decision Support** - Evidence-based treatment recommendations
+3. **Medical Knowledge** - Information about podiatry conditions and protocols  
+4. **Case Management** - Guidance on patient prioritization and workflow
+5. **Treatment Protocols** - Step-by-step treatment approaches
+6. **Drug Information** - Interactions, dosages, and contraindications
 
 PODIATRY CATEGORIES:
 **Wound Care** (Priority 1 - Most Urgent)
@@ -457,26 +526,23 @@ PODIATRY CATEGORIES:
 - Plantar fasciitis, bunions, tendon issues
 - Footwear problems, biomechanical issues
 
-FORMAT EXAMPLE:
-## Treatment for Diabetic Foot Infections
+${patientData ? `
+SPECIFIC PATIENT ANALYSIS:
+For this ${patientData.riskLevel} risk ${patientData.gender} patient, consider:
+- Medical alerts: ${patientData.medicalAlerts.join(', ')}
+- Account status and engagement level
+- Communication preferences (${patientData.preferredLang})
+- Assigned care team coordination
+` : ''}
 
-**First-Line Antibiotics:**
-• **Clindamycin** 300-450mg q6h (anaerobic coverage)
-• **Cephalexin** 500mg q6h (gram-positive coverage)
-• **Augmentin** 875mg q12h (broad spectrum)
+Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
 
-**Severe Infections:**
-• **Vancomycin** + **Piperacillin-tazobactam**
-• Consider MRSA coverage if risk factors present
-
-**Key Considerations:**
-• Duration: 7-14 days for soft tissue, 4-6 weeks for osteomyelitis
-• Monitor renal function with vancomycin
-• Culture-guided therapy when possible
-
-**Warning Signs:** Spreading erythema, systemic symptoms, poor glycemic control
-
-Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`
+    const chatCompletion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
         },
         {
           role: "user",
@@ -487,36 +553,12 @@ Always remind that final clinical decisions should be based on physical examinat
 
     return res.json({
       reply: chatCompletion.choices[0].message.content,
+      patientData: patientData // Include patient data in response for frontend use
     });
 
   } catch (err) {
     console.error("Podiatrist chat error:", err);
     return res.status(500).json({ reply: "Something went wrong with the clinical assistant." });
-  }
-});
-
-// PATIENT-SPECIFIC QUERIES (for when database is ready)
-app.post("/podiatrist-patient-query", async (req, res) => {
-  const { query, patientId } = req.body;
-
-  try {
-    // TODO: Fetch patient data from database when Yin Er has it ready
-    // const patientData = await getPatientData(patientId);
-
-    // For now, return a placeholder response
-    if (patientId) {
-      return res.json({
-        reply: `I understand you're asking about patient ${patientId}: "${query}". Once the patient database is connected, I'll be able to provide specific information about this patient's history, symptoms, and treatment plan.`
-      });
-    }
-
-    return res.json({
-      reply: "Please specify a patient ID for patient-specific queries."
-    });
-
-  } catch (err) {
-    console.error("Patient query error:", err);
-    return res.status(500).json({ reply: "Error accessing patient information." });
   }
 });
 

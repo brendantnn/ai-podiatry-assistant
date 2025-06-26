@@ -450,7 +450,7 @@ class PodiatristCalendar {
     this.onDateChange();
   }
 
-  // Reset all calendar filters - Now properly updates calendar display
+  // Reset all calendar filters - FIXED to prevent infinite loop
   resetCalendarFilters() {
     console.log('🔄 RESETTING all calendar filters...');
     
@@ -469,7 +469,7 @@ class PodiatristCalendar {
     
     this.currentDate = new Date(now);
     
-    // Generate calendar for current month
+    // Generate calendar for current month (without calling resetCalendarFilters again)
     this.generateCalendarForMonth(now.getMonth(), now.getFullYear());
     
     // Show all appointments
@@ -713,51 +713,126 @@ class PodiatristCalendar {
   }
 }
 
-// Create global calendar instance
+// Create global calendar instance and make it globally accessible
 const podiatristCalendar = new PodiatristCalendar();
+window.podiatristCalendar = podiatristCalendar;
 
-// Global functions that the HTML can call (SIMPLIFIED - removed unnecessary functions)
+// Global functions that the HTML can call - FIXED VERSION
 window.filterAppointmentsByType = function() {
-  podiatristCalendar.filterAppointmentsByType();
+  console.log('🔍 filterAppointmentsByType called');
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.filterAppointmentsByType();
+  } else {
+    console.error('❌ Calendar not initialized yet');
+  }
 };
 
 window.navigateCalendar = function(direction) {
-  podiatristCalendar.navigateCalendar(direction);
+  console.log('🧭 navigateCalendar called with direction:', direction);
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.navigateCalendar(direction);
+  } else {
+    console.error('❌ Calendar not initialized yet');
+  }
 };
 
 window.goToToday = function() {
-  podiatristCalendar.goToToday();
+  console.log('📅 goToToday called');
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.goToToday();
+  } else {
+    console.error('❌ Calendar not initialized yet');
+  }
 };
 
 window.resetCalendarFilters = function() {
-  podiatristCalendar.resetCalendarFilters();
+  console.log('🔄 resetCalendarFilters called');
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.resetCalendarFilters();
+  } else {
+    console.error('❌ Calendar not initialized yet');
+  }
 };
 
 window.testCalendarFunctions = function() {
-  podiatristCalendar.testAllFunctions();
+  console.log('🧪 testCalendarFunctions called');
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.testAllFunctions();
+  } else {
+    console.error('❌ Calendar not initialized yet');
+  }
 };
 
 window.getCalendarStatus = function() {
-  return podiatristCalendar.getStatus();
+  if (window.podiatristCalendar) {
+    return podiatristCalendar.getStatus();
+  } else {
+    return { error: 'Calendar not initialized' };
+  }
 };
 
-// Initialize when DOM is ready
+// Initialize when DOM is ready - IMPROVED VERSION
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('📄 DOM Content Loaded - Starting calendar initialization...');
+  
   // Small delay to ensure all elements are ready
   setTimeout(() => {
-    podiatristCalendar.init();
+    if (window.podiatristCalendar) {
+      podiatristCalendar.init();
+      console.log('✅ Calendar initialization triggered from DOMContentLoaded');
+    } else {
+      console.error('❌ Calendar instance not found');
+    }
   }, 100);
 });
 
-// Initialize immediately if DOM is already loaded
+// Initialize immediately if DOM is already loaded - IMPROVED VERSION
 if (document.readyState === 'loading') {
+  console.log('📄 Document still loading, waiting for DOMContentLoaded...');
   // Still loading, wait for DOMContentLoaded
 } else {
+  console.log('📄 Document already loaded, initializing calendar immediately...');
   // DOM already loaded
   setTimeout(() => {
-    podiatristCalendar.init();
+    if (window.podiatristCalendar) {
+      podiatristCalendar.init();
+      console.log('✅ Calendar initialization triggered immediately');
+    } else {
+      console.error('❌ Calendar instance not found');
+    }
   }, 100);
 }
+
+// Add debugging function to test button functionality
+window.debugCalendarButtons = function() {
+  console.log('🔧 Testing calendar button functions...');
+  
+  console.log('Testing resetCalendarFilters...');
+  try {
+    window.resetCalendarFilters();
+    console.log('✅ resetCalendarFilters works');
+  } catch (error) {
+    console.error('❌ resetCalendarFilters failed:', error);
+  }
+  
+  console.log('Testing navigateCalendar(prev)...');
+  try {
+    window.navigateCalendar('prev');
+    console.log('✅ navigateCalendar(prev) works');
+  } catch (error) {
+    console.error('❌ navigateCalendar(prev) failed:', error);
+  }
+  
+  console.log('Testing goToToday...');
+  try {
+    window.goToToday();
+    console.log('✅ goToToday works');
+  } catch (error) {
+    console.error('❌ goToToday failed:', error);
+  }
+  
+  console.log('🔧 Calendar button testing complete');
+};
 
 // Export for module usage if needed
 if (typeof module !== 'undefined' && module.exports) {
