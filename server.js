@@ -134,7 +134,7 @@ Respond with 1–3 concise, specific follow-up questions.`
       - high risk footcare: callus, corns, warts, pathological toenails
       - MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
 
-   After assesing the category, determine the urgency level based on thuis : wound care(level 1:most urgent), nail surgery(level 2), high risk footcare(level 3), MSK (level 4: least urgent)
+   After assesing the category, determine the urgency level based on this : wound care(level 1:most urgent), nail surgery(level 2), high risk footcare(level 3), MSK (level 4: least urgent)
    Also determine an Initial diagnosis: e.g. plantar fasciitis, ingrown toenail
 
    Then generate a natural message for the patient that includes:
@@ -145,9 +145,14 @@ Respond with 1–3 concise, specific follow-up questions.`
 🧠 GPT response MUST follow this exact format with three dashes (---) on its own line between the internal data and the display message. Do NOT omit the separator.
 
 [INTERNAL DATA]
-Category: ...
-Diagnosis: ...
-Urgency level: ...
+Category: <MSK / wound care / nail surgery, high risk footcare>
+Diagnosis: <Short diagnosis, e.g., "possible plantar fasciitis" or "infected wound">
+Urgency level: <1 to 4>
+
+Summary: A brief but informative clinical-style description for the podiatrist, Include:
+- What the patient said
+- Duration, severity, symptoms like pus/swelling
+- Your impression and how urgent it is
 
 ---
 
@@ -174,6 +179,10 @@ const splitReply = fullReply.trim().split(/-{3,}/);
 const lastInternal = splitReply.length > 1 ? splitReply[splitReply.length - 2] : "";
 const lastDisplay = splitReply[splitReply.length - 1] || "";
 
+// Extract Summary field from internal block
+const summaryMatch = lastInternal.match(/Summary:\s*([\s\S]*?)$/i); // capture multiline
+const summary = summaryMatch?.[1]?.trim() || "No summary available.";
+
 // Clean display message (remove tag and trim)
 const cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
 
@@ -190,12 +199,15 @@ const urgencyLevel = parseInt(urgencyMatch?.[1]) || 4;
 s.urgencyLevel = urgencyLevel;
 s.category = category;
 s.diagnosis = diagnosis;
+s.cleanedDisplay = cleanedDisplay;
+s.summary = summary;
 
 console.log("🧠 Full GPT reply:\n", fullReply);
 console.log("✅ GPT classification reply:\n", cleanedDisplay);
 console.log("📊 Parsed category:", category);
 console.log("➡️ Diagnosis:", diagnosis);
 console.log("⚠️  Parsed urgency:", urgencyLevel);
+console.log("Summary:", summary);
 
 
 
@@ -205,10 +217,6 @@ console.log("⚠️  Parsed urgency:", urgencyLevel);
       else if (urgencyLevel === 3) daysRange = 14;
       else if (urgencyLevel === 4) daysRange = 21;
 
-
-      console.log("✅ GPT classification reply:\n", cleanedDisplay);
-      console.log("📊 Parsed category:", category);
-      console.log("⚠️  Parsed urgency:", urgencyLevel);
 
       const now = new Date();
       const endDate = new Date();
@@ -252,6 +260,7 @@ console.log("⚠️  Parsed urgency:", urgencyLevel);
         s.messages = [];
         s.pendingSlot = slotDoc;
         s.pendingSlotData = slotData;
+        s.cleanedDisplay = cleanedDisplay;
 
         const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment? (yes/no)`;
 
@@ -279,9 +288,11 @@ console.log("⚠️  Parsed urgency:", urgencyLevel);
           podId: slotData.podId,
           scheduledDate: slotData.availableDate,
           status: "scheduled",
-            urgencyLevel: s.urgencyLevel,
-  category: s.category,
-  diagnosis: s.diagnosis
+          urgencyLevel: s.urgencyLevel,
+          category: s.category,
+          initialDiagnosis: s.diagnosis,
+          summary: s.summary, 
+          triageDateTime: admin.firestore.Timestamp.now() 
 });
       
 
