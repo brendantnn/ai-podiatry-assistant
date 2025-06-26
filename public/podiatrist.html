@@ -36,24 +36,14 @@
             <div class="mt-lg">
               <p class="medical-label">💡 Quick queries:</p>
               <div class="flex" style="gap: var(--space-sm); flex-wrap: wrap;">
-                <!-- TODO: Customize these based on common podiatrist queries -->
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('patient summary')">
-                  👤 Patient Summary
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('treatment options')">
-                  💊 Treatment Options
+                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('clinical guidelines')">
+                  📋 Clinical Guidelines
                 </button>
                 <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('drug interactions')">
                   ⚠️ Drug Interactions
                 </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('clinical guidelines')">
-                  📋 Clinical Guidelines
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('urgent cases')">
-                  🚨 Urgent Cases
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('scheduling')">
-                  📅 Scheduling Help
+                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('scheduling help')">
+                  🕐 Scheduling Help
                 </button>
               </div>
             </div>
@@ -430,9 +420,11 @@
             <div class="mt-lg">
               <p class="medical-label">💡 Quick queries:</p>
               <div class="flex" style="gap: var(--space-sm); flex-wrap: wrap;">
-                <!-- TODO: Customize these based on common podiatrist queries -->
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('patient summary')">
-                  👤 Patient Summary
+                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('patient list')">
+                  👥 Active Patients
+                </button>
+                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="querySpecificPatient('P001', 'current condition and treatment status')">
+                  📋 Patient P001 Status
                 </button>
                 <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('treatment options')">
                   💊 Treatment Options
@@ -445,9 +437,6 @@
                 </button>
                 <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('urgent cases')">
                   🚨 Urgent Cases
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('scheduling')">
-                  📅 Scheduling Help
                 </button>
               </div>
             </div>
@@ -679,12 +668,11 @@
           </div>
         </div>
         
-        <div class="ai-input-section">
-          <div class="ai-quick-buttons">
-            <button class="ai-quick-btn" onclick="sendQuickQuery('patient summary')">👤 Patient Summary</button>
-            <button class="ai-quick-btn" onclick="sendQuickQuery('treatment options')">💊 Treatments</button>
-            <button class="ai-quick-btn" onclick="sendQuickQuery('urgent cases')">🚨 Urgent Cases</button>
-          </div>
+       <div class="ai-quick-buttons">
+        <button class="ai-quick-btn" onclick="sendQuickQuery('clinical guidelines')">📋 Guidelines</button>
+        <button class="ai-quick-btn" onclick="sendQuickQuery('drug interactions')">⚠️ Interactions</button>
+        <button class="ai-quick-btn" onclick="sendQuickQuery('scheduling help')">🕐 Scheduling</button>
+      </div>
           
           <div class="ai-input-group">
             <input 
@@ -702,8 +690,9 @@
     </div>
   </div>
 
-  <script src="calendar.js"></script>
-  <script src="podiatrist.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/podiatrist.js"></script>
+  <script src="js/podiatrist_aichat.js"></script>
 
 </body>
 </html>
