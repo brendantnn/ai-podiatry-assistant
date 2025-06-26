@@ -31,9 +31,11 @@ const session = {};
 app.post("/chat", async (req, res) => {
   console.log("/chat route");
 
+  // Store user message and user id
   const userMessage = req.body.message;
-  const userId = "session1";
+  const userId = "session1"; // *** HARDCODED SESSION TO BE CHANGED ***
 
+  // Create session object
   session[userId] = session[userId] || {
     state: "idle",
     triageStage: null,
@@ -41,58 +43,83 @@ app.post("/chat", async (req, res) => {
     pendingSlot: null,
     pendingSlotData: null
   };
+  // Store current state, conversation history and pending appointment slot 
   const s = session[userId];
 
-console.log("🆕 Incoming message:", userMessage);
-console.log("📦 Session state before handling:", s);
+  console.log("🆕 Incoming message:", userMessage);
+  console.log("📦 Session state at start:", s);
+
+  // Triage starts here
 
   try {
-    // Start triage flow
+
+    // If user message includes "triage", set state="triage" and triageState="initial query"
     if (userMessage.toLowerCase().includes("triage")) {
-       console.log("🔄 Starting triage...");
+      console.log("Detected triage word, setting state=triage and triageState=initial query");
       s.state = "triage";
       s.triageStage = "initial_query";
       s.messages = [];
       console.log("🟢 Updated session (triage start):", s);
       return res.json({
-        reply: "Please describe your foot-related concern. I’ll ask a few questions after that if needed."
+        reply: "Please describe your foot-related concern."
       });
     }
 
-    // Handle patient's first description
+    // If state=triage and triageStage=initial query, send to openai to ask follow up questions, then set triageStage="clarification"
     if (s.state === "triage" && s.triageStage === "initial_query") {
-       console.log("📥 Handling initial symptom description...");
+      console.log("Detected state=triage and triageStage=initial query, clarifying stage now");
       s.messages.push({ role: "user", content: userMessage });
-       console.log("📝 Current messages:", s.messages);
+      console.log("📝 Current messages:", s.messages);
 
+      // Use openai to ask follow up questions
       const clarification = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: `You are a podiatry triage assistant. Based on the user's description of their foot-related concern, ask 2-3 relevant follow-up questions to help you determine the condition and urgency. If no further questions are needed, say so.`
+            content: `You are a podiatry triage assistant. The user gave you their first description of 
+            their foot-related concern.
+            
+            Ask follow-up questions to detect:
+- Pus, discharge, bleeding
+- Wound, redness, swelling, warmth
+- Trauma, pain severity or location
+- Infection signs or diabetic complications
+
+The categories are
+1. wound care: presence of wound, signs of infection like redness, swelling , pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers
+2. nail surgery: ingrown toenail, involuted toenail
+3. high risk footcare: callus, corns, warts, pathological toenails
+4. MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
+            
+  Only ask **questions** at this stage. Do NOT attempt to diagnose or categorize yet. Your questions must help determine if the case could fall under wound care, nail surgery, high-risk footcare, or MSK.
+
+If the patient already answered clearly, you can still confirm: 
+> "Just to clarify, is there any visible swelling, wound, or pus?"
+
+Respond with 1–3 concise, specific follow-up questions.`
           },
           { role: "user", content: userMessage }
         ]
       });
 
       const followUp = clarification.choices[0].message.content;
-      s.triageStage = "clarification";
+      s.triageStage = "clarification"; // set triageStage="clarification"
 
-      return res.json({ reply: followUp });
+      return res.json({ reply: followUp }); // returns follow up question
     }
 
-    // Handle follow-up answer and perform classification
+    // If state=triage and triageStage=clarification, 
     if (s.state === "triage" && s.triageStage === "clarification") {
-        console.log("🔍 Handling clarification response...");
+      console.log("🔍 Handling clarification response...");
 
-      s.messages.push({ role: "user", content: userMessage });
+      s.messages.push({ role: "user", content: userMessage }); // update user message to session message history
+      console.log("📝 Updated userMessage history:", s.messages);
 
-        console.log("📝 Updated conversation history:", s.messages);
-
-
+      // Combines all user messages into single string so openAI knows full context
       const fullSymptomHistory = s.messages.map(m => m.content).join(" ");
 
+      // Send entire chat history to openAi for final prompt
       const classification = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
@@ -126,8 +153,8 @@ Respond with:
       else if (category.toLowerCase().includes("msk")) daysRange = 21;
 
       console.log("✅ GPT classification reply:\n", reply);
-console.log("📊 Parsed category:", category);
-console.log("⚠️  Parsed urgency:", urgency);
+      console.log("📊 Parsed category:", category);
+      console.log("⚠️  Parsed urgency:", urgency);
 
       const now = new Date();
       const endDate = new Date();
