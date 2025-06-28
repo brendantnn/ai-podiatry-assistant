@@ -45,12 +45,12 @@
 
         <div class="form-group">
           <label class="medical-label" for="dob">🎂 Date of Birth</label>
-          <input type="date" id="dob" class="medical-input" required />
+          <input type="date" id="dob" max="2007-12-31" class="medical-input" required />
         </div>
 
         <div class="form-group">
           <label class="medical-label" for="phone">📞 Phone</label>
-          <input type="tel" id="phone" class="medical-input" placeholder="Enter phone number" required />
+          <input type="tel" id="phone" class="medical-input" placeholder="Enter phone number" pattern="^\+65[689]\d{7}$" maxlength="11" required />
         </div>
 
         <div class="form-group">

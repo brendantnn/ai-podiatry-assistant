@@ -81,11 +81,28 @@
 
           <div class="form-group text-center">
             <!-- TODO: Implement forgot password functionality -->
-            <a href="#" class="text-primary" style="text-decoration: none; font-weight: 500;">
+            <a href="#" onclick="openModal()" class="text-primary" style="text-decoration: none; font-weight: 500;">
               🔑 Forgot your password?
             </a>
           </div>
         </form>
+
+            <!-- Forgot Password Modal -->
+      <div id="forgotModal" class="hidden">
+        <div class="medical-card" style="max-width: 500px; margin: 2rem auto; position: relative;">
+          <div class="medical-card-header">
+            <h3 class="medical-card-title">🔑 Reset Password</h3>
+          </div>
+          <div class="form-group">
+            <label for="resetEmail" class="medical-label">Email Address</label>
+            <input type="email" id="resetEmail" class="medical-input" placeholder="Enter your email" required />
+          </div>
+          <div style="display: flex; gap: var(--space-4); margin-top: var(--space-6);">
+            <button class="medical-btn medical-btn-primary" onclick="sendReset()">Send Reset Link</button>
+            <button class="medical-btn medical-btn-secondary" onclick="closeModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
 
         <div class="mt-xl">
           <!-- 
