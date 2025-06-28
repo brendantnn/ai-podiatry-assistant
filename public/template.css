@@ -52,7 +52,7 @@
   --info-color: var(--blue-500);
   
   /* Background Colors - Enhanced Contrast */
-  --bg-primary: var(--cream-100);  /* Deeper beige background */
+  --bg-primary: var(--cream-100);
   --bg-secondary: var(--cream-50);
   --bg-accent: var(--blue-50);
   --bg-card: #ffffff;
@@ -66,17 +66,17 @@
   --font-weight-bold: 700;
   --font-weight-black: 800;
   
-  /* Spacing (8px base) */
-  --space-1: 0.25rem;   /* 4px */
-  --space-2: 0.5rem;    /* 8px */
-  --space-3: 0.75rem;   /* 12px */
-  --space-4: 1rem;      /* 16px */
-  --space-5: 1.25rem;   /* 20px */
-  --space-6: 1.5rem;    /* 24px */
-  --space-8: 2rem;      /* 32px */
-  --space-10: 2.5rem;   /* 40px */
-  --space-12: 3rem;     /* 48px */
-  --space-16: 4rem;     /* 64px */
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
   
   /* Border Radius */
   --radius-sm: 0.375rem;
@@ -87,7 +87,7 @@
   --radius-3xl: 2rem;
   --radius-full: 9999px;
   
-  /* Modern Shadows */
+  /* Shadows */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -127,7 +127,6 @@ body {
    MODERN LAYOUT COMPONENTS
    ======================================== */
 
-/* Main Container */
 .medical-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -139,7 +138,6 @@ body {
   border: 1px solid var(--gray-100);
 }
 
-/* Modern Header */
 .medical-header {
   background: linear-gradient(135deg, var(--cream-200) 0%, var(--blue-50) 100%);
   padding: var(--space-12) var(--space-8);
@@ -171,7 +169,6 @@ body {
   letter-spacing: 0.025em;
 }
 
-/* Content Area */
 .medical-content {
   padding: var(--space-8);
   background: var(--bg-secondary);
@@ -311,21 +308,22 @@ body {
 }
 
 /* ========================================
-   ENHANCED CHAT COMPONENTS - BIGGER AND BETTER FORMATTED
+   ENHANCED CHAT COMPONENTS - WIDER CHATBOX
    ======================================== */
 
-/* Main AI Chat Tab - Make it bigger */
 .medical-chat {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 600px; /* Increased from default */
+  min-height: 600px;
+  max-width: 100%;
 }
 
 .medical-chatbox {
   flex: 1;
-  max-height: 600px; /* Increased from 500px */
-  min-height: 450px; /* Added minimum height */
+  max-height: 600px;
+  min-height: 450px;
+  width: 100%;
   overflow-y: auto;
   padding: var(--space-6);
   background: var(--bg-card);
@@ -353,37 +351,35 @@ body {
   background: var(--gray-400);
 }
 
-/* Enhanced message styling for better structure */
 .medical-chatbox .message-bot, .bot {
   background: var(--cream-50);
   color: var(--gray-800);
-  padding: var(--space-4) var(--space-5); /* Increased padding */
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);
-  margin: var(--space-4) auto var(--space-4) 0; /* Increased margin */
-  max-width: 85%; /* Slightly wider */
+  margin: var(--space-4) auto var(--space-4) 0;
+  max-width: 90%;
   border: 1px solid var(--cream-200);
   font-weight: var(--font-weight-medium);
   box-shadow: var(--shadow-xs);
   animation: slideInLeft 0.3s ease-out;
-  line-height: 1.6; /* Better line height for readability */
-  font-size: 0.95rem; /* Slightly larger font */
+  line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 .medical-chatbox .message-user, .user {
   background: var(--blue-600);
   color: white;
-  padding: var(--space-4) var(--space-5); /* Increased padding */
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);
-  margin: var(--space-4) 0 var(--space-4) auto; /* Increased margin */
-  max-width: 85%; /* Slightly wider */
+  margin: var(--space-4) 0 var(--space-4) auto;
+  max-width: 90%;
   font-weight: var(--font-weight-medium);
   box-shadow: var(--shadow-sm);
   animation: slideInRight 0.3s ease-out;
-  line-height: 1.6; /* Better line height for readability */
-  font-size: 0.95rem; /* Slightly larger font */
+  line-height: 1.6;
+  font-size: 0.95rem;
 }
 
-/* Style lists and bullet points in AI responses */
 .medical-chatbox .message-bot ul {
   margin: var(--space-3) 0;
   padding-left: var(--space-4);
@@ -427,18 +423,19 @@ body {
   border-radius: var(--radius-xl);
   border: 1px solid var(--gray-100);
   box-shadow: var(--shadow-sm);
+  width: 100%;
 }
 
 /* ========================================
-   MODERN CARD COMPONENTS - IMPROVED SPACING
+   MODERN CARD COMPONENTS
    ======================================== */
 
 .medical-card {
   background: var(--bg-card);
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-xl);
-  padding: var(--space-8); /* Increased from space-6 to space-8 */
-  margin-bottom: var(--space-6); /* Increased from space-4 to space-6 */
+  padding: var(--space-8);
+  margin-bottom: var(--space-6);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
 }
@@ -450,24 +447,24 @@ body {
 
 .medical-card-header {
   border-bottom: 1px solid var(--gray-100);
-  padding-bottom: var(--space-6); /* Increased from space-4 to space-6 */
-  margin-bottom: var(--space-8); /* Increased from space-6 to space-8 */
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-8);
 }
 
 .medical-card-title {
   font-size: 1.25rem;
   font-weight: var(--font-weight-bold);
   color: var(--gray-800);
-  margin-bottom: var(--space-3); /* Increased from space-1 to space-3 */
+  margin-bottom: var(--space-3);
   letter-spacing: -0.025em;
-  padding-bottom: var(--space-2); /* Added padding below title */
+  padding-bottom: var(--space-2);
 }
 
 .medical-card-subtitle {
   font-size: 0.875rem;
   color: var(--gray-600);
   font-weight: var(--font-weight-medium);
-  margin-top: var(--space-2); /* Added top margin */
+  margin-top: var(--space-2);
 }
 
 /* ========================================
@@ -477,13 +474,13 @@ body {
 .medical-badge {
   display: inline-flex;
   align-items: center;
-  padding: var(--space-2) var(--space-4); /* Increased padding */
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.025em;
   text-transform: uppercase;
-  margin: var(--space-1) 0; /* Added vertical margin */
+  margin: var(--space-1) 0;
 }
 
 .badge-success {
@@ -536,19 +533,18 @@ body {
 }
 
 /* ========================================
-   MODERN DASHBOARD COMPONENTS - ENHANCED SPACING
+   MODERN DASHBOARD COMPONENTS
    ======================================== */
 
 .medical-dashboard {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--space-8); /* Increased from space-6 to space-8 */
-  margin-bottom: var(--space-10); /* Increased from space-8 to space-10 */
+  gap: var(--space-8);
+  margin-bottom: var(--space-10);
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Responsive grid adjustments */
 @media (min-width: 1200px) {
   .medical-dashboard {
     grid-template-columns: repeat(3, 1fr);
@@ -572,11 +568,11 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-xl);
-  padding: var(--space-8); /* Increased from space-6 to space-8 */
+  padding: var(--space-8);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
   width: 100%;
-  min-height: 220px; /* Increased from 200px */
+  min-height: 220px;
   display: flex;
   flex-direction: column;
 }
@@ -586,26 +582,20 @@ body {
   transform: translateY(-2px);
 }
 
-/* ========================================
-   SPACING FIX FOR QUICK ACTIONS
-   ======================================== */
-
-/* Add extra spacing after Quick Actions widget */
 .quick-actions-widget {
-  margin-bottom: var(--space-16); /* 64px spacing */
+  margin-bottom: var(--space-16);
 }
 
-/* Alternative - increase general spacing between dashboard and main content */
 .medical-dashboard.mb-xl {
-  margin-bottom: var(--space-16); /* Increase from default to 64px */
+  margin-bottom: var(--space-16);
 }
 
 .widget-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-6); /* Increased from space-4 to space-6 */
-  padding-bottom: var(--space-4); /* Increased from space-3 to space-4 */
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--gray-100);
   flex-shrink: 0;
 }
@@ -615,7 +605,7 @@ body {
   font-weight: var(--font-weight-bold);
   color: var(--gray-800);
   letter-spacing: -0.025em;
-  margin-bottom: var(--space-2); /* Added bottom margin */
+  margin-bottom: var(--space-2);
 }
 
 .widget-content {
@@ -623,29 +613,29 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  padding-top: var(--space-2); /* Added top padding */
+  padding-top: var(--space-2);
 }
 
 /* ========================================
-   DASHBOARD METRICS - ENHANCED LAYOUT WITH BETTER SPACING
+   DASHBOARD METRICS
    ======================================== */
 
 .dashboard-metrics {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4); /* Increased from space-2 to space-4 */
+  gap: var(--space-4);
   width: 100%;
   max-width: 100%;
 }
 
 .metric-item {
   text-align: center;
-  padding: var(--space-5); /* Increased from space-3 to space-5 */
-  background: var(--cream-100); /* Deeper beige background */
-  border-radius: var(--radius-lg); /* Increased radius */
+  padding: var(--space-5);
+  background: var(--cream-100);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--cream-300);
   transition: all var(--transition-normal);
-  min-height: 90px; /* Increased from 75px */
+  min-height: 90px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -654,40 +644,39 @@ body {
 }
 
 .metric-item:hover {
-  background: var(--cream-200); /* Deeper hover state */
-  transform: translateY(-2px); /* Increased transform */
-  box-shadow: var(--shadow-md); /* Enhanced shadow */
+  background: var(--cream-200);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .metric-number {
-  font-size: 1.75rem; /* Increased from 1.5rem */
+  font-size: 1.75rem;
   font-weight: var(--font-weight-black);
-  margin-bottom: var(--space-2); /* Increased from space-1 */
+  margin-bottom: var(--space-2);
   line-height: 1;
   color: inherit;
 }
 
 .metric-label {
-  font-size: 0.75rem; /* Slightly increased from 0.7rem */
+  font-size: 0.75rem;
   color: var(--gray-600);
   font-weight: var(--font-weight-medium);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2); /* Increased from space-1 */
+  gap: var(--space-2);
   text-align: center;
-  line-height: 1.3; /* Improved line height */
-  margin-top: var(--space-1); /* Added top margin */
+  line-height: 1.3;
+  margin-top: var(--space-1);
 }
 
-/* Color coding for metrics */
 .metric-appointments .metric-number { color: var(--blue-600); }
 .metric-urgent .metric-number { color: var(--warning-color); }
 .metric-completed .metric-number { color: var(--success-color); }
 .metric-cancelled .metric-number { color: var(--error-color); }
 
 /* ========================================
-   MODERN TABLE COMPONENTS - COMPLETELY REDESIGNED
+   MODERN TABLE COMPONENTS
    ======================================== */
 
 .medical-table {
@@ -698,9 +687,9 @@ body {
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--gray-200);
-  table-layout: auto; /* Changed from fixed to auto */
+  table-layout: auto;
   margin-top: var(--space-4);
-  min-width: 1200px; /* Increased minimum width */
+  min-width: 1200px;
 }
 
 .medical-table th {
@@ -709,7 +698,7 @@ body {
   text-align: left;
   font-weight: var(--font-weight-bold);
   color: var(--gray-700);
-  font-size: 0.8rem; /* Increased font size */
+  font-size: 0.8rem;
   letter-spacing: 0.025em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--gray-200);
@@ -722,12 +711,11 @@ body {
   border-bottom: 1px solid var(--gray-100);
   font-weight: var(--font-weight-medium);
   color: var(--gray-700);
-  font-size: 0.9rem; /* Increased font size */
+  font-size: 0.9rem;
   vertical-align: middle;
   line-height: 1.4;
 }
 
-/* COMPLETELY NEW COLUMN APPROACH - NO FIXED WIDTHS */
 .medical-table th:nth-child(1),
 .medical-table td:nth-child(1) {
   width: auto;
@@ -771,7 +759,6 @@ body {
   min-width: 180px;
 }
 
-/* Priority column - better badge display */
 .medical-table td:nth-child(1) {
   text-align: center;
   padding: var(--space-3) var(--space-2);
@@ -785,31 +772,26 @@ body {
   margin: 0;
 }
 
-/* Patient ID column */
 .medical-table td:nth-child(2) {
   font-weight: var(--font-weight-semibold);
   color: var(--blue-600);
   text-align: center;
 }
 
-/* Name column */
 .medical-table td:nth-child(3) {
   font-weight: var(--font-weight-semibold);
 }
 
-/* Category column */
 .medical-table td:nth-child(4) {
   white-space: nowrap;
 }
 
-/* Symptoms column */
 .medical-table td:nth-child(5) {
   white-space: normal;
   line-height: 1.4;
   word-wrap: break-word;
 }
 
-/* Wait Time column */
 .medical-table td:nth-child(6) {
   text-align: center;
   font-weight: var(--font-weight-semibold);
@@ -817,7 +799,6 @@ body {
   white-space: nowrap;
 }
 
-/* Actions column */
 .medical-table td:nth-child(7) {
   text-align: center;
   padding: var(--space-3) var(--space-2);
@@ -839,7 +820,6 @@ body {
   border-bottom: none;
 }
 
-/* TABLE CONTAINER - ALWAYS ALLOW HORIZONTAL SCROLL */
 .medical-table-wrapper {
   overflow-x: auto;
   border-radius: var(--radius-xl);
@@ -849,22 +829,20 @@ body {
 }
 
 /* ========================================
-   SCHEDULE TAB FIXES - BETTER ALIGNMENT
+   SCHEDULE TAB FIXES
    ======================================== */
 
-/* Schedule widget header improvements */
 .dashboard-widget .widget-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start; /* Changed from center to flex-start */
+  align-items: flex-start;
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--gray-100);
   flex-shrink: 0;
-  gap: var(--space-4); /* Add gap between elements */
+  gap: var(--space-4);
 }
 
-/* Schedule appointment title styling */
 .dashboard-widget .widget-title {
   font-size: 1rem;
   font-weight: var(--font-weight-bold);
@@ -872,17 +850,15 @@ body {
   letter-spacing: -0.025em;
   margin-bottom: 0;
   line-height: 1.2;
-  flex: 1; /* Take available space */
+  flex: 1;
 }
 
-/* Schedule appointment badge positioning */
 .dashboard-widget .widget-header .medical-badge {
-  flex-shrink: 0; /* Prevent shrinking */
-  margin-left: auto; /* Push to right */
-  margin-top: var(--space-1); /* Slight top margin for better alignment */
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-top: var(--space-1);
 }
 
-/* Schedule content spacing */
 .dashboard-widget .text-muted {
   margin-top: var(--space-3);
   margin-bottom: var(--space-2);
@@ -904,7 +880,6 @@ body {
   z-index: 1000;
 }
 
-/* Floating Button */
 .ai-floating-btn {
   display: flex;
   align-items: center;
@@ -940,13 +915,13 @@ body {
   white-space: nowrap;
 }
 
-/* Enhanced floating AI assistant sizing */
 .ai-chat-popup {
   position: fixed;
   bottom: 6rem;
   right: 2rem;
-  width: 450px; /* Increased from 400px */
-  height: 600px; /* Increased from 500px */
+  width: 650px;
+  height: 700px;
+  max-height: calc(100vh - 8rem);
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2xl);
@@ -965,7 +940,6 @@ body {
   transform: translateY(0) scale(1);
 }
 
-/* AI Chat Header */
 .ai-chat-header {
   display: flex;
   justify-content: space-between;
@@ -1012,12 +986,12 @@ body {
   color: var(--gray-700);
 }
 
-/* AI Chat Content */
 .ai-chat-content {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  width: 100%;
 }
 
 .ai-chatbox {
@@ -1027,7 +1001,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 350px; /* Added minimum height */
+  min-height: 350px;
+  width: 100%;
 }
 
 .ai-chatbox::-webkit-scrollbar {
@@ -1043,16 +1018,15 @@ body {
   border-radius: var(--radius-full);
 }
 
-/* Enhanced floating AI message styling */
 .ai-chatbox .message-bot {
   background: var(--cream-50);
   color: var(--gray-800);
-  padding: var(--space-3) var(--space-4); /* Increased padding */
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
   margin-right: auto;
-  max-width: 85%; /* Increased from 80% */
+  max-width: 90%;
   border: 1px solid var(--cream-200);
-  font-size: 0.9rem; /* Slightly larger font */
+  font-size: 0.9rem;
   line-height: 1.5;
   animation: slideInLeft 0.3s ease-out;
 }
@@ -1060,16 +1034,15 @@ body {
 .ai-chatbox .message-user {
   background: var(--blue-600);
   color: white;
-  padding: var(--space-3) var(--space-4); /* Increased padding */
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   margin-left: auto;
-  max-width: 85%; /* Increased from 80% */
-  font-size: 0.9rem; /* Slightly larger font */
+  max-width: 90%;
+  font-size: 0.9rem;
   line-height: 1.5;
   animation: slideInRight 0.3s ease-out;
 }
 
-/* Style lists in floating AI too */
 .ai-chatbox .message-bot ul,
 .ai-chatbox .message-bot ol {
   margin: var(--space-2) 0;
@@ -1098,7 +1071,6 @@ body {
   font-weight: var(--font-weight-bold);
 }
 
-/* AI Input Section */
 .ai-input-section {
   padding: var(--space-4);
   border-top: 1px solid var(--gray-200);
@@ -1134,6 +1106,7 @@ body {
   display: flex;
   gap: var(--space-2);
   align-items: stretch;
+  width: 100%;
 }
 
 .ai-input {
@@ -1174,7 +1147,6 @@ body {
    UTILITY CLASSES
    ======================================== */
 
-/* Text Utilities */
 .text-center { text-align: center; }
 .text-left { text-align: left; }
 .text-right { text-align: right; }
@@ -1185,7 +1157,6 @@ body {
 .text-danger { color: var(--error-color); }
 .text-muted { color: var(--gray-500); }
 
-/* Spacing Utilities - Enhanced */
 .mt-sm { margin-top: var(--space-2); }
 .mt-md { margin-top: var(--space-4); }
 .mt-lg { margin-top: var(--space-6); }
@@ -1206,7 +1177,6 @@ body {
 .p-lg { padding: var(--space-6); }
 .p-xl { padding: var(--space-8); }
 
-/* Display Utilities */
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
 .flex-row { flex-direction: row; }
@@ -1218,10 +1188,9 @@ body {
 .block { display: block; }
 .inline-block { display: inline-block; }
 
-/* Tab System */
 .tab-content { 
   display: block; 
-  padding-top: var(--space-4); /* Added padding to tab content */
+  padding-top: var(--space-4);
 }
 .tab-content.hidden { display: none; }
 
@@ -1230,7 +1199,7 @@ body {
   border-bottom: 2px solid transparent !important;
   color: var(--gray-600) !important;
   border-radius: 0 !important;
-  padding: var(--space-4) var(--space-6) !important; /* Increased tab padding */
+  padding: var(--space-4) var(--space-6) !important;
 }
 
 .tab-button.active {
@@ -1283,7 +1252,7 @@ body {
 }
 
 /* ========================================
-   CALENDAR VIEW STYLES - FIXED LAYOUT
+   CALENDAR VIEW STYLES
    ======================================== */
 
 .calendar-container {
@@ -1402,7 +1371,6 @@ body {
   color: var(--gray-600);
 }
 
-/* Appointment Type Colors */
 .calendar-event.consultation {
   background: var(--blue-100);
   color: var(--blue-700);
@@ -1427,7 +1395,6 @@ body {
   border-left: 3px solid #f59e0b;
 }
 
-/* Calendar View States */
 .calendar-grid.week-view {
   grid-auto-rows: minmax(200px, auto);
 }
@@ -1441,11 +1408,10 @@ body {
   min-height: 300px;
 }
 
-/* Calendar Month Header Styles - Simple Light Blue */
 .calendar-month-header {
   background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
   color: #1565c0;
-  padding: var(--space-lg) var(--space-xl);
+  padding: var(--space-6) var(--space-8);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   margin-bottom: 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
@@ -1460,7 +1426,7 @@ body {
 }
 
 .calendar-header-info {
-  margin-top: var(--space-sm);
+  margin-top: var(--space-2);
   opacity: 0.9;
 }
 
@@ -1468,12 +1434,11 @@ body {
   font-size: 0.9rem;
   background: rgba(255, 255, 255, 0.8);
   color: #1565c0;
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
   border: 1px solid #90caf9;
 }
 
-/* Today Highlighting Styles - Simple Light Gray Outline */
 .calendar-cell.today {
   background: white;
   border: 2px solid #e0e0e0;
@@ -1489,7 +1454,6 @@ body {
   font-size: 1.05rem;
 }
 
-/* Today button highlighting - light blue theme */
 .today-button-highlight {
   background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%) !important;
   color: white !important;
@@ -1502,7 +1466,6 @@ body {
   box-shadow: 0 3px 8px rgba(66, 165, 245, 0.4);
 }
 
-/* Calendar container - white theme */
 .calendar-container {
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   overflow: visible;
@@ -1512,7 +1475,6 @@ body {
   background: white;
 }
 
-/* Calendar grid - white */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1521,7 +1483,6 @@ body {
   padding: 1px;
 }
 
-/* Calendar header - white theme */
 .calendar-header {
   background: #fafafa;
   border-bottom: 1px solid #e0e0e0;
@@ -1533,12 +1494,11 @@ body {
   color: #616161;
   font-weight: 600;
   text-align: center;
-  padding: var(--space-md);
+  padding: var(--space-4);
   border-right: 1px solid #e0e0e0;
   font-size: 0.85rem;
 }
 
-/* Today's appointments styling - clean white look */
 .calendar-cell.today .calendar-event {
   background: white;
   color: #424242;
@@ -1553,7 +1513,6 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-/* Month transition cells - subtle gray */
 .calendar-cell.month-transition {
   opacity: 0.4;
   background: #fafafa;
@@ -1563,7 +1522,6 @@ body {
   opacity: 1;
 }
 
-/* White calendar cells */
 .calendar-cell {
   transition: all 0.2s ease;
   background: white;
@@ -1580,11 +1538,10 @@ body {
 .calendar-date {
   color: #424242;
   font-weight: 500;
-  padding: var(--space-sm);
+  padding: var(--space-2);
   font-size: 0.95rem;
 }
 
-/* Calendar events - clean white styling */
 .calendar-event {
   margin: 1px;
   padding: 2px 6px;
@@ -1596,7 +1553,6 @@ body {
   color: #616161;
 }
 
-/* Appointment type specific colors - clean and simple */
 .calendar-event.consultation {
   background: #e3f2fd;
   border-color: #90caf9;
@@ -1621,8 +1577,16 @@ body {
   color: #f57c00;
 }
 
-/* Responsive Calendar - FIXED */
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
 @media (max-width: 1024px) {
+  .ai-chat-popup {
+    width: 580px;
+    right: 1rem;
+  }
+  
   .calendar-grid {
     grid-auto-rows: minmax(120px, auto);
   }
@@ -1638,63 +1602,6 @@ body {
   }
 }
 
-@media (max-width: 768px) {
-  .calendar-grid {
-    grid-auto-rows: minmax(100px, auto);
-  }
-  
-  .calendar-cell {
-    min-height: 100px;
-    padding: var(--space-2);
-  }
-  
-  .calendar-event {
-    font-size: 0.65rem;
-    padding: 1px var(--space-1);
-  }
-  
-  .calendar-date {
-    font-size: 0.8rem;
-    margin-bottom: var(--space-1);
-  }
-  
-  .calendar-day-header {
-    padding: var(--space-2);
-    font-size: 0.75rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .calendar-grid {
-    grid-auto-rows: minmax(80px, auto);
-  }
-  
-  .calendar-cell {
-    min-height: 80px;
-    padding: var(--space-1);
-  }
-  
-  .calendar-event {
-    font-size: 0.6rem;
-    padding: 1px 2px;
-    margin-bottom: 1px;
-  }
-  
-  .calendar-date {
-    font-size: 0.75rem;
-  }
-  
-  .calendar-day-header {
-    padding: var(--space-1);
-    font-size: 0.7rem;
-  }
-}
-
-/* ========================================
-   RESPONSIVE DESIGN WITH TABLE IMPROVEMENTS
-   ======================================== */
-
-/* Responsive Design for AI Assistant */
 @media (max-width: 768px) {
   body {
     padding: var(--space-4);
@@ -1775,14 +1682,13 @@ body {
     padding: 2px var(--space-1);
   }
   
-  /* Adjust column widths for mobile */
-  .medical-table th:nth-child(1) { width: 12%; }  /* Priority */
-  .medical-table th:nth-child(2) { width: 8%; }   /* Patient ID */
-  .medical-table th:nth-child(3) { width: 12%; }  /* Name */
-  .medical-table th:nth-child(4) { width: 12%; }  /* Category */
-  .medical-table th:nth-child(5) { width: 30%; }  /* Symptoms */
-  .medical-table th:nth-child(6) { width: 8%; }   /* Wait Time */
-  .medical-table th:nth-child(7) { width: 18%; }  /* Actions */
+  .medical-table th:nth-child(1) { width: 12%; }
+  .medical-table th:nth-child(2) { width: 8%; }
+  .medical-table th:nth-child(3) { width: 12%; }
+  .medical-table th:nth-child(4) { width: 12%; }
+  .medical-table th:nth-child(5) { width: 30%; }
+  .medical-table th:nth-child(6) { width: 8%; }
+  .medical-table th:nth-child(7) { width: 18%; }
   
   .medical-table td:nth-child(1) { width: 12%; }
   .medical-table td:nth-child(2) { width: 8%; }
@@ -1805,31 +1711,24 @@ body {
     max-height: 450px;
     min-height: 350px;
   }
-
   
   .floating-ai-assistant {
     bottom: 1rem;
     right: 1rem;
   }
   
-   /* Enhanced floating AI assistant sizing */
   .ai-chat-popup {
-    position: fixed;
-    bottom: 6rem;
-    right: 2rem;
-    width: 500px; /* Increased from 450px */
-    height: 700px; /* Increased from 600px */
-    max-height: calc(100vh - 8rem); /* Ensure it doesn't exceed viewport */
-    background: var(--bg-card);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-2xl);
-    border: 1px solid var(--gray-200);
-    display: flex;
-    flex-direction: column;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px) scale(0.95);
-    transition: all var(--transition-normal);
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    left: 1rem;
+    height: 600px;
+  }
+  
+  .medical-chatbox .message-bot,
+  .medical-chatbox .message-user,
+  .ai-chatbox .message-bot,
+  .ai-chatbox .message-user {
+    max-width: 95%;
   }
   
   .ai-floating-btn {
@@ -1838,6 +1737,30 @@ body {
   
   .ai-text {
     display: none;
+  }
+  
+  .calendar-grid {
+    grid-auto-rows: minmax(100px, auto);
+  }
+  
+  .calendar-cell {
+    min-height: 100px;
+    padding: var(--space-2);
+  }
+  
+  .calendar-event {
+    font-size: 0.65rem;
+    padding: 1px var(--space-1);
+  }
+  
+  .calendar-date {
+    font-size: 0.8rem;
+    margin-bottom: var(--space-1);
+  }
+  
+  .calendar-day-header {
+    padding: var(--space-2);
+    font-size: 0.75rem;
   }
 }
 
@@ -1922,6 +1845,148 @@ body {
   .ai-chat-popup {
     width: calc(100vw - 1rem);
     right: 0.5rem;
+    left: 0.5rem;
     height: 500px;
   }
+  
+  .calendar-grid {
+    grid-auto-rows: minmax(80px, auto);
+  }
+  
+  .calendar-cell {
+    min-height: 80px;
+    padding: var(--space-1);
+  }
+  
+  .calendar-event {
+    font-size: 0.6rem;
+    padding: 1px 2px;
+    margin-bottom: 1px;
+  }
+  
+  .calendar-date {
+    font-size: 0.75rem;
+  }
+  
+  .calendar-day-header {
+    padding: var(--space-1);
+    font-size: 0.7rem;
+  }
+}
+
+/* Simple Loading Spinner */
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Loading indicator styling */
+.loading-indicator {
+  opacity: 0.9;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: #bae6fd;
+  animation: pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+
+/* Faster message animations - REDUCE FROM 0.3s TO 0.15s */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Apply faster animations */
+.message-bot,
+.message-user {
+  animation-duration: 0.15s !important; /* Much faster */
+}
+
+/* Instant button feedback */
+.medical-btn {
+  transition: all 0.1s ease !important; /* Faster than 0.2s */
+}
+
+.medical-btn:hover {
+  transform: translateY(-1px);
+}
+
+.medical-btn:active {
+  transform: translateY(0) scale(0.98);
+  transition: all 0.05s ease;
+}
+
+/* Faster card animations */
+.schedule-cards-container {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.appointment-card {
+  transition: all 0.1s ease;
+}
+
+.appointment-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth scrolling for chatbox */
+.ai-chatbox,
+.medical-chatbox {
+  scroll-behavior: smooth;
+}
+
+/* Faster popup opening */
+.ai-chat-popup {
+  transition: all 0.15s ease !important; /* Faster than 0.2s */
+}
+
+/* Loading text fade effect */
+#loading-text {
+  animation: fade 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes fade {
+  0% { opacity: 0.7; }
+  100% { opacity: 1; }
 }

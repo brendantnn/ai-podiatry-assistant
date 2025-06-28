@@ -21,6 +21,18 @@ const openai = new OpenAI({
   apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
 });
 
+// SIMPLE CACHE FOR FASTER RESPONSES
+let scheduleCache = new Map();
+const CACHE_DURATION = 30000; // 30 seconds
+
+function getCacheKey(targetDate, podiatristId) {
+  return `${targetDate}-${podiatristId}`;
+}
+
+function isValidCache(cacheEntry) {
+  return cacheEntry && (Date.now() - cacheEntry.timestamp) < CACHE_DURATION;
+}
+
 // key = fake session ID (for now, assume 1 user)
 const session = {};
 
@@ -413,36 +425,88 @@ app.post('/chat-patient-details', async (req, res) => {
 
 // ******************************** PODIATRIST LOGIC *****************************************
 
-// UPDATED PODIATRIST AI ASSISTANT ROUTE - WORKS WITH YOUR EXACT DATABASE STRUCTURE
+// FIXED PODIATRIST CHAT ROUTE
 app.post("/podiatrist-chat", async (req, res) => {
   const userMessage = req.body.message;
   const podiatristId = req.body.podiatristId || "pod1";
 
   try {
-    // Check if the message contains patient-specific queries
-    const patientIdMatch = userMessage.match(/patient\s*#?(\w+)/i) || 
-                          userMessage.match(/(\w+)'s\s+(wound|condition|case|treatment|symptoms)/i);
+    console.log('🤖 Podiatrist chat message:', userMessage);
     
-    let patientData = null;
-    let patientContext = "";
+   // REPLACE the entire patient ID detection section in server.js /podiatrist-chat route
+// Find this section around line 400 and replace it completely
 
-    // If patient-specific query detected, fetch patient data
-    if (patientIdMatch) {
-      const patientId = patientIdMatch[1];
-      console.log(`🔍 Fetching data for patient: ${patientId}`);
+// FIXED patient ID detection patterns
+const patientIdPatterns = [
+  /\b(patient_\d+)\b/gi,                    // ONLY "patient_1", "patient_2", etc.
+  /\bpatient\s+(\d+)\b/gi,                  // ONLY "patient 1", "patient 2", etc.
+  /tell me about (patient_\d+)/gi,          // "tell me about patient_1"
+  /\b(p\d+)\b/gi,                           // "p1", "p2", etc.
+  /\b(pt\d+)\b/gi                           // "pt1", "pt2", etc.
+];
+
+let patientId = null;
+let patientData = null;
+let patientContext = "";
+
+console.log(`🔍 Analyzing message for patient ID: "${userMessage}"`);
+
+// Try each pattern to find patient ID
+for (let i = 0; i < patientIdPatterns.length; i++) {
+  const pattern = patientIdPatterns[i];
+  const matches = [...userMessage.matchAll(pattern)];
+  
+  if (matches.length > 0) {
+    const match = matches[0]; // Get first match
+    console.log(`🎯 Pattern ${i + 1} matched:`, match);
+    
+    if (i === 0 || i === 2) {
+      // For "patient_1" or "tell me about patient_1" patterns
+      patientId = match[1];
+    } else if (i === 1) {
+      // For "patient 1" pattern - construct "patient_1"
+      patientId = `patient_${match[1]}`;
+    } else {
+      // For p1, pt1 patterns - use as is
+      patientId = match[1];
+    }
+    
+    console.log(`✅ Extracted patient ID: "${patientId}" from pattern ${i + 1}`);
+    
+    // VALIDATE that it's a real patient ID format
+    if (/^(patient_\d+|p\d+|pt\d+)$/i.test(patientId)) {
+      break;
+    } else {
+      console.log(`❌ Invalid patient ID format: "${patientId}", continuing search...`);
+      patientId = null;
+    }
+  }
+}
+
+    // DEBUG LOGGING
+    if (patientId) {
+      console.log(`🔍 === PATIENT LOOKUP DEBUG ===`);
+      console.log(`🔍 Original message: "${userMessage}"`);
+      console.log(`🔍 Extracted patientId: "${patientId}"`);
+      console.log(`🔍 PatientId length: ${patientId.length}`);
+      console.log(`🔍 PatientId characters: ${JSON.stringify(patientId.split(''))}`);
+      console.log(`🔍 About to search database for: "${patientId}"`);
       
       try {
         // Find user by userId field
         const userQuery = await db.collection("Users")
           .where("userId", "==", patientId)
-          .where("role", "==", "patient")
           .limit(1)
           .get();
+
+        console.log(`📊 Database query for "${patientId}" returned: ${userQuery.size} documents`);
 
         if (!userQuery.empty) {
           const userDoc = userQuery.docs[0];
           const userData = userDoc.data();
           const userDocId = userDoc.id; // e.g., "user_1"
+          
+          console.log(`✅ Found user: ${userData.firstName} ${userData.lastName} (Doc ID: ${userDocId})`);
           
           // Get patient profile using the document ID
           const profileSnapshot = await db.collection("PatientProfiles").doc(userDocId).get();
@@ -457,6 +521,9 @@ app.post("/podiatrist-chat", async (req, res) => {
           
           if (profileSnapshot.exists) {
             profile = profileSnapshot.data();
+            console.log(`✅ Found patient profile: Risk level ${profile.riskLevel}`);
+          } else {
+            console.log(`⚠️ No patient profile found for doc ID: ${userDocId}`);
           }
 
           patientData = {
@@ -491,15 +558,15 @@ PATIENT INFORMATION FOR ${patientId.toUpperCase()}:
 - Preferred Language: ${patientData.preferredLang}
 
 Based on this patient's profile information, please provide detailed clinical guidance.
-Note: Appointment history will be available once the appointment fields are finalized.
 `;
 
-          console.log(`✅ Found complete patient data for ${patientId}`);
+          console.log(`✅ Generated context for patient: ${patientId}`);
         } else {
+          console.log(`❌ Patient ${patientId} not found in Users collection`);
           patientContext = `Patient ${patientId} not found in database. Please verify the patient ID.`;
         }
       } catch (error) {
-        console.error("Error fetching patient data:", error);
+        console.error("❌ Error fetching patient data:", error);
         patientContext = `Error retrieving patient ${patientId} data: ${error.message}`;
       }
     }
@@ -525,31 +592,6 @@ You help with:
 5. **Treatment Protocols** - Step-by-step treatment approaches
 6. **Drug Information** - Interactions, dosages, and contraindications
 
-PODIATRY CATEGORIES:
-**Wound Care** (Priority 1 - Most Urgent)
-- Diabetic foot ulcers, infections, neuropathic/ischemic wounds
-- Signs: redness, swelling, pus, warmth, gangrene
-
-**Nail Surgery** (Priority 2)  
-- Ingrown toenails, nail disorders, onychomycosis
-
-**High Risk Footcare** (Priority 3)
-- Callus, corns, warts in diabetic/high-risk patients
-- Pathological toenails, foot deformities
-
-**MSK Conditions** (Priority 4)
-- Plantar fasciitis, bunions, tendon issues
-- Footwear problems, biomechanical issues
-
-${patientData ? `
-SPECIFIC PATIENT ANALYSIS:
-For this ${patientData.riskLevel} risk ${patientData.gender} patient, consider:
-- Medical alerts: ${patientData.medicalAlerts.join(', ')}
-- Account status and engagement level
-- Communication preferences (${patientData.preferredLang})
-- Assigned care team coordination
-` : ''}
-
 Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
 
     const chatCompletion = await openai.chat.completions.create({
@@ -572,10 +614,701 @@ Always remind that final clinical decisions should be based on physical examinat
     });
 
   } catch (err) {
-    console.error("Podiatrist chat error:", err);
+    console.error("❌ Podiatrist chat error:", err);
     return res.status(500).json({ reply: "Something went wrong with the clinical assistant." });
   }
 });
+
+// ========================================
+// NEW DATABASE ROUTES FOR AI CHAT
+// ========================================
+
+// GET URGENT CASES - Separate route for better organization
+app.post("/get-urgent-cases", async (req, res) => {
+  const { podiatristId } = req.body;
+  
+  try {
+    console.log('🚨 Fetching urgent cases...');
+    
+    // Get today's date range
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Query for urgent cases (urgency level 1 and 2)
+    const urgentQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+      .where("status", "==", "scheduled")
+      .get();
+
+    console.log('📊 Total appointments found:', urgentQuery.size);
+
+    // Filter for urgent cases (level 1 and 2)
+    const urgentAppointments = [];
+    
+    for (const appointmentDoc of urgentQuery.docs) {
+      const appointment = appointmentDoc.data();
+      
+      // Only include urgent cases (level 1 and 2)
+      if (appointment.urgencyLevel <= 2) {
+        
+        // Get patient details
+        let patientInfo = {
+          name: appointment.patientId,
+          phone: "N/A",
+          email: "N/A"
+        };
+
+        try {
+          const patientQuery = await db.collection("Users")
+            .where("userId", "==", appointment.patientId)
+            .limit(1)
+            .get();
+
+          if (!patientQuery.empty) {
+            const patientData = patientQuery.docs[0].data();
+            patientInfo = {
+              name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+              phone: patientData.phone || "N/A",
+              email: patientData.email || "N/A"
+            };
+          }
+        } catch (patientError) {
+          console.log('⚠️ Patient lookup failed:', patientError.message);
+        }
+
+        const scheduledDate = appointment.scheduledDate.toDate();
+        urgentAppointments.push({
+          appointmentId: appointmentDoc.id,
+          patientId: appointment.patientId,
+          patientName: patientInfo.name,
+          patientPhone: patientInfo.phone,
+          patientEmail: patientInfo.email,
+          scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore"
+          }),
+          category: appointment.category || "General",
+          urgencyLevel: appointment.urgencyLevel,
+          urgencyText: getUrgencyText(appointment.urgencyLevel),
+          initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+          summary: appointment.summary || "No additional notes",
+          status: appointment.status
+        });
+      }
+    }
+
+    // Sort by urgency level
+    urgentAppointments.sort((a, b) => a.urgencyLevel - b.urgencyLevel);
+
+    console.log('🚨 Returning', urgentAppointments.length, 'urgent cases');
+
+    return res.json({
+      success: true,
+      urgentCases: urgentAppointments,
+      totalCount: urgentAppointments.length,
+      date: new Date().toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric", 
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Singapore"
+      })
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching urgent cases:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch urgent cases",
+      message: error.message
+    });
+  }
+});
+
+// FIXED GET RECENT PATIENT SUMMARIES - Uses actual database data
+app.post("/get-recent-summaries", async (req, res) => {
+  const { podiatristId } = req.body;
+  
+  try {
+    console.log('📝 Fetching recent patient summaries from actual database...');
+    
+    // Get all appointments (recent ones) - adjust date range as needed
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const appointmentsQuery = await db.collection("Appointments")
+      .where("triageDateTime", ">=", admin.firestore.Timestamp.fromDate(oneWeekAgo))
+      .orderBy("triageDateTime", "desc")
+      .get();
+
+    console.log('📊 Found', appointmentsQuery.size, 'recent appointments');
+
+    if (appointmentsQuery.empty) {
+      return res.json({
+        success: true,
+        summaries: [],
+        totalCount: 0,
+        message: "No recent patient summaries found in database"
+      });
+    }
+
+    const recentSummaries = [];
+    
+    // Process each appointment and get REAL patient details
+    for (const appointmentDoc of appointmentsQuery.docs) {
+      const appointment = appointmentDoc.data();
+      console.log('Processing appointment for patient:', appointment.patientId);
+      
+      // Get REAL patient details from Users collection
+      let realPatientInfo = {
+        name: appointment.patientId, // fallback to patientId
+        phone: "N/A",
+        email: "N/A"
+      };
+
+      try {
+        console.log('Looking up REAL patient data for:', appointment.patientId);
+        const patientQuery = await db.collection("Users")
+          .where("userId", "==", appointment.patientId)
+          .limit(1)
+          .get();
+
+        if (!patientQuery.empty) {
+          const patientData = patientQuery.docs[0].data();
+          console.log('✅ Found REAL patient:', patientData.firstName, patientData.lastName);
+          
+          realPatientInfo = {
+            name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+            phone: patientData.phone || "N/A",
+            email: patientData.email || "N/A"
+          };
+        } else {
+          console.log('⚠️ No patient found in Users collection for:', appointment.patientId);
+        }
+      } catch (patientError) {
+        console.error('❌ Error looking up patient:', patientError);
+      }
+
+      // Format the REAL appointment data
+      const triageDate = appointment.triageDateTime ? 
+        appointment.triageDateTime.toDate() : 
+        new Date();
+      
+      const scheduledDate = appointment.scheduledDate ? 
+        appointment.scheduledDate.toDate() : 
+        new Date();
+      
+      const realSummary = {
+        appointmentId: appointmentDoc.id,
+        patientId: appointment.patientId,
+        patientName: realPatientInfo.name,
+        patientPhone: realPatientInfo.phone,
+        patientEmail: realPatientInfo.email,
+        triageDate: triageDate.toLocaleDateString("en-SG", {
+          weekday: "short",
+          month: "short", 
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          month: "long",
+          day: "numeric", 
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        category: appointment.category || "General",
+        urgencyLevel: appointment.urgencyLevel || 4,
+        urgencyText: getUrgencyText(appointment.urgencyLevel),
+        initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+        summary: appointment.summary || "No clinical summary available",
+        status: appointment.status || "unknown"
+      };
+
+      console.log('✅ Processed REAL summary for:', realSummary.patientName);
+      recentSummaries.push(realSummary);
+    }
+
+    // Sort by triage date (most recent first)
+    recentSummaries.sort((a, b) => {
+      const dateA = new Date(a.triageDate);
+      const dateB = new Date(b.triageDate);
+      return dateB - dateA;
+    });
+
+    console.log('📝 Returning', recentSummaries.length, 'REAL patient summaries');
+    console.log('📋 Patient names found:', recentSummaries.map(s => s.patientName));
+
+    return res.json({
+      success: true,
+      summaries: recentSummaries,
+      totalCount: recentSummaries.length,
+      message: `Found ${recentSummaries.length} real patient summaries from database`
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching real patient summaries:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch patient summaries from database",
+      message: error.message,
+      summaries: [],
+      totalCount: 0
+    });
+  }
+});
+
+// OPTIMIZED GET TODAY'S SCHEDULE with simple caching
+let scheduleCache2 = {
+  data: null,
+  timestamp: null,
+  TTL: 30000 // 30 seconds cache
+};
+
+app.post("/get-todays-schedule", async (req, res) => {
+  const { podiatristId } = req.body;
+  
+  try {
+    // CHECK CACHE FIRST (INSTANT RESPONSE IF CACHED)
+    const now = Date.now();
+    if (scheduleCache2.data && 
+        scheduleCache2.timestamp && 
+        (now - scheduleCache2.timestamp) < scheduleCache2.TTL) {
+      console.log('📋 Returning cached schedule data (INSTANT)');
+      return res.json(scheduleCache2.data);
+    }
+    
+    console.log('📅 Fetching fresh schedule from database...');
+    
+    // Get today's date range
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    console.log('🔍 Date range:', startOfDay, 'to', endOfDay);
+    
+    // SIMPLIFIED QUERY - Remove orderBy to avoid index issues
+    const appointmentsQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+      .where("status", "==", "scheduled")
+      .get();
+
+    console.log('📊 Found appointments:', appointmentsQuery.size);
+
+    if (appointmentsQuery.empty) {
+      const emptyResult = {
+        success: true,
+        appointments: [],
+        totalCount: 0,
+        message: "No appointments scheduled for today",
+        date: new Date().toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Singapore"
+        })
+      };
+      
+      // CACHE EMPTY RESULT TOO
+      scheduleCache2.data = emptyResult;
+      scheduleCache2.timestamp = now;
+      
+      return res.json(emptyResult);
+    }
+
+    // Process appointments in parallel for speed
+    const appointmentPromises = appointmentsQuery.docs.map(async (appointmentDoc) => {
+      const appointment = appointmentDoc.data();
+      console.log('📋 Processing appointment:', appointmentDoc.id, 'for patient:', appointment.patientId);
+      
+      let patientInfo = {
+        name: appointment.patientId,
+        phone: "N/A",
+        email: "N/A"
+      };
+
+      // OPTIMIZED: Parallel patient lookup with timeout
+      try {
+        const patientQuery = await Promise.race([
+          db.collection("Users")
+            .where("userId", "==", appointment.patientId)
+            .limit(1)
+            .get(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Patient lookup timeout')), 2000)
+          )
+        ]);
+
+        if (!patientQuery.empty) {
+          const patientData = patientQuery.docs[0].data();
+          patientInfo = {
+            name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+            phone: patientData.phone || "N/A",
+            email: patientData.email || "N/A"
+          };
+        }
+      } catch (patientError) {
+        console.log('⚠️ Patient lookup failed/timeout, using default:', patientError.message);
+      }
+
+      // Format appointment data
+      const scheduledDate = appointment.scheduledDate.toDate();
+      return {
+        appointmentId: appointmentDoc.id,
+        patientId: appointment.patientId,
+        patientName: patientInfo.name,
+        patientPhone: patientInfo.phone,
+        patientEmail: patientInfo.email,
+        scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Singapore"
+        }),
+        category: appointment.category || "General",
+        urgencyLevel: appointment.urgencyLevel || 4,
+        urgencyText: getUrgencyText(appointment.urgencyLevel),
+        initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+        summary: appointment.summary || "No additional notes",
+        status: appointment.status
+      };
+    });
+
+    // Wait for all appointments to be processed
+    const todaysAppointments = await Promise.all(appointmentPromises);
+
+    // Sort in JavaScript (faster than Firebase)
+    todaysAppointments.sort((a, b) => {
+      if (a.urgencyLevel !== b.urgencyLevel) {
+        return a.urgencyLevel - b.urgencyLevel;
+      }
+      return new Date(`1970-01-01 ${a.scheduledTime}`) - new Date(`1970-01-01 ${b.scheduledTime}`);
+    });
+
+    console.log('✅ Returning', todaysAppointments.length, 'appointments');
+
+    const result = {
+      success: true,
+      appointments: todaysAppointments,
+      totalCount: todaysAppointments.length,
+      date: new Date().toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Singapore"
+      })
+    };
+
+    // CACHE THE RESULT FOR FASTER SUBSEQUENT REQUESTS
+    scheduleCache2.data = result;
+    scheduleCache2.timestamp = now;
+
+    return res.json(result);
+
+  } catch (error) {
+    console.error("❌ Error fetching today's schedule:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch today's schedule",
+      message: error.message
+    });
+  }
+});
+
+// Helper function to convert urgency level to text
+function getUrgencyText(urgencyLevel) {
+  switch (urgencyLevel) {
+    case 1: return "🚨 Urgent - Wound Care";
+    case 2: return "⚠️ High - Nail Surgery";
+    case 3: return "📋 Medium - High Risk Footcare";
+    case 4: return "📝 Low - MSK";
+    default: return "📋 Standard";
+  }
+}
+
+// OPTIMIZED SCHEDULE BY DATE ROUTE - FASTER DATABASE QUERIES
+app.post("/get-schedule-by-date", async (req, res) => {
+  const { podiatristId, targetDate } = req.body;
+  
+  try {
+    // CACHE CHECK FIRST
+    const cacheKey = getCacheKey(targetDate, podiatristId);
+    const cachedResult = scheduleCache.get(cacheKey);
+    
+    if (isValidCache(cachedResult)) {
+      console.log('⚡ CACHE HIT: Returning cached schedule');
+      return res.json(cachedResult.data);
+    }
+    
+    console.log('📅 CACHE MISS: Fetching fresh schedule for date:', targetDate);
+    
+    // OPTIMIZATION 1: Create date range more efficiently
+    let scheduleDate;
+    if (targetDate && targetDate !== 'today') {
+      if (typeof targetDate === 'string' && targetDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        scheduleDate = new Date(targetDate + 'T12:00:00+08:00');
+      } else {
+        scheduleDate = new Date(targetDate);
+      }
+      
+      if (isNaN(scheduleDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid date format"
+        });
+      }
+    } else {
+      scheduleDate = new Date();
+    }
+    
+    const dateStr = scheduleDate.toISOString().split('T')[0];
+    const startOfDay = new Date(dateStr + 'T00:00:00+08:00');
+    const endOfDay = new Date(dateStr + 'T23:59:59.999+08:00');
+    
+    console.log('🚀 FAST: Querying Firebase...');
+    console.log('🔍 FAST Date string:', dateStr);
+    console.log('🔍 FAST Start of day (Singapore):', startOfDay.toISOString());
+    console.log('🔍 FAST End of day (Singapore):', endOfDay.toISOString());
+    
+    // OPTIMIZATION 2: Single optimized query
+    const appointmentsQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+      .where("status", "==", "scheduled")
+      .get();
+
+    console.log('⚡ FAST: Found', appointmentsQuery.size, 'appointments');
+
+    if (appointmentsQuery.empty) {
+      return res.json({
+        success: true,
+        appointments: [],
+        totalCount: 0,
+        message: `No appointments scheduled for ${scheduleDate.toLocaleDateString("en-SG")}`,
+        date: scheduleDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Singapore"
+        })
+      });
+    }
+
+    // OPTIMIZATION 3: Batch patient lookups with timeout and parallel processing
+    console.log('🔄 FAST: Processing appointments in parallel...');
+    
+    // Get all unique patient IDs first
+    const patientIds = [...new Set(appointmentsQuery.docs.map(doc => doc.data().patientId))];
+    console.log('👥 FAST: Looking up', patientIds.length, 'unique patients');
+    
+    // OPTIMIZATION 4: Batch patient lookup
+    const patientLookupPromises = patientIds.map(async (patientId) => {
+      try {
+        const patientQuery = await Promise.race([
+          db.collection("Users")
+            .where("userId", "==", patientId)
+            .limit(1)
+            .get(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('timeout')), 1500) // Reduced timeout
+          )
+        ]);
+
+        if (!patientQuery.empty) {
+          const patientData = patientQuery.docs[0].data();
+          return {
+            patientId,
+            name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+            phone: patientData.phone || "N/A",
+            email: patientData.email || "N/A"
+          };
+        }
+      } catch (error) {
+        console.log(`⚠️ FAST: Patient lookup failed for ${patientId}:`, error.message);
+      }
+      
+      // Fallback
+      return {
+        patientId,
+        name: patientId,
+        phone: "N/A",
+        email: "N/A"
+      };
+    });
+
+    // Wait for all patient lookups
+    const patientDataMap = {};
+    const patientResults = await Promise.all(patientLookupPromises);
+    patientResults.forEach(result => {
+      patientDataMap[result.patientId] = result;
+    });
+
+    console.log('✅ FAST: Patient data retrieved, building response...');
+
+    // OPTIMIZATION 5: Fast appointment processing
+    const dayAppointments = appointmentsQuery.docs.map(appointmentDoc => {
+      const appointment = appointmentDoc.data();
+      const patientInfo = patientDataMap[appointment.patientId] || {
+        name: appointment.patientId,
+        phone: "N/A",
+        email: "N/A"
+      };
+
+      const scheduledDate = appointment.scheduledDate.toDate();
+      return {
+        appointmentId: appointmentDoc.id,
+        patientId: appointment.patientId,
+        patientName: patientInfo.name,
+        patientPhone: patientInfo.phone,
+        patientEmail: patientInfo.email,
+        scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Singapore"
+        }),
+        category: appointment.category || "General",
+        urgencyLevel: appointment.urgencyLevel || 4,
+        urgencyText: getUrgencyText(appointment.urgencyLevel),
+        initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+        summary: appointment.summary || "No additional notes",
+        status: appointment.status
+      };
+    });
+
+    // OPTIMIZATION 6: Fast JavaScript sorting
+    dayAppointments.sort((a, b) => {
+      if (a.urgencyLevel !== b.urgencyLevel) {
+        return a.urgencyLevel - b.urgencyLevel;
+      }
+      return new Date(`1970-01-01 ${a.scheduledTime}`) - new Date(`1970-01-01 ${b.scheduledTime}`);
+    });
+
+    console.log('🚀 FAST: Sending response with', dayAppointments.length, 'appointments');
+
+    const result = {
+      success: true,
+      appointments: dayAppointments,
+      totalCount: dayAppointments.length,
+      date: scheduleDate.toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Singapore"
+      })
+    };
+
+    // CACHE THE RESULT FOR FASTER SUBSEQUENT REQUESTS
+    scheduleCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
+    });
+
+    console.log('💾 CACHED: Schedule cached for future requests');
+
+    return res.json(result);
+
+  } catch (error) {
+    console.error("❌ FAST: Error fetching schedule:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch schedule",
+      message: error.message
+    });
+  }
+});
+
+// ========================================
+// ENHANCED DATE PARSING HELPER FUNCTIONS
+// ========================================
+
+function parseNaturalDate(dateString) {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  
+  // Handle relative dates
+  const lowerCase = dateString.toLowerCase();
+  
+  if (lowerCase.includes('today')) {
+    return today.toISOString().split('T')[0];
+  }
+  
+  if (lowerCase.includes('tomorrow')) {
+    return tomorrow.toISOString().split('T')[0];
+  }
+  
+  if (lowerCase.includes('yesterday')) {
+    return yesterday.toISOString().split('T')[0];
+  }
+  
+  // Handle "next monday", "this friday" etc.
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  for (let i = 0; i < dayNames.length; i++) {
+    if (lowerCase.includes(dayNames[i])) {
+      const targetDay = i;
+      const currentDay = today.getDay();
+      let daysToAdd = targetDay - currentDay;
+      
+      if (lowerCase.includes('next') || daysToAdd <= 0) {
+        daysToAdd += (daysToAdd <= 0 ? 7 : 0);
+      }
+      
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysToAdd);
+      return targetDate.toISOString().split('T')[0];
+    }
+  }
+  
+  // Handle specific dates like "July 1", "1st July", "2025-07-01"
+  const dateMatch = dateString.match(/(\d{4}-\d{2}-\d{2})/);
+  if (dateMatch) {
+    return dateMatch[1];
+  }
+  
+  // Try to parse as a regular date
+  const parsedDate = new Date(dateString);
+  if (!isNaN(parsedDate.getTime())) {
+    return parsedDate.toISOString().split('T')[0];
+  }
+  
+  return null;
+}
 
 // Set default path to login.html
 app.get("/", (req, res) => {

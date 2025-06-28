@@ -1,54 +1,4 @@
-<!-- AI Assistant Chat Tab -->
-        <div id="chat-tab" class="tab-content hidden">
-          <h3 class="medical-card-title mb-lg">🤖 AI Clinical Assistant</h3>
-          <!-- 
-          ========================================
-          AI ASSISTANT CHAT - LOGIC NEEDED BY BERNICE
-          ========================================
-          TODO: Connect to AI chatbot system for podiatrists
-          - Integrate with OpenAI/LLM API
-          - Add medical knowledge base
-          - Implement context-aware responses
-          - Add patient-specific queries
-          ======================================== 
-          -->
-          <div class="medical-chat">
-            <div id="podiatristChatbox" class="medical-chatbox" style="height: 400px;">
-              <!-- TODO: Replace with dynamic AI responses -->
-              <div class="message-bot">
-                <b>🤖 AI Assistant:</b> Hello Dr. [NAME]! I'm here to help with clinical decisions, patient information, and medical queries. How can I assist you today?
-              </div>
-            </div>
-            
-            <div class="medical-input-group">
-              <!-- TODO: Connect to AI processing function -->
-              <input 
-                id="podiatristMessage" 
-                class="medical-input" 
-                placeholder="Ask about patient cases, treatments, clinical decisions..."
-              />
-              <!-- TODO: Implement sendPodiatristMessage() function -->
-              <button class="medical-btn medical-btn-primary" onclick="sendPodiatristMessage()">
-                → Ask AI
-              </button>
-            </div>
-
-            <div class="mt-lg">
-              <p class="medical-label">💡 Quick queries:</p>
-              <div class="flex" style="gap: var(--space-sm); flex-wrap: wrap;">
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('clinical guidelines')">
-                  📋 Clinical Guidelines
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('drug interactions')">
-                  ⚠️ Drug Interactions
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('scheduling help')">
-                  🕐 Scheduling Help
-                </button>
-              </div>
-            </div>
-          </div>
-        </div><!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <title>SGH Podiatry - Podiatrist Dashboard</title>
@@ -227,6 +177,7 @@
           <button class="medical-btn medical-btn-secondary tab-button" onclick="showTab('schedule')" style="border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
             📅 Schedule
           </button>
+          <!-- REMOVED: AI Assistant Tab -->
           <button class="medical-btn medical-btn-secondary tab-button" onclick="showTab('analytics')" style="border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
             📈 Analytics
           </button>
@@ -292,14 +243,14 @@
                 <!-- TODO: Replace with dynamic patient data -->
                 <tr>
                   <td><span class="medical-badge badge-danger">🚨 Urgent</span></td>
-                  <td>P001</td>
-                  <td>John Doe</td>
+                  <td>patient_1</td>
+                  <td>John Lim</td>
                   <td>🩹 Wound Care</td>
-                  <td>Diabetic foot ulcer with signs of infection</td>
+                  <td>Diabetic foot with corn, requires high-risk footcare</td>
                   <td>2h 15m</td>
                   <td>
                     <!-- TODO: Connect to patient detail view (JUNJIE - Backend routing) -->
-                    <button class="medical-btn medical-btn-primary medical-btn-sm">👁️ View</button>
+                    <button class="medical-btn medical-btn-primary medical-btn-sm" onclick="querySpecificPatient('patient_1', 'current condition and treatment status')">👁️ View</button>
                     <!-- TODO: Connect to patient chat system (JUNJIE - Chat backend integration) -->
                     <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm">💬 Chat</button>
                   </td>
@@ -381,67 +332,6 @@
           </div>
         </div>
       </div>
-
-        <!-- AI Assistant Chat Tab -->
-        <div id="chat-tab" class="tab-content hidden">
-          <h3 class="medical-card-title mb-lg">🤖 AI Clinical Assistant</h3>
-          <!-- 
-          ========================================
-          AI ASSISTANT CHAT - LOGIC NEEDED BY BERNICE
-          ========================================
-          TODO: Connect to AI chatbot system for podiatrists
-          - Integrate with OpenAI/LLM API
-          - Add medical knowledge base
-          - Implement context-aware responses
-          - Add patient-specific queries
-          ======================================== 
-          -->
-          <div class="medical-chat">
-            <div id="podiatristChatbox" class="medical-chatbox" style="height: 400px;">
-              <!-- TODO: Replace with dynamic AI responses -->
-              <div class="message-bot">
-                <b>🤖 AI Assistant:</b> Hello Dr. [NAME]! I'm here to help with clinical decisions, patient information, and medical queries. How can I assist you today?
-              </div>
-            </div>
-            
-            <div class="medical-input-group">
-              <!-- TODO: Connect to AI processing function -->
-              <input 
-                id="podiatristMessage" 
-                class="medical-input" 
-                placeholder="Ask about patient cases, treatments, clinical decisions..."
-              />
-              <!-- TODO: Implement sendPodiatristMessage() function -->
-              <button class="medical-btn medical-btn-primary" onclick="sendPodiatristMessage()">
-                🚀 Ask AI
-              </button>
-            </div>
-
-            <div class="mt-lg">
-              <p class="medical-label">💡 Quick queries:</p>
-              <div class="flex" style="gap: var(--space-sm); flex-wrap: wrap;">
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('patient list')">
-                  👥 Active Patients
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="querySpecificPatient('P001', 'current condition and treatment status')">
-                  📋 Patient P001 Status
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('treatment options')">
-                  💊 Treatment Options
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('drug interactions')">
-                  ⚠️ Drug Interactions
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('clinical guidelines')">
-                  📋 Clinical Guidelines
-                </button>
-                <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="sendQuickQuery('urgent cases')">
-                  🚨 Urgent Cases
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- Analytics Tab -->
         <div id="analytics-tab" class="tab-content hidden">
@@ -663,16 +553,14 @@
 
       <div class="ai-chat-content">
         <div id="aiChatbox" class="ai-chatbox">
-          <div class="message-bot">
-            <strong>🤖 AI Assistant:</strong> Hello Dr. [NAME]! I'm here to help with clinical decisions, patient information, and medical queries. How can I assist you today?
-          </div>
+          <!-- Will be populated by JavaScript -->
         </div>
         
-       <div class="ai-quick-buttons">
-        <button class="ai-quick-btn" onclick="sendQuickQuery('clinical guidelines')">📋 Guidelines</button>
-        <button class="ai-quick-btn" onclick="sendQuickQuery('drug interactions')">⚠️ Interactions</button>
-        <button class="ai-quick-btn" onclick="sendQuickQuery('scheduling help')">🕐 Scheduling</button>
-      </div>
+     <div class="ai-quick-buttons">
+      <button class="ai-quick-btn" onclick="sendQuickQuery('clinical guidelines')">📋 Guidelines</button>
+      <button class="ai-quick-btn" onclick="sendQuickQuery('drug interactions')">⚠️ Interactions</button>
+      <button class="ai-quick-btn" onclick="sendQuickQuery('scheduling help')">🕐 Scheduling</button>
+     </div>
           
           <div class="ai-input-group">
             <input 
@@ -683,6 +571,10 @@
             />
             <button class="ai-send-btn" onclick="sendAIMessage()">
               <span>→</span>
+            </button>
+            <!-- NEW: Clear Chat Button -->
+            <button class="ai-send-btn" onclick="refreshFloatingChat()" title="Clear chat history" style="background: var(--gray-500); min-width: 80px; font-size: 0.75rem;">
+              Clear Chat
             </button>
           </div>
         </div>
