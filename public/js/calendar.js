@@ -642,8 +642,8 @@ class PodiatristCalendar {
         eventDiv.className = `calendar-event ${appointment.type}`;
         eventDiv.textContent = appointment.title;
         eventDiv.addEventListener('click', () => {
-          this.showAppointmentDetails(appointment.title);
-        });
+        this.showAppointmentDetailsWithEdit(appointment.title, appointment.id);
+      });
         
         targetCell.appendChild(eventDiv);
       }
@@ -673,6 +673,45 @@ class PodiatristCalendar {
     alert(`Appointment Details:\n${appointmentInfo}\n\nFeatures coming soon:\n- View patient history\n- Reschedule appointment\n- Add notes`);
   }
 
+  // Show appointment details with edit option
+  showAppointmentDetailsWithEdit(appointmentInfo, appointmentId) {
+    const detailsModal = `
+      <div id="appointmentDetailsModal" class="edit-modal-overlay">
+        <div class="edit-modal-content">
+          <div class="edit-modal-header">
+            <h3>📋 Appointment Details</h3>
+            <button class="edit-modal-close" onclick="closeAppointmentDetailsModal()">✕</button>
+          </div>
+          <div class="edit-modal-body">
+            <div class="appointment-details">
+              <p><strong>📅 Appointment:</strong> ${appointmentInfo}</p>
+              <p><strong>🆔 ID:</strong> ${appointmentId || 'N/A'}</p>
+            </div>
+          </div>
+          <div class="edit-modal-footer">
+            <button class="medical-btn medical-btn-secondary" onclick="closeAppointmentDetailsModal()">❌ Close</button>
+            <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentInfo}', '${appointmentId}')">✏️ Edit Appointment</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', detailsModal);
+  }
+
+  // Close appointment details modal
+  closeAppointmentDetailsModal() {
+    const modal = document.getElementById('appointmentDetailsModal');
+    if (modal) {
+      modal.remove();
+    }
+  }
+
+  // Edit appointment function
+  editAppointment(appointmentInfo, appointmentId) {
+    this.closeAppointmentDetailsModal();
+    this.showEditAppointmentModal(appointmentInfo, appointmentId);
+  }
   // Show create appointment modal
   showCreateAppointmentModal() {
     alert('Create New Appointment\n\nFeatures coming soon:\n- Select patient\n- Choose time slot\n- Set appointment type\n- Add notes');
@@ -711,6 +750,227 @@ class PodiatristCalendar {
       }
     };
   }
+// ========================================
+// APPOINTMENT EDITING FUNCTIONALITY
+// Add this to calendar.js inside PodiatristCalendar class
+// ========================================
+
+// Show appointment edit modal
+showEditAppointmentModal(appointmentInfo, appointmentId = null) {
+  console.log('📝 Opening edit modal for:', appointmentInfo);
+  
+  // Extract appointment details if it's from a calendar event
+  let patientName = '';
+  let currentTime = '';
+  let appointmentType = '';
+  
+  if (typeof appointmentInfo === 'string') {
+    // Parse the appointment string format: "👨‍⚕️ 09:00 - John Doe"
+    const match = appointmentInfo.match(/([🩹👨‍⚕️🔄🏥]+)\s*(\d{2}:\d{2})\s*-\s*(.+)/);
+    if (match) {
+      const emoji = match[1];
+      currentTime = match[2];
+      patientName = match[3];
+      
+      // Map emoji to appointment type
+      if (emoji.includes('👨‍⚕️')) appointmentType = 'consultation';
+      else if (emoji.includes('🔄')) appointmentType = 'follow-up';
+      else if (emoji.includes('🏥')) appointmentType = 'surgery';
+      else if (emoji.includes('🩹')) appointmentType = 'wound-care';
+    }
+  }
+  
+  // Create modal HTML
+  const modalHTML = `
+    <div id="editAppointmentModal" class="edit-modal-overlay">
+      <div class="edit-modal-content">
+        <div class="edit-modal-header">
+          <h3>📝 Edit Appointment</h3>
+          <button class="edit-modal-close" onclick="closeEditAppointmentModal()">✕</button>
+        </div>
+        <div class="edit-modal-body">
+          <div class="form-group">
+            <label class="medical-label">👤 Patient Name:</label>
+            <input type="text" id="editPatientName" class="medical-input" value="${patientName}" readonly>
+          </div>
+          
+          <div class="form-group">
+            <label class="medical-label">📅 New Date:</label>
+            <input type="date" id="editAppointmentDate" class="medical-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="medical-label">⏰ New Time:</label>
+            <input type="time" id="editAppointmentTime" class="medical-input" value="${currentTime}" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="medical-label">📋 Appointment Type:</label>
+            <select id="editAppointmentType" class="medical-select" required>
+              <option value="consultation" ${appointmentType === 'consultation' ? 'selected' : ''}>👨‍⚕️ Consultation</option>
+              <option value="follow-up" ${appointmentType === 'follow-up' ? 'selected' : ''}>🔄 Follow-up</option>
+              <option value="surgery" ${appointmentType === 'surgery' ? 'selected' : ''}>🏥 Surgery</option>
+              <option value="wound-care" ${appointmentType === 'wound-care' ? 'selected' : ''}>🩹 Wound Care</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="medical-label">💭 Reason for Change (Optional):</label>
+            <textarea id="editReason" class="medical-input" rows="3" placeholder="Enter reason for rescheduling..."></textarea>
+          </div>
+        </div>
+        <div class="edit-modal-footer">
+          <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
+          <button class="medical-btn medical-btn-primary" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}', '${patientName}')">💾 Save Changes</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  // Set default date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('editAppointmentDate').value = today;
+  
+  // Focus on date field
+  setTimeout(() => {
+    document.getElementById('editAppointmentDate').focus();
+  }, 100);
+}
+
+// Close edit modal
+closeEditAppointmentModal() {
+  const modal = document.getElementById('editAppointmentModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// Save appointment changes
+async saveAppointmentChanges(appointmentId, patientName) {
+  const newDate = document.getElementById('editAppointmentDate').value;
+  const newTime = document.getElementById('editAppointmentTime').value;
+  const newType = document.getElementById('editAppointmentType').value;
+  const reason = document.getElementById('editReason').value;
+  
+  if (!newDate || !newTime) {
+    alert('⚠️ Please fill in all required fields (date and time)');
+    return;
+  }
+  
+  console.log('💾 Saving appointment changes:', {
+    appointmentId,
+    patientName,
+    newDate,
+    newTime,
+    newType,
+    reason
+  });
+  
+  // Show loading state
+  const saveBtn = event.target;
+  const originalText = saveBtn.textContent;
+  saveBtn.textContent = '⏳ Saving...';
+  saveBtn.disabled = true;
+  
+  try {
+    // Here you would call your backend API to update the appointment
+    // For now, we'll simulate the API call
+    await this.updateAppointmentInDatabase(appointmentId, {
+      patientName,
+      newDate,
+      newTime,
+      newType,
+      reason
+    });
+    
+    // Show success message
+    this.showSuccessMessage(`✅ Appointment updated successfully!\n\nNew Details:\n📅 Date: ${newDate}\n⏰ Time: ${newTime}\n📋 Type: ${newType}`);
+    
+    // Close modal
+    this.closeEditAppointmentModal();
+    
+    // Refresh calendar to show changes
+    this.generateCalendarForMonth(this.currentDate.getMonth(), this.currentDate.getFullYear());
+    
+  } catch (error) {
+    console.error('❌ Error updating appointment:', error);
+    alert('❌ Failed to update appointment. Please try again.');
+  } finally {
+    // Restore button state
+    saveBtn.textContent = originalText;
+    saveBtn.disabled = false;
+  }
+}
+
+// Simulate database update (replace with actual API call)
+async updateAppointmentInDatabase(appointmentId, updateData) {
+  console.log('🔄 Simulating database update...');
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Here you would make an actual API call to your server
+  // Example:
+  /*
+  const response = await fetch('/api/update-appointment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      appointmentId,
+      ...updateData
+    })
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to update appointment');
+  }
+  
+  return await response.json();
+  */
+  
+  // For demo purposes, we'll just log the update
+  console.log('📅 Appointment updated in database (not actually updated into db , no db logic yet):', updateData);
+}
+
+// Show success message
+showSuccessMessage(message) {
+  const successModal = `
+    <div id="successModal" class="edit-modal-overlay">
+      <div class="edit-modal-content success-modal">
+        <div class="edit-modal-header success-header">
+          <h3>✅ Success</h3>
+        </div>
+        <div class="edit-modal-body">
+          <p style="white-space: pre-line;">${message}</p>
+        </div>
+        <div class="edit-modal-footer">
+          <button class="medical-btn medical-btn-primary" onclick="closeSuccessModal()">👍 OK</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', successModal);
+  
+  // Auto-close after 3 seconds
+  setTimeout(() => {
+    this.closeSuccessModal();
+  }, 3000);
+}
+
+// Close success modal
+closeSuccessModal() {
+  const modal = document.getElementById('successModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
 }
 
 // Create global calendar instance and make it globally accessible
@@ -838,3 +1098,34 @@ window.debugCalendarButtons = function() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = PodiatristCalendar;
 }
+
+// Make edit functions globally available
+window.closeEditAppointmentModal = function() {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.closeEditAppointmentModal();
+  }
+};
+
+window.saveAppointmentChanges = function(appointmentId, patientName) {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.saveAppointmentChanges(appointmentId, patientName);
+  }
+};
+
+window.closeAppointmentDetailsModal = function() {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.closeAppointmentDetailsModal();
+  }
+};
+
+window.editAppointment = function(appointmentInfo, appointmentId) {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.editAppointment(appointmentInfo, appointmentId);
+  }
+};
+
+window.closeSuccessModal = function() {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.closeSuccessModal();
+  }
+};

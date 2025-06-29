@@ -167,7 +167,7 @@ class PodiatristAIChat {
   }
 
   // ========================================
-  // ENHANCED sendMessage function with DATE DETECTION
+  // ENHANCED sendMessage function with DATE DETECTION AND DIRECT NO APPOINTMENTS RESPONSE
   // ========================================
   async sendMessage(message) {
     const chatbox = document.getElementById('aiChatbox');
@@ -218,6 +218,15 @@ class PodiatristAIChat {
         this.removeLoadingIndicator(thinkingDiv);
         
         if (scheduleResult.success) {
+          // DIRECT HANDLING OF EMPTY SCHEDULE - NO AI PROCESSING
+          if (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0) {
+            console.log('📅 Empty schedule detected - sending direct response');
+            const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
+            this.addMessageToChat(directMessage, 'bot', chatbox);
+            return;
+          }
+          
+          // If there ARE appointments, process normally with AI
           if (scheduleResult.appointments && scheduleResult.appointments.length > 0) {
             // Create AI prompt with schedule data
             const schedulePrompt = `Here's the appointment schedule for ${scheduleResult.date}:
@@ -252,14 +261,6 @@ Please provide a comprehensive overview including workload analysis, priority ca
             
             // Add schedule cards
             this.addScheduleCards(scheduleResult.appointments, chatbox);
-            
-          } else {
-            // No appointments for this date
-            this.addMessageToChat(
-              `📅 **${scheduleResult.date}**: ${scheduleResult.message}\n\nThis gives you a free day for:\n• Administrative tasks\n• Continuing education\n• Equipment maintenance\n• Preparation for upcoming cases`, 
-              'bot', 
-              chatbox
-            );
           }
         } else {
           this.addMessageToChat("❌ Unable to fetch schedule for the requested date. Please try again.", 'bot', chatbox);
@@ -508,7 +509,7 @@ detectScheduleQuery(message) {
 }
 
   // ========================================
-  // ENHANCED QUICK QUERY WITH DATABASE INTEGRATION
+  // ENHANCED QUICK QUERY WITH DIRECT NO APPOINTMENTS RESPONSE
   // ========================================
   async sendQuickQuery(query, specificDate = null) {
     console.log('🔍 Quick query triggered:', query, 'for date:', specificDate);
@@ -555,6 +556,21 @@ detectScheduleQuery(message) {
             const scheduleResult = await scheduleResponse.json();
             console.log('📊 Schedule response received:', scheduleResult);
             
+            // DIRECT HANDLING OF EMPTY SCHEDULE - NO AI PROCESSING
+            if (scheduleResult.success && (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0)) {
+              console.log('📅 Empty schedule detected in quick query - sending direct response');
+              
+              // Remove loading indicator immediately
+              this.removeLoadingIndicator(loadingDiv);
+              
+              // Direct response without AI processing
+              const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
+              this.addMessageToChat(directMessage, 'bot', chatbox);
+              
+              console.log('✅ Direct "no appointments" message sent from quick query');
+              return; // Exit early, don't send to AI
+            }
+            
             if (scheduleResult.success && scheduleResult.appointments && scheduleResult.appointments.length > 0) {
               scheduleData = scheduleResult;
               console.log('✅ Schedule data prepared:', scheduleData);
@@ -584,7 +600,11 @@ Focus on clinical priorities and workflow optimization.`;
 
             } else {
               console.log('⚠️ No appointments found or empty response');
-              prompt = `No appointments are currently scheduled for ${scheduleResult.date}. Please provide guidance on productive use of free time and preparation for upcoming appointments.`;
+              // This should not reach here due to direct handling above, but keep as fallback
+              this.removeLoadingIndicator(loadingDiv);
+              const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
+              this.addMessageToChat(directMessage, 'bot', chatbox);
+              return;
             }
           } catch (fetchError) {
             console.error('❌ Error fetching schedule:', fetchError);

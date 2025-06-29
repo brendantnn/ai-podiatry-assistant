@@ -1990,3 +1990,219 @@ body {
   0% { opacity: 0.7; }
   100% { opacity: 1; }
 }
+
+/* ========================================
+   EDIT APPOINTMENT MODAL STYLES
+   Add this to the end of template.css
+   ======================================== */
+
+.edit-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.edit-modal-content {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2xl);
+  border: 1px solid var(--gray-200);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideInScale 0.2s ease-out;
+}
+
+.edit-modal-header {
+  background: linear-gradient(135deg, var(--blue-50) 0%, var(--cream-50) 100%);
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.edit-modal-header h3 {
+  margin: 0;
+  color: var(--gray-800);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+}
+
+.edit-modal-close {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-modal-close:hover {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.edit-modal-body {
+  padding: var(--space-6);
+}
+
+.edit-modal-body .form-group {
+  margin-bottom: var(--space-5);
+}
+
+.edit-modal-body .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.edit-modal-body .medical-label {
+  display: block;
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-700);
+  margin-bottom: var(--space-2);
+  font-size: 0.9rem;
+}
+
+.edit-modal-body .medical-input,
+.edit-modal-body .medical-select {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1.5px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  font-size: 0.95rem;
+  color: var(--gray-800);
+  background: var(--bg-card);
+  transition: all var(--transition-normal);
+}
+
+.edit-modal-body .medical-input:focus,
+.edit-modal-body .medical-select:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+  outline: none;
+}
+
+.edit-modal-body textarea.medical-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.edit-modal-footer {
+  padding: var(--space-6);
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  background: var(--gray-25);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+.edit-modal-footer .medical-btn {
+  min-width: 120px;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Success Modal Styling */
+.success-modal {
+  border: 2px solid var(--success-color);
+}
+
+.success-header {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: var(--success-color);
+}
+
+.success-header h3 {
+  color: var(--success-color);
+}
+
+/* Appointment Details Modal */
+.appointment-details {
+  background: var(--cream-50);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--cream-200);
+}
+
+.appointment-details p {
+  margin: var(--space-2) 0;
+  line-height: 1.5;
+}
+
+.appointment-details strong {
+  color: var(--blue-700);
+}
+
+/* Modal Animations */
+@keyframes slideInScale {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Loading States */
+.medical-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.medical-btn:disabled:hover {
+  transform: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .edit-modal-content {
+    width: 95%;
+    margin: var(--space-4);
+  }
+  
+  .edit-modal-header,
+  .edit-modal-body,
+  .edit-modal-footer {
+    padding: var(--space-4);
+  }
+  
+  .edit-modal-footer {
+    flex-direction: column;
+  }
+  
+  .edit-modal-footer .medical-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .edit-modal-overlay {
+    padding: var(--space-2);
+  }
+  
+  .edit-modal-content {
+    width: 100%;
+    margin: 0;
+  }
+}

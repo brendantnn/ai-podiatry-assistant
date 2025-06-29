@@ -909,27 +909,28 @@ app.post("/get-todays-schedule", async (req, res) => {
 
     console.log('📊 Found appointments:', appointmentsQuery.size);
 
-    if (appointmentsQuery.empty) {
-      const emptyResult = {
-        success: true,
-        appointments: [],
-        totalCount: 0,
-        message: "No appointments scheduled for today",
-        date: new Date().toLocaleDateString("en-SG", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          timeZone: "Asia/Singapore"
-        })
-      };
-      
-      // CACHE EMPTY RESULT TOO
-      scheduleCache2.data = emptyResult;
-      scheduleCache2.timestamp = now;
-      
-      return res.json(emptyResult);
-    }
+   if (appointmentsQuery.empty) {
+    const emptyResult = {
+      success: true,
+      appointments: [],
+      totalCount: 0,
+      message: "No appointments scheduled for today",
+      date: new Date().toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Singapore"
+      }),
+      isEmpty: true // ADD EMPTY FLAG
+    };
+    
+    // CACHE EMPTY RESULT TOO
+    scheduleCache2.data = emptyResult;
+    scheduleCache2.timestamp = now;
+    
+    return res.json(emptyResult);
+  }
 
     // Process appointments in parallel for speed
     const appointmentPromises = appointmentsQuery.docs.map(async (appointmentDoc) => {
@@ -1102,21 +1103,30 @@ app.post("/get-schedule-by-date", async (req, res) => {
 
     console.log('⚡ FAST: Found', appointmentsQuery.size, 'appointments');
 
-    if (appointmentsQuery.empty) {
-      return res.json({
-        success: true,
-        appointments: [],
-        totalCount: 0,
-        message: `No appointments scheduled for ${scheduleDate.toLocaleDateString("en-SG")}`,
-        date: scheduleDate.toLocaleDateString("en-SG", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          timeZone: "Asia/Singapore"
-        })
-      });
-    }
+   if (appointmentsQuery.empty) {
+    const emptyResult = {
+      success: true,
+      appointments: [],
+      totalCount: 0,
+      message: `No appointments scheduled for ${scheduleDate.toLocaleDateString("en-SG")}`,
+      date: scheduleDate.toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Singapore"
+      }),
+      isEmpty: true  // ADD EMPTY FLAG FOR DIRECT HANDLING
+    };
+    
+    // CACHE EMPTY RESULT TOO
+    scheduleCache.set(cacheKey, {
+      data: emptyResult,
+      timestamp: Date.now()
+    });
+    
+    return res.json(emptyResult);
+  }
 
     // OPTIMIZATION 3: Batch patient lookups with timeout and parallel processing
     console.log('🔄 FAST: Processing appointments in parallel...');
