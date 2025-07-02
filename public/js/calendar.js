@@ -20,7 +20,7 @@ class PodiatristCalendar {
   }
 
   // Initialize calendar when DOM is ready
-  init() {
+  async init() {
     console.log('🗓️ Initializing Podiatrist Calendar...');
     
     if (this.isInitialized) {
@@ -29,7 +29,7 @@ class PodiatristCalendar {
     }
 
     try {
-      this.loadSampleAppointments();
+      await this.loadAppointments();
       this.setupEventListeners();
       this.setInitialState();
       this.isInitialized = true;
@@ -39,155 +39,24 @@ class PodiatristCalendar {
     }
   }
 
-  // Load sample appointment data (UPDATED with more diverse dates)
-  loadSampleAppointments() {
-    this.appointments = [
-      // January 2025
-      {
-        id: 'apt001',
-        date: '2025-01-21',
-        time: '09:00',
-        patient: 'John Doe',
-        type: 'consultation',
-        title: '👨‍⚕️ 09:00 - John Doe'
-      },
-      {
-        id: 'apt002',
-        date: '2025-01-21',
-        time: '14:30',
-        patient: 'Mary Chen',
-        type: 'follow-up',
-        title: '🔄 14:30 - Mary Chen'
-      },
-      {
-        id: 'apt003',
-        date: '2025-01-22',
-        time: '10:00',
-        patient: 'Robert Kim',
-        type: 'surgery',
-        title: '🏥 10:00 - Robert Kim'
-      },
-      {
-        id: 'apt004',
-        date: '2025-01-22',
-        time: '16:00',
-        patient: 'Lisa Wong',
-        type: 'wound-care',
-        title: '🩹 16:00 - Lisa Wong'
-      },
-      {
-        id: 'apt005',
-        date: '2025-01-23',
-        time: '11:00',
-        patient: 'David Lee',
-        type: 'consultation',
-        title: '👨‍⚕️ 11:00 - David Lee'
-      },
-      {
-        id: 'apt006',
-        date: '2025-01-24',
-        time: '09:30',
-        patient: 'Sarah Tan',
-        type: 'follow-up',
-        title: '🔄 09:30 - Sarah Tan'
-      },
-      {
-        id: 'apt007',
-        date: '2025-01-25',
-        time: '08:00',
-        patient: 'Michael Lim',
-        type: 'surgery',
-        title: '🏥 08:00 - Michael Lim'
-      },
-      {
-        id: 'apt008',
-        date: '2025-01-26',
-        time: '15:00',
-        patient: 'Jennifer Ho',
-        type: 'wound-care',
-        title: '🩹 15:00 - Jennifer Ho'
-      },
-      
-      // February 2025
-      {
-        id: 'apt009',
-        date: '2025-02-03',
-        time: '09:00',
-        patient: 'Alex Johnson',
-        type: 'consultation',
-        title: '👨‍⚕️ 09:00 - Alex Johnson'
-      },
-      {
-        id: 'apt010',
-        date: '2025-02-05',
-        time: '14:00',
-        patient: 'Emma Wilson',
-        type: 'follow-up',
-        title: '🔄 14:00 - Emma Wilson'
-      },
-      {
-        id: 'apt011',
-        date: '2025-02-07',
-        time: '10:30',
-        patient: 'Daniel Brown',
-        type: 'surgery',
-        title: '🏥 10:30 - Daniel Brown'
-      },
-      {
-        id: 'apt012',
-        date: '2025-02-12',
-        time: '13:00',
-        patient: 'Sophie Davis',
-        type: 'wound-care',
-        title: '🩹 13:00 - Sophie Davis'
-      },
-      
-      // March 2025
-      {
-        id: 'apt013',
-        date: '2025-03-10',
-        time: '11:00',
-        patient: 'James Miller',
-        type: 'consultation',
-        title: '👨‍⚕️ 11:00 - James Miller'
-      },
-      {
-        id: 'apt014',
-        date: '2025-03-15',
-        time: '09:30',
-        patient: 'Olivia Garcia',
-        type: 'follow-up',
-        title: '🔄 09:30 - Olivia Garcia'
-      },
-      {
-        id: 'apt015',
-        date: '2025-03-20',
-        time: '14:00',
-        patient: 'Lucas Martinez',
-        type: 'surgery',
-        title: '🏥 14:00 - Lucas Martinez'
-      },
-      
-      // June 2025 (current month shown in static HTML)
-      {
-        id: 'apt016',
-        date: '2025-06-05',
-        time: '10:00',
-        patient: 'Ava Anderson',
-        type: 'consultation',
-        title: '👨‍⚕️ 10:00 - Ava Anderson'
-      },
-      {
-        id: 'apt017',
-        date: '2025-06-12',
-        time: '15:30',
-        patient: 'Noah Taylor',
-        type: 'wound-care',
-        title: '🩹 15:30 - Noah Taylor'
-      }
-    ];
-    console.log(`📅 Loaded ${this.appointments.length} sample appointments across multiple months`);
-  }
+  async loadAppointments() {
+    const podId = "pod_1";//TODO: Make Id not fixed
+    try {
+      const res = await fetch("/podiatrist-get-calendar", { // Get patient queue
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ podId }) // Ensure podId is defined
+      });
+
+      // Get queue from database and assign to variable
+      const data = await res.json();
+      this.appointments = data.appointments || [];
+
+    } catch (err) {
+      console.error("❌ Failed to fetch patient details:", err);
+    }
+  console.log(`📅 Loaded ${this.appointments.length} sample appointments across multiple months`);
+}
 
   // Setup all event listeners (SIMPLIFIED - removed unnecessary view controls)
   setupEventListeners() {
@@ -640,9 +509,9 @@ class PodiatristCalendar {
       if (targetCell) {
         const eventDiv = document.createElement('div');
         eventDiv.className = `calendar-event ${appointment.type}`;
-        eventDiv.textContent = appointment.title;
+        eventDiv.textContent = appointment.time + " " + appointment.patient;
         eventDiv.addEventListener('click', () => {
-        this.showAppointmentDetailsWithEdit(appointment.title, appointment.id);
+        this.showAppointmentDetailsWithEdit(appointment.time + " " + appointment.patient, appointment.id);
       });
         
         targetCell.appendChild(eventDiv);

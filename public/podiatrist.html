@@ -208,6 +208,14 @@
                 <option>🦴 MSK</option>
               </select>
               <!-- TODO: Connect to patient queue refresh functionality (JUNJIE - Backend data refresh) -->
+              <input type="text" id="searchName" placeholder="Search by Name" onkeyup="filterPatients()">
+              <select id="filterCategory" onchange="filterPatients()">
+                <option value="">🔍 All Categories</option>
+                <option value="Wound Care">🩹 Wound Care</option>
+                <option value="Surgery">💅 Nail Surgery</option>
+                <option value="High Risk Footcare">⚠️ High Risk</option>
+                <option value="MSK">🦴 MSK</option>
+              </select>
               <button class="medical-btn medical-btn-primary medical-btn-sm">🔄 Refresh</button>
             </div>
           </div>
@@ -240,34 +248,11 @@
                 </tr>
               </thead>
               <tbody id="patientQueue">
-                <!-- TODO: Replace with dynamic patient data -->
-                <tr>
-                  <td><span class="medical-badge badge-danger">🚨 Urgent</span></td>
-                  <td>patient_1</td>
-                  <td>John Lim</td>
-                  <td>🩹 Wound Care</td>
-                  <td>Diabetic foot with corn, requires high-risk footcare</td>
-                  <td>2h 15m</td>
-                  <td>
-                    <!-- TODO: Connect to patient detail view (JUNJIE - Backend routing) -->
-                    <button class="medical-btn medical-btn-primary medical-btn-sm" onclick="querySpecificPatient('patient_1', 'current condition and treatment status')">👁️ View</button>
-                    <!-- TODO: Connect to patient chat system (JUNJIE - Chat backend integration) -->
-                    <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm">💬 Chat</button>
-                  </td>
+                <!-- Queue Table will be generated with Javascript -->
+                <!-- To Add: Loading placeholder for section -->
+                <tr style="width: 100%; text-align: center;">
+                  <td>LOADING</td>
                 </tr>
-                <tr>
-                  <td><span class="medical-badge badge-warning">⚠️ High</span></td>
-                  <td>P002</td>
-                  <td>Jane Smith</td>
-                  <td>💅 Nail Surgery</td>
-                  <td>Severe ingrown toenail causing pain</td>
-                  <td>1h 45m</td>
-                  <td>
-                    <button class="medical-btn medical-btn-primary medical-btn-sm">👁️ View</button>
-                    <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm">💬 Chat</button>
-                  </td>
-                </tr>
-                <!-- TODO: Add more dynamic rows from database -->
               </tbody>
             </table>
           </div>
@@ -581,6 +566,22 @@
       </div>
     </div>
   </div>
+
+  <!--Modals Sections-->
+  <!--Patient details Modal-->
+  <div id="patientModal" class="queue-modal">
+    <div class="queue-modal-content">
+      <span class="queue-modal-close" onclick="closeModal()">&times;</span>
+      <h2>Patient Details</h2>
+      <p><strong>Name:</strong> <span id="modalPatientName"></span></p>
+      <p><strong>ID:</strong> <span id="modalPatientId"></span></p>
+      <p><strong>Category:</strong> <span id="modalPatientCategory"></span></p>
+      <p><strong>Symptoms:</strong> <span id="modalPatientSymptoms"></span></p>
+      <p><strong>Wait Time:</strong> <span id="modalPatientWaitTime"></span></p>
+      <p><strong>Case Summary:</strong> <span id="modalPatientCaseSummary"></span></p>
+    </div>
+  </div>
+
 
   <script src="js/calendar.js"></script>
   <script src="js/podiatrist.js"></script>

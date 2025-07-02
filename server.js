@@ -1260,6 +1260,139 @@ app.post("/get-schedule-by-date", async (req, res) => {
   }
 });
 
+// Fetch list of podiatrists appointments for queue
+app.post('/podiatrist-get-queue', async (req, res) => {
+  const { podId } = req.body;
+  console.log("🔍 Fetching queue info for:", podId);
+
+  try {
+    // Get appointment
+    const apptSnapshot = await db.collection("Appointments")//Get appointments for this pod
+      .where("podId", "==", podId)
+      .get();
+
+    let appointments = [];// Make data list
+    if (!apptSnapshot.empty) {
+      const patientIds = [];
+
+      apptSnapshot.docs.forEach(doc=>{ //Loop and get data from each entry retreived
+        const appt = doc.data();
+        patientIds.push(appt.patientId);
+
+        //Add data to data object
+        const appointment = {
+          patientId: appt.patientId,
+          date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
+          time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          urgencyLevel: appt.urgencyLevel,
+          category: appt.category,
+          initialDiagnosis: appt.initialDiagnosis,
+          summary: appt.summary
+        };
+        appointments.push(appointment); //Put data object into appointments list
+      });
+      
+      //Get list of users that match appointments
+      const userSnapshots = await db.collection("Users")
+        .where("userId", "in", patientIds)
+        .get();
+
+      const userMap = {};
+      userSnapshots.docs.forEach(userDoc => {
+        const userData = userDoc.data();
+        userMap[userData.userId] = userData.firstName + " " + userData.lastName; 
+      });
+
+      // Add patient names to appointments
+      appointments = appointments.map(appt => ({
+        ...appt,
+        name: userMap[appt.patientId] || "Unknown"
+      }));
+      
+      //Return result in json
+      return res.json({
+        appointments
+      });
+
+    }else{
+      console.log("❌ No Appointments found");
+      return res.json({
+        response: "No Appointments Found",
+        appointments: null
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error in /podiatrist-get-queue:", error);
+    res.status(500).json({ error: "Failed to fetch queue" });
+  }
+});
+
+// Fetch appouintments for calander
+app.post('/podiatrist-get-calendar', async (req, res) => {
+  const { podId } = req.body;
+  console.log("🔍 Fetching calendar info for:", podId);
+
+  try {
+    // Get appointment
+    const apptSnapshot = await db.collection("Appointments") //Get appointments for this pod
+      .where("podId", "==", podId)
+      .where("status", "==", "scheduled")
+      // .orderBy("scheduledDate")
+      .get();
+
+    let appointments = [];// Make data list
+    if (!apptSnapshot.empty) {
+      const patientIds = [];
+      apptSnapshot.docs.forEach(doc=>{ //Loop and get data from each entry retreived
+        const appt = doc.data();
+        patientIds.push(appt.patientId);
+
+        //Add data to data object
+        const appointment = {
+          id: appt.patientId,
+          patientId: appt.patientId,
+          date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }), // Convert Firestore timestamp to JavaScript Date
+          time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }), // Convert Firestore timestamp to JavaScript Date
+          type: appt.category, 
+        };
+        appointments.push(appointment); //Put data object into appointments list
+      });
+
+      //Get list of users that match appointments
+      const userSnapshots = await db.collection("Users")
+        .where("userId", "in", patientIds)
+        .get();
+
+      const userMap = {};
+      userSnapshots.docs.forEach(userDoc => {
+        const userData = userDoc.data();
+        userMap[userData.userId] = userData.firstName + " " + userData.lastName;
+      });
+
+      // Add patient names to appointments as "patient"
+      appointments = appointments.map(appt => ({
+        ...appt,
+        patient: userMap[appt.patientId] || "Unknown"
+      }));
+      
+      //Return result in json
+      return res.json({
+        appointments
+      });
+
+    }else{
+      console.log("❌ No Appointments found");
+      return res.json({
+        response: "No Appointments Found",
+        appointments: null
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error in /podiatrist-get-calendar:", error);
+    res.status(500).json({ error: "Failed to fetch calendar" });
+  }
+});
+
 // ========================================
 // ENHANCED DATE PARSING HELPER FUNCTIONS
 // ========================================

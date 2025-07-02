@@ -3,6 +3,31 @@
 // Tab switching and UI interactions ONLY
 // ========================================
 
+//Declare needed variables
+
+let patientQueue = []; // Patient Queue
+
+// Load Stuff on entering window
+window.onload = async () => {
+  const podId = "pod_1"; // Simulated logged-in podiatrist
+
+  try {
+    const res = await fetch("/podiatrist-get-queue", { // Get patient queue
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
+    });
+  
+    // Get queue from database and assgin to variable
+    const data = await res.json();
+    patientQueue = data.appointments;
+    populateTable(patientQueue)
+    
+  }catch (err) {
+    console.error("❌ Failed to fetch patient details:", err);
+  }
+}
+
 // Tab switching functionality
 function showTab(tabName) {
   const tabs = document.querySelectorAll('.tab-content');
@@ -62,6 +87,73 @@ function startPatientChat(patientId) {
   // TODO: Implement patient chat backend integration
   console.log('Starting chat with patient:', patientId);
 }
+
+// Filter function
+function filterPatients() {
+  const searchValue = document.getElementById("searchName").value.toLowerCase();
+  const selectedCategory = document.getElementById("filterCategory").value;
+
+  const filteredData = patientQueue.filter(patient => {
+    const matchesName = patient.patientId.toLowerCase().includes(searchValue);
+    const matchesCategory = selectedCategory === "" || patient.category.toLowerCase() === selectedCategory.toLowerCase();
+    return matchesName && matchesCategory;
+  });
+
+  populateTable(filteredData);
+}
+
+//Dynamically make dashboard
+function populateTable(data = patientQueue) {
+  const tableBody = document.getElementById("patientQueue");
+  tableBody.innerHTML = ""; // Clear existing rows
+
+  data.forEach(patient => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td><span class="medical-badge badge-${patient.urgencyLevel === "🚨 Urgent" ? "danger" : "warning"}">${patient.urgencyLevel}</span></td>
+      <td>${patient.patientId}</td>
+      <td>${patient.name}</td>
+      <td>${patient.category}</td>
+      <td>${patient.initialDiagnosis}</td>
+      <td>${patient.date}</td>
+      <td>
+        <button class="medical-btn medical-btn-primary medical-btn-sm"
+        onclick="openModal('${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.date}', '${patient.summary}')"
+        >👁️ View</button>
+        <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm">💬 Chat</button>
+      </td>
+    `;
+    
+    tableBody.appendChild(row);
+  });
+}
+ 
+// Function to open populated modal
+function openModal(id, name, category, symptoms, waitTime, summary) {
+  document.getElementById('modalPatientId').innerText = id;
+  document.getElementById('modalPatientName').innerText = name;
+  document.getElementById('modalPatientCategory').innerText = category;
+  document.getElementById('modalPatientSymptoms').innerText = symptoms;
+  document.getElementById('modalPatientWaitTime').innerText = waitTime;
+  document.getElementById('modalPatientCaseSummary').innerText = summary;
+
+  // Show the modal
+  document.getElementById('patientModal').style.display = 'block';
+  }
+
+  function closeModal() {
+  document.getElementById('patientModal').style.display = 'none';
+  }
+
+  // Close the modal when clicking outside of it
+  window.onclick = function(event) {
+  const modal = document.getElementById('patientModal');
+  if (event.target === modal) {
+    closeModal();
+  }
+};
+
 
 // ========================================
 // APPOINTMENT MANAGEMENT
