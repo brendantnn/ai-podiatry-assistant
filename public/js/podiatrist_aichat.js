@@ -1,17 +1,25 @@
 // ========================================
-// COMPLETE WORKING AI CHAT - FLOATING ASSISTANT WITH FIXED DATE FUNCTIONALITY
+// COMPLETE WORKING AI CHAT - FLOATING ASSISTANT WITH MODAL APPOINTMENT EDITING
 // ========================================
 
 class PodiatristAIChat {
   constructor() {
     this.isInitialized = false;
     this.patientCache = new Map();
+    this.selectedAppointment = null;
     
     this.init = this.init.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
     this.sendQuickQuery = this.sendQuickQuery.bind(this);
     this.querySpecificPatient = this.querySpecificPatient.bind(this);
     this.refreshChat = this.refreshChat.bind(this);
+    this.startAppointmentEdit = this.startAppointmentEdit.bind(this);
+    this.detectEditRequest = this.detectEditRequest.bind(this);
+    this.parseEditRequest = this.parseEditRequest.bind(this);
+    this.processAppointmentEdit = this.processAppointmentEdit.bind(this);
+    this.showAppointmentModal = this.showAppointmentModal.bind(this);
+    this.closeAppointmentModal = this.closeAppointmentModal.bind(this);
+    this.selectAppointmentFromModal = this.selectAppointmentFromModal.bind(this);
   }
 
   // Initialize AI chat system
@@ -74,11 +82,12 @@ class PodiatristAIChat {
     chatbox.innerHTML = '';
     this.addWelcomeMessage(chatbox);
     this.patientCache.clear();
+    this.selectedAppointment = null;
     
     console.log('✅ Floating chat refreshed successfully');
   }
 
-  // ADD COMPLETE WELCOME MESSAGE
+  // ADD COMPLETE WELCOME MESSAGE WITH APPOINTMENT EDITING
   addWelcomeMessage(chatbox) {
     const welcomeDiv = document.createElement('div');
     welcomeDiv.className = 'message-bot';
@@ -100,6 +109,16 @@ class PodiatristAIChat {
           </button>
         </div>
         
+        <h4 style="color: #1d4ed8; margin: 0 0 12px 0; font-size: 1rem;">🔧 Appointment Management</h4>
+        <div style="display: grid; gap: 8px; margin-bottom: 16px;">
+          <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.startAppointmentEdit()" style="text-align: left; padding: 8px 12px;">
+            ✏️ Edit Appointment
+          </button>
+          <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('reschedule help')" style="text-align: left; padding: 8px 12px;">
+            🔄 Reschedule Help
+          </button>
+        </div>
+        
         <h4 style="color: #1d4ed8; margin: 0 0 12px 0; font-size: 1rem;">🩺 Clinical Support</h4>
         <div style="display: grid; gap: 8px; margin-bottom: 16px;">
           <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('clinical guidelines')" style="text-align: left; padding: 8px 12px;">
@@ -114,12 +133,571 @@ class PodiatristAIChat {
         </div>
         
         <p style="color: #6b7280; font-size: 0.875rem; margin: 0;">
-          💡 <strong>Tip:</strong> You can also ask about specific patients using "Patient [ID]" or ask about schedules for any date like "What's my schedule tomorrow?"
+          💡 <strong>Tip:</strong> You can ask "Edit patient_1's appointment" or "Reschedule John's appointment to tomorrow 2pm"
         </p>
       </div>
     `;
     chatbox.appendChild(welcomeDiv);
     chatbox.scrollTop = chatbox.scrollHeight;
+  }
+
+  // ========================================
+  // APPOINTMENT EDITING FUNCTIONALITY WITH MODAL
+  // ========================================
+
+  // START APPOINTMENT EDIT WORKFLOW - WITH MODAL
+  async startAppointmentEdit() {
+    const chatbox = document.getElementById('aiChatbox');
+    if (!chatbox) return;
+    
+    this.addMessageToChat("I'd like to edit an appointment", 'user', chatbox);
+    this.addMessageToChat("🔍 Loading appointment selection...", 'bot', chatbox);
+    
+    try {
+      const response = await fetch("/get-upcoming-appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          podiatristId: "current_podiatrist",
+          days: 30,
+          limit: 20
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.appointments && result.appointments.length > 0) {
+        this.addMessageToChat(`📅 Found ${result.appointments.length} appointments. Opening selection window...`, 'bot', chatbox);
+        
+        // Show modal instead of inline list
+        setTimeout(() => {
+          this.showAppointmentModal(result.appointments, result.totalCount);
+        }, 500);
+      } else {
+        this.addMessageToChat("📅 No appointments found to edit.", 'bot', chatbox);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      this.addMessageToChat("❌ Error loading appointments. Please try again.", 'bot', chatbox);
+    }
+  }
+
+  // SHOW APPOINTMENT SELECTION MODAL
+  showAppointmentModal(appointments, totalCount) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('appointmentEditModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'appointmentEditModal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease-out;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 500px;
+      max-height: 80vh;
+      width: 90%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      overflow-y: auto;
+      animation: slideInScale 0.2s ease-out;
+    `;
+    
+    let modalHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
+        <h3 style="margin: 0; color: #1d4ed8; font-size: 1.2rem;">📅 Select Appointment to Edit</h3>
+        <button onclick="podiatristAI.closeAppointmentModal()" style="
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 5px;
+          border-radius: 4px;
+          transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">✕</button>
+      </div>
+      
+      <div style="margin-bottom: 15px; color: #6b7280; font-size: 0.9rem;">
+        Found ${appointments.length} appointments to edit:
+      </div>
+    `;
+    
+    appointments.forEach((appointment, index) => {
+      const urgencyColor = this.getUrgencyColor(appointment.urgencyLevel);
+      
+      modalHTML += `
+        <div style="
+          padding: 15px;
+          margin-bottom: 10px;
+          background: #f8f9fa;
+          border: 1px solid #e5e7eb;
+          border-left: 4px solid ${urgencyColor.main};
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        " 
+        onmouseover="this.style.backgroundColor='#f0f9ff'; this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.backgroundColor='#f8f9fa'; this.style.transform='translateY(0)'"
+        onclick="podiatristAI.selectAppointmentFromModal('${appointment.patientId}', '${appointment.appointmentId}', '${appointment.patientName}', '${appointment.scheduledDateTime}')">
+          
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div style="font-weight: 600; color: #374151; font-size: 1rem;">
+              ${appointment.patientName}
+            </div>
+            <div style="font-size: 0.8rem; color: ${urgencyColor.main}; font-weight: 600; background: ${urgencyColor.border}; padding: 2px 8px; border-radius: 12px;">
+              ${appointment.urgencyText}
+            </div>
+          </div>
+          
+          <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 4px;">
+            📅 ${appointment.scheduledDateTime}
+          </div>
+          
+          <div style="font-size: 0.85rem; color: #374151; margin-bottom: 8px;">
+            📋 ${appointment.category} - ${appointment.initialDiagnosis}
+          </div>
+          
+          <div style="text-align: center;">
+            <span style="
+              background: #3b82f6;
+              color: white;
+              padding: 6px 12px;
+              border-radius: 6px;
+              font-size: 0.8rem;
+              font-weight: 500;
+            ">✏️ Click to Edit This Appointment</span>
+          </div>
+        </div>
+      `;
+    });
+    
+    modalContent.innerHTML = modalHTML;
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Add animation styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideInScale {
+        from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        this.closeAppointmentModal();
+      }
+    });
+  }
+
+  // SELECT APPOINTMENT FROM MODAL - ENHANCED WITH IN-MODAL EDITING
+selectAppointmentFromModal(patientId, appointmentId, patientName, currentDateTime) {
+  // Store selected appointment
+  this.selectedAppointment = {
+    patientId,
+    appointmentId, 
+    patientName,
+    currentDateTime
+  };
+  
+  // Transform the modal into an editing interface
+  this.showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime);
+}
+
+// SHOW APPOINTMENT EDIT FORM IN MODAL
+showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) {
+  const modal = document.getElementById('appointmentEditModal');
+  if (!modal) return;
+  
+  const modalContent = modal.querySelector('div');
+  
+  // Replace modal content with edit form
+  modalContent.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
+      <h3 style="margin: 0; color: #1d4ed8; font-size: 1.2rem;">✏️ Edit Appointment</h3>
+      <button onclick="podiatristAI.closeAppointmentModal()" style="
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 5px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">✕</button>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #1d4ed8;">📋 Current Appointment</h4>
+        <div style="font-size: 0.9rem; color: #374151;">
+          <div><strong>Patient:</strong> ${patientName}</div>
+          <div><strong>Current Date/Time:</strong> ${currentDateTime}</div>
+        </div>
+      </div>
+      
+      <div style="background: #fefdf8; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+        <h4 style="margin: 0 0 15px 0; color: #374151;">📅 New Date & Time</h4>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Date:</label>
+          <input type="date" id="newAppointmentDate" style="
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+          " min="${new Date().toISOString().split('T')[0]}">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Time:</label>
+          <select id="newAppointmentTime" style="
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+          ">
+            <option value="">Select time</option>
+            <option value="08:00">8:00 AM</option>
+            <option value="08:30">8:30 AM</option>
+            <option value="09:00">9:00 AM</option>
+            <option value="09:30">9:30 AM</option>
+            <option value="10:00">10:00 AM</option>
+            <option value="10:30">10:30 AM</option>
+            <option value="11:00">11:00 AM</option>
+            <option value="11:30">11:30 AM</option>
+            <option value="12:00">12:00 PM</option>
+            <option value="12:30">12:30 PM</option>
+            <option value="13:00">1:00 PM</option>
+            <option value="13:30">1:30 PM</option>
+            <option value="14:00">2:00 PM</option>
+            <option value="14:30">2:30 PM</option>
+            <option value="15:00">3:00 PM</option>
+            <option value="15:30">3:30 PM</option>
+            <option value="16:00">4:00 PM</option>
+            <option value="16:30">4:30 PM</option>
+            <option value="17:00">5:00 PM</option>
+          </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button onclick="podiatristAI.closeAppointmentModal()" style="
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
+            Cancel
+          </button>
+          <button onclick="podiatristAI.submitAppointmentEdit('${patientId}', '${appointmentId}', '${patientName}')" style="
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'">
+            ✅ Update Appointment
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// SUBMIT APPOINTMENT EDIT FROM MODAL - FIXED VERSION
+async submitAppointmentEdit(patientId, appointmentId, patientName) {
+  const dateInput = document.getElementById('newAppointmentDate');
+  const timeInput = document.getElementById('newAppointmentTime');
+  
+  if (!dateInput || !timeInput) {
+    alert('Error: Could not find date/time inputs');
+    return;
+  }
+  
+  const newDate = dateInput.value;
+  const newTime = timeInput.value;
+  
+  if (!newDate || !newTime) {
+    alert('Please select both date and time');
+    return;
+  }
+  
+  // Combine date and time
+  const newDateTime = `${newDate} ${newTime}`;
+  
+  try {
+    // Show loading in modal
+    const modal = document.getElementById('appointmentEditModal');
+    const originalContent = modal.innerHTML;
+    
+    modal.querySelector('div').innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <div style="font-size: 1.2rem; color: #1d4ed8; margin-bottom: 10px;">⏳ Updating Appointment...</div>
+        <div style="color: #6b7280;">Please wait while we process your changes.</div>
+      </div>
+    `;
+    
+    // Send edit request to server
+    const response = await fetch("/edit-appointment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId: patientId,
+        appointmentId: appointmentId,
+        newDateTime: newDateTime,
+        podiatristId: "current_podiatrist"
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // Show success message
+      modal.querySelector('div').innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+          <h3 style="color: #059669; margin-bottom: 15px;">Appointment Updated Successfully!</h3>
+          <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+            <div><strong>Patient:</strong> ${result.patientName || patientName}</div>
+            <div><strong>New Date & Time:</strong> ${result.newDateTime || newDateTime}</div>
+            ${result.oldDateTime ? `<div><strong>Previous:</strong> ${result.oldDateTime}</div>` : ''}
+          </div>
+          <div style="color: #6b7280; font-size: 0.9rem; margin-bottom: 15px;">
+            📊 Updating patient queue and calendar...
+          </div>
+          <button onclick="podiatristAI.closeAppointmentModal()" style="
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+          ">Close</button>
+        </div>
+      `;
+      
+      // Add success message to AI chat
+      const chatbox = document.getElementById('aiChatbox');
+      if (chatbox) {
+        this.addMessageToChat(`✅ **Appointment Updated**: ${patientName}'s appointment has been successfully rescheduled to ${result.newDateTime || newDateTime}`, 'bot', chatbox);
+      }
+      
+      // ✨ FIXED: REAL-TIME UPDATES - Refresh patient queue and calendar
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Starting real-time updates after appointment edit...');
+          
+          // 1. Refresh patient queue
+          if (typeof window.refreshPatientQueue === 'function') {
+            console.log('🔄 Refreshing patient queue...');
+            await window.refreshPatientQueue();
+            console.log('✅ Patient queue refreshed');
+          } else {
+            console.warn('⚠️ Patient queue refresh function not available');
+          }
+          
+          // 2. FIXED: Refresh calendar view properly
+          if (typeof window.refreshCalendarView === 'function') {
+            console.log('🔄 Refreshing calendar view...');
+            await window.refreshCalendarView();
+            console.log('✅ Calendar view refreshed');
+          } else if (window.podiatristCalendar && typeof window.podiatristCalendar.refreshCalendar === 'function') {
+            console.log('🔄 Refreshing calendar directly...');
+            await window.podiatristCalendar.refreshCalendar();
+            console.log('✅ Calendar refreshed directly');
+          } else {
+            console.warn('⚠️ Calendar refresh function not available');
+          }
+          
+          // 3. Show update notification
+          if (typeof window.showUpdateNotification === 'function') {
+            window.showUpdateNotification('Calendar and queue updated with latest appointment changes');
+          }
+          
+          console.log('✅ All real-time updates completed successfully');
+        } catch (error) {
+          console.error('❌ Error during real-time update:', error);
+        }
+      }, 1000); // 1 second delay to allow success message to show
+      
+    } else {
+      // Show error message
+      modal.querySelector('div').innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 3rem; margin-bottom: 15px;">❌</div>
+          <h3 style="color: #dc2626; margin-bottom: 15px;">Update Failed</h3>
+          <div style="background: #fef2f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; color: #dc2626;">
+            ${result.message || 'Unable to update appointment. Please try again.'}
+          </div>
+          <div style="display: flex; gap: 10px; justify-content: center;">
+            <button onclick="podiatristAI.showAppointmentEditForm('${patientId}', '${appointmentId}', '${patientName}', '${this.selectedAppointment.currentDateTime}')" style="
+              background: #6b7280;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 6px;
+              cursor: pointer;
+            ">Try Again</button>
+            <button onclick="podiatristAI.closeAppointmentModal()" style="
+              background: #3b82f6;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 6px;
+              cursor: pointer;
+            ">Close</button>
+          </div>
+        </div>
+      `;
+    }
+    
+  } catch (error) {
+    console.error("Edit appointment error:", error);
+    alert('Error updating appointment. Please try again.');
+  }
+}
+
+  // CLOSE APPOINTMENT MODAL
+  closeAppointmentModal() {
+    const modal = document.getElementById('appointmentEditModal');
+    if (modal) {
+      modal.style.animation = 'fadeOut 0.2s ease-out';
+      setTimeout(() => {
+        modal.remove();
+      }, 200);
+    }
+  }
+
+  // GET URGENCY COLORS
+  getUrgencyColor(urgencyLevel) {
+    switch (urgencyLevel) {
+      case 1: return { main: '#ef4444', border: '#fecaca' }; // Red
+      case 2: return { main: '#f59e0b', border: '#fed7aa' }; // Orange  
+      case 3: return { main: '#3b82f6', border: '#bfdbfe' }; // Blue
+      case 4: return { main: '#6b7280', border: '#e5e7eb' }; // Gray
+      default: return { main: '#6b7280', border: '#e5e7eb' };
+    }
+  }
+
+  // DETECT EDIT/RESCHEDULE REQUESTS
+  detectEditRequest(message) {
+    const lowerMessage = message.toLowerCase();
+    const editKeywords = ['edit', 'reschedule', 'change', 'move', 'update'];
+    const timeKeywords = ['appointment', 'time', 'date', 'schedule'];
+    
+    const hasEditKeyword = editKeywords.some(keyword => lowerMessage.includes(keyword));
+    const hasTimeKeyword = timeKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    return hasEditKeyword && hasTimeKeyword;
+  }
+
+  // PARSE EDIT REQUEST
+  parseEditRequest(message) {
+    // Extract patient ID
+    const patientMatch = message.match(/patient[_\s]*(\d+)|(\w+\s+\w+)'s?\s+appointment/i);
+    let patientId = null;
+    
+    if (patientMatch) {
+      if (patientMatch[1]) {
+        patientId = `patient_${patientMatch[1]}`;
+      } else if (patientMatch[2]) {
+        // Try to find patient by name
+        patientId = this.findPatientByName(patientMatch[2]);
+      }
+    }
+    
+    // Extract new date/time
+    const dateTimeMatch = message.match(/(\d{1,2}[:\.]?\d{0,2}\s*(am|pm)?|\d{1,2}\/\d{1,2}\/?\d{0,4}|tomorrow|today|monday|tuesday|wednesday|thursday|friday)/i);
+    const newDateTime = dateTimeMatch ? dateTimeMatch[0] : null;
+    
+    return { patientId, newDateTime };
+  }
+
+  // FIND PATIENT BY NAME (helper function)
+  findPatientByName(name) {
+    // This would search through the patient queue to find matching name
+    // For now, return null - implement based on your patient data structure
+    return null;
+  }
+
+  // PROCESS APPOINTMENT EDIT
+  async processAppointmentEdit(patientId, newDateTime, originalMessage) {
+    const chatbox = document.getElementById('aiChatbox');
+    if (!chatbox) return;
+    
+    try {
+      // Show processing message
+      const loadingDiv = this.addLoadingIndicator(chatbox);
+      this.updateLoadingMessage(loadingDiv, 'Processing appointment edit...');
+      
+      // Use selected appointment data if available
+      const appointmentData = this.selectedAppointment || { patientId };
+      
+      // Send edit request to server
+      const response = await fetch("/edit-appointment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: appointmentData.patientId,
+          appointmentId: appointmentData.appointmentId,
+          newDateTime: newDateTime,
+          podiatristId: "current_podiatrist"
+        })
+      });
+      
+      const result = await response.json();
+      this.removeLoadingIndicator(loadingDiv);
+      
+      if (result.success) {
+        this.addMessageToChat(`✅ **Appointment Updated Successfully**<br><br>**Patient:** ${result.patientName}<br>**New Date & Time:** ${result.newDateTime}<br>**Previous:** ${result.oldDateTime}<br><br>The patient will be notified of this change.`, 'bot', chatbox);
+        
+        // Clear selected appointment
+        this.selectedAppointment = null;
+      } else {
+        this.addMessageToChat(`❌ **Unable to update appointment**<br><br>${result.message}`, 'bot', chatbox);
+      }
+      
+    } catch (error) {
+      console.error("Edit appointment error:", error);
+      this.removeLoadingIndicator(loadingDiv);
+      this.addMessageToChat("❌ Error processing appointment edit. Please try again.", 'bot', chatbox);
+    }
   }
 
   // PATIENT ID PREPROCESSING
@@ -167,7 +745,7 @@ class PodiatristAIChat {
   }
 
   // ========================================
-  // ENHANCED sendMessage function with DATE DETECTION AND DIRECT NO APPOINTMENTS RESPONSE
+  // ENHANCED sendMessage function with APPOINTMENT EDITING
   // ========================================
   async sendMessage(message) {
     const chatbox = document.getElementById('aiChatbox');
@@ -193,6 +771,33 @@ class PodiatristAIChat {
     this.updateLoadingMessage(thinkingDiv, 'AI is thinking...');
 
     try {
+      // CHECK FOR EDIT/RESCHEDULE REQUESTS FIRST
+      if (this.detectEditRequest(processedMessage)) {
+        console.log('📝 Detected edit/reschedule request');
+        
+        const editInfo = this.parseEditRequest(processedMessage);
+        
+        this.removeLoadingIndicator(thinkingDiv);
+        
+        if (editInfo.patientId && editInfo.newDateTime) {
+          await this.processAppointmentEdit(editInfo.patientId, editInfo.newDateTime, processedMessage);
+          return;
+        } else if (editInfo.newDateTime && this.selectedAppointment) {
+          // If we have a selected appointment and new time, process the edit
+          await this.processAppointmentEdit(this.selectedAppointment.patientId, editInfo.newDateTime, processedMessage);
+          return;
+        } else if (editInfo.patientId) {
+          this.addMessageToChat(`I found the patient. What's the new date and time for ${editInfo.patientId}'s appointment?<br><br>You can say something like:<br>• "Change to tomorrow 2pm"<br>• "Move to July 5th 10am"<br>• "Reschedule to next Friday 3pm"`, 'bot', chatbox);
+          return;
+        } else if (this.selectedAppointment) {
+          this.addMessageToChat(`What's the new date and time for ${this.selectedAppointment.patientName}'s appointment?<br><br>You can say something like:<br>• "Change to tomorrow 2pm"<br>• "Move to July 5th 10am"<br>• "Reschedule to next Friday 3pm"`, 'bot', chatbox);
+          return;
+        } else {
+          this.addMessageToChat("Which patient's appointment would you like to edit? Please specify the patient ID or name.", 'bot', chatbox);
+          return;
+        }
+      }
+
       // CHECK FOR DATE-SPECIFIC SCHEDULE QUERIES
       const scheduleQuery = this.detectScheduleQuery(processedMessage);
       
@@ -299,7 +904,7 @@ Please provide a comprehensive overview including workload analysis, priority ca
     }
   }
 
-// FIXED detectScheduleQuery function - REPLACE ENTIRE FUNCTION
+// FIXED detectScheduleQuery function
 detectScheduleQuery(message) {
   console.log('🔍 TIMEZONE-FIXED detectScheduleQuery called with:', message);
   
@@ -348,19 +953,12 @@ detectScheduleQuery(message) {
     const monthName = dayMonthYearMatch[3].toLowerCase();
     const year = parseInt(dayMonthYearMatch[4]);
     
-    console.log('🎯 FOUND: DAY+MONTH+YEAR pattern');
-    console.log('Parsed values:', { day, monthName, year });
-    
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
                        'july', 'august', 'september', 'october', 'november', 'december'];
     const monthIndex = monthNames.indexOf(monthName);
     
-    console.log('Month index (0-based):', monthIndex, 'for', monthName);
-    
     if (monthIndex !== -1) {
-      // FIXED: Use timezone-safe date creation
       targetDate = createTimezoneSafeDate(year, monthIndex, day);
-      console.log('📅 TIMEZONE-SAFE RESULT: DAY+MONTH+YEAR ->', `${day} ${monthName} ${year} = ${targetDate}`);
       return { isScheduleQuery: true, targetDate };
     }
   }
@@ -374,49 +972,19 @@ detectScheduleQuery(message) {
     const day = parseInt(monthDayYearMatch[2]);
     const year = parseInt(monthDayYearMatch[4]);
     
-    console.log('🎯 FOUND: MONTH+DAY+YEAR pattern');
-    
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
                        'july', 'august', 'september', 'october', 'november', 'december'];
     const monthIndex = monthNames.indexOf(monthName);
     
     if (monthIndex !== -1) {
       targetDate = createTimezoneSafeDate(year, monthIndex, day);
-      console.log('📅 TIMEZONE-SAFE RESULT: MONTH+DAY+YEAR ->', `${monthName} ${day} ${year} = ${targetDate}`);
       return { isScheduleQuery: true, targetDate };
     }
   }
   
-  // 3. ISO format: YYYY-MM-DD or YYYY/MM/DD
-  const isoPattern = /(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/;
-  const isoMatch = message.match(isoPattern);
-  
-  if (isoMatch) {
-    const year = parseInt(isoMatch[1]);
-    const month = parseInt(isoMatch[2]);
-    const day = parseInt(isoMatch[3]);
-    targetDate = createTimezoneSafeDate(year, month - 1, day);
-    console.log('📅 TIMEZONE-SAFE RESULT: ISO YYYY-MM-DD ->', targetDate);
-    return { isScheduleQuery: true, targetDate };
-  }
-  
-  // 4. DD/MM/YYYY format
-  const ddmmyyyyPattern = /(\d{1,2})\/(\d{1,2})\/(\d{4})/;
-  const ddmmyyyyMatch = message.match(ddmmyyyyPattern);
-  
-  if (ddmmyyyyMatch) {
-    const day = parseInt(ddmmyyyyMatch[1]);
-    const month = parseInt(ddmmyyyyMatch[2]);
-    const year = parseInt(ddmmyyyyMatch[3]);
-    targetDate = createTimezoneSafeDate(year, month - 1, day);
-    console.log('📅 TIMEZONE-SAFE RESULT: DD/MM/YYYY ->', `${day}/${month}/${year} = ${targetDate}`);
-    return { isScheduleQuery: true, targetDate };
-  }
-  
-  // 5. "today", "tomorrow", "yesterday"
+  // 3. "today", "tomorrow", "yesterday"
   if (lowerMessage.includes('today')) {
     targetDate = 'today';
-    console.log('📅 FINAL RESULT: TODAY');
     return { isScheduleQuery: true, targetDate };
   } else if (lowerMessage.includes('tomorrow')) {
     const tomorrow = new Date();
@@ -425,7 +993,6 @@ detectScheduleQuery(message) {
     const month = tomorrow.getMonth();
     const day = tomorrow.getDate();
     targetDate = createTimezoneSafeDate(year, month, day);
-    console.log('📅 TIMEZONE-SAFE RESULT: TOMORROW ->', targetDate);
     return { isScheduleQuery: true, targetDate };
   } else if (lowerMessage.includes('yesterday')) {
     const yesterday = new Date();
@@ -434,82 +1001,15 @@ detectScheduleQuery(message) {
     const month = yesterday.getMonth();
     const day = yesterday.getDate();
     targetDate = createTimezoneSafeDate(year, month, day);
-    console.log('📅 TIMEZONE-SAFE RESULT: YESTERDAY ->', targetDate);
     return { isScheduleQuery: true, targetDate };
   }
   
-  // 6. "1st July", "2nd August" (current year)
-  const dayMonthPattern = /(\d{1,2})(st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i;
-  const dayMonthMatch = message.match(dayMonthPattern);
-  
-  if (dayMonthMatch) {
-    const day = parseInt(dayMonthMatch[1]);
-    const monthName = dayMonthMatch[3].toLowerCase();
-    const currentYear = new Date().getFullYear();
-    
-    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
-                       'july', 'august', 'september', 'october', 'november', 'december'];
-    const monthIndex = monthNames.indexOf(monthName);
-    
-    if (monthIndex !== -1) {
-      targetDate = createTimezoneSafeDate(currentYear, monthIndex, day);
-      console.log('📅 TIMEZONE-SAFE RESULT: DAY+MONTH (current year) ->', `${day} ${monthName} = ${targetDate}`);
-      return { isScheduleQuery: true, targetDate };
-    }
-  }
-  
-  // 7. "July 1st", "August 2nd" (current year)
-  const monthDayPattern = /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)?/i;
-  const monthDayMatch = message.match(monthDayPattern);
-  
-  if (monthDayMatch) {
-    const monthName = monthDayMatch[1].toLowerCase();
-    const day = parseInt(monthDayMatch[2]);
-    const currentYear = new Date().getFullYear();
-    
-    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
-                       'july', 'august', 'september', 'october', 'november', 'december'];
-    const monthIndex = monthNames.indexOf(monthName);
-    
-    if (monthIndex !== -1) {
-      targetDate = createTimezoneSafeDate(currentYear, monthIndex, day);
-      console.log('📅 TIMEZONE-SAFE RESULT: MONTH+DAY (current year) ->', `${monthName} ${day} = ${targetDate}`);
-      return { isScheduleQuery: true, targetDate };
-    }
-  }
-  
-  // 8. Day names (Monday, Tuesday, etc.)
-  const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  const today = new Date();
-  
-  for (let i = 0; i < dayNames.length; i++) {
-    if (lowerMessage.includes(dayNames[i])) {
-      const targetDay = (i + 1) % 7;
-      const currentDay = today.getDay();
-      let daysToAdd = targetDay - currentDay;
-      
-      if (lowerMessage.includes('next') || daysToAdd <= 0) {
-        daysToAdd += (daysToAdd <= 0 ? 7 : 0);
-      }
-      
-      const targetDateObj = new Date(today);
-      targetDateObj.setDate(today.getDate() + daysToAdd);
-      const year = targetDateObj.getFullYear();
-      const month = targetDateObj.getMonth();
-      const day = targetDateObj.getDate();
-      targetDate = createTimezoneSafeDate(year, month, day);
-      console.log('📅 TIMEZONE-SAFE RESULT: DAY NAME ->', `${dayNames[i]} = ${targetDate}`);
-      return { isScheduleQuery: true, targetDate };
-    }
-  }
-  
   // Fallback
-  console.log('🎯 Using fallback: today');
   return { isScheduleQuery: true, targetDate: 'today' };
 }
 
   // ========================================
-  // ENHANCED QUICK QUERY WITH DIRECT NO APPOINTMENTS RESPONSE
+  // ENHANCED QUICK QUERY
   // ========================================
   async sendQuickQuery(query, specificDate = null) {
     console.log('🔍 Quick query triggered:', query, 'for date:', specificDate);
@@ -540,10 +1040,7 @@ detectScheduleQuery(message) {
         case 'schedule':
           needsDatabase = true;
           
-          console.log('📅 Fetching schedule from database...');
-          
           try {
-            // Use flexible date route
             const scheduleResponse = await fetch("/get-schedule-by-date", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -554,27 +1051,16 @@ detectScheduleQuery(message) {
             });
             
             const scheduleResult = await scheduleResponse.json();
-            console.log('📊 Schedule response received:', scheduleResult);
             
-            // DIRECT HANDLING OF EMPTY SCHEDULE - NO AI PROCESSING
             if (scheduleResult.success && (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0)) {
-              console.log('📅 Empty schedule detected in quick query - sending direct response');
-              
-              // Remove loading indicator immediately
               this.removeLoadingIndicator(loadingDiv);
-              
-              // Direct response without AI processing
               const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
               this.addMessageToChat(directMessage, 'bot', chatbox);
-              
-              console.log('✅ Direct "no appointments" message sent from quick query');
-              return; // Exit early, don't send to AI
+              return;
             }
             
             if (scheduleResult.success && scheduleResult.appointments && scheduleResult.appointments.length > 0) {
               scheduleData = scheduleResult;
-              console.log('✅ Schedule data prepared:', scheduleData);
-              
               prompt = `Based on the appointment schedule for ${scheduleResult.date}, provide a comprehensive overview. Here's the data:
 
 **${scheduleResult.date}**
@@ -597,17 +1083,8 @@ Please provide:
 4. Patient preparation reminders for high-priority cases
 
 Focus on clinical priorities and workflow optimization.`;
-
-            } else {
-              console.log('⚠️ No appointments found or empty response');
-              // This should not reach here due to direct handling above, but keep as fallback
-              this.removeLoadingIndicator(loadingDiv);
-              const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
-              this.addMessageToChat(directMessage, 'bot', chatbox);
-              return;
             }
           } catch (fetchError) {
-            console.error('❌ Error fetching schedule:', fetchError);
             prompt = 'Unable to fetch the schedule from the system. Please provide general guidance for managing daily clinical workflow.';
           }
           break;
@@ -641,12 +1118,10 @@ ${index + 1}. **${apt.scheduledTime}** - ${apt.patientName}
 `).join('')}
 
 Please provide clinical assessment and immediate care protocols.`;
-
             } else {
               prompt = 'No urgent cases are scheduled for today. Provide guidance on maintaining clinical readiness.';
             }
           } catch (fetchError) {
-            console.error('❌ Error fetching urgent cases:', fetchError);
             prompt = 'Unable to access urgent case data. Please provide general protocols for urgent podiatric conditions.';
           }
           break;
@@ -664,10 +1139,8 @@ Please provide clinical assessment and immediate care protocols.`;
             });
             
             const summariesResult = await summariesResponse.json();
-            console.log('📋 Patient summaries result:', summariesResult);
             
             if (summariesResult.success && summariesResult.summaries && summariesResult.summaries.length > 0) {
-              // Store the real data for display
               scheduleData = { appointments: summariesResult.summaries };
               
               prompt = `Based on the actual patient data from our database, provide a well-structured summary of recent patient interactions:
@@ -683,30 +1156,12 @@ ${index + 1}. Patient ID: ${summary.patientId} - Name: ${summary.patientName}
    - Contact: ${summary.patientPhone}
 `).join('')}
 
-FORMATTING INSTRUCTIONS: Use clean, professional formatting. Use **bold** for important terms, and organize with clear sections. Avoid using # markdown headers.
-
-Please provide a clinical analysis covering:
-
-**Current Case Load Summary**
-Summarize the patient's multiple conditions and their priority levels.
-
-**Priority Assessment** 
-Identify which conditions need immediate attention and why.
-
-**Follow-up Requirements**
-List specific follow-up actions needed for each condition.
-
-**Clinical Recommendations**
-Provide care coordination recommendations and next steps.
-
-IMPORTANT: Only discuss these REAL patients from our database. Do not create fictional patients. Keep formatting clean and professional.`;
-
+Please provide a clinical analysis covering current case load summary, priority assessment, follow-up requirements, and clinical recommendations.`;
             } else {
-              prompt = 'No recent patient summaries available in the database. The system shows no patient interactions in the recent period.';
+              prompt = 'No recent patient summaries available in the database.';
             }
           } catch (fetchError) {
-            console.error('❌ Error fetching patient summaries:', fetchError);
-            prompt = 'Unable to access patient summary data from the database. Please check system connectivity.';
+            prompt = 'Unable to access patient summary data from the database.';
           }
           break;
           
@@ -722,8 +1177,8 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
           prompt = 'Provide current treatment protocols for common podiatric conditions.';
           break;
           
-        case 'scheduling help':
-          prompt = 'What factors should I consider when prioritizing patient appointments based on condition severity?';
+        case 'reschedule help':
+          prompt = 'What factors should I consider when rescheduling patient appointments? Provide guidance on managing appointment changes effectively.';
           break;
           
         default:
@@ -735,7 +1190,6 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
       this.updateLoadingMessage(loadingDiv, 'AI is analyzing your request...');
       
       // Send the prompt to the AI
-      console.log('📤 Sending request to server');
       const response = await fetch("/podiatrist-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -747,24 +1201,20 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
       });
       
       const data = await response.json();
-      console.log('📥 Received response from server');
       
       // Remove loading indicator
       this.removeLoadingIndicator(loadingDiv);
       
       // Display the AI response
       this.addMessageToChat(data.reply, 'bot', chatbox);
-      console.log('✅ Added AI response to chat');
       
       // Add schedule cards if we have appointment data
       if (scheduleData && scheduleData.appointments && scheduleData.appointments.length > 0) {
-        console.log('📋 Adding schedule cards for', scheduleData.appointments.length, 'appointments');
         this.addScheduleCards(scheduleData.appointments, chatbox);
       }
       
       // Add follow-up actions
       if (needsDatabase) {
-        console.log('🔧 Adding follow-up actions...');
         this.addFollowUpActions(query, chatbox);
       }
 
@@ -819,8 +1269,6 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
 
   // ADD SCHEDULE CARDS
   addScheduleCards(appointments, chatbox) {
-    console.log('📋 Creating schedule cards container...');
-    
     const cardsDiv = document.createElement('div');
     cardsDiv.className = 'schedule-cards-container';
     cardsDiv.style.cssText = `
@@ -890,8 +1338,6 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
     
     chatbox.appendChild(cardsDiv);
     chatbox.scrollTop = chatbox.scrollHeight;
-    
-    console.log('✅ Schedule cards added successfully');
   }
 
   // PATIENT CONTACT INFO
@@ -943,8 +1389,8 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
             <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('urgent cases')">
               🚨 View Urgent Cases
             </button>
-            <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.querySpecificPatient('patient_1', 'appointment preparation')">
-              📋 Check Next Patient
+            <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.startAppointmentEdit()">
+              ✏️ Edit Appointment
             </button>
           </div>
         `;
@@ -1053,21 +1499,21 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
     chatbox.scrollTop = chatbox.scrollHeight;
   }
 
-  // FIXED FORMAT AI RESPONSE FUNCTION
+  // FORMAT AI RESPONSE FUNCTION
   formatAIResponse(message) {
     let formatted = message
-      // Handle markdown headers (### becomes h4, ## becomes h3, # becomes h2)
+      // Handle markdown headers
       .replace(/^###\s+(.+)$/gm, '<h4 style="color: #1d4ed8; margin: 16px 0 8px 0; font-size: 1.1rem; font-weight: 600;">$1</h4>')
       .replace(/^##\s+(.+)$/gm, '<h3 style="color: #1d4ed8; margin: 18px 0 10px 0; font-size: 1.2rem; font-weight: 600;">$1</h3>')
       .replace(/^#\s+(.+)$/gm, '<h2 style="color: #1d4ed8; margin: 20px 0 12px 0; font-size: 1.3rem; font-weight: 600;">$1</h2>')
       
-      // Handle bold text (**text** becomes <strong>)
+      // Handle bold text
       .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #374151;">$1</strong>')
       
-      // Handle bullet points (- text becomes <li>)
+      // Handle bullet points
       .replace(/^[-•·]\s+(.+)$/gm, '<li style="margin-bottom: 4px;">$1</li>')
       
-      // Handle numbered lists (1. text becomes <li>)
+      // Handle numbered lists
       .replace(/^\d+\.\s+(.+)$/gm, '<li style="margin-bottom: 4px;">$1</li>')
       
       // Handle line breaks
@@ -1089,10 +1535,8 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
       .replace(/<p><br><\/p>/g, '')
       .replace(/<br><\/p>/g, '</p>')
       .replace(/<p><br>/g, '<p>')
-      // Remove breaks before/after headers
       .replace(/<br>\s*<h([1-6])/g, '<h$1')
       .replace(/<\/h([1-6])>\s*<br>/g, '</h$1>')
-      // Remove breaks before/after lists
       .replace(/<br>\s*<ul/g, '<ul')
       .replace(/<\/ul>\s*<br>/g, '</ul>');
     
@@ -1103,7 +1547,8 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
   getStatus() {
     return {
       initialized: this.isInitialized,
-      patientCacheSize: this.patientCache.size
+      patientCacheSize: this.patientCache.size,
+      selectedAppointment: this.selectedAppointment
     };
   }
 }
@@ -1111,7 +1556,7 @@ IMPORTANT: Only discuss these REAL patients from our database. Do not create fic
 // Create global instance
 const podiatristAI = new PodiatristAIChat();
 
-// SIMPLIFIED: Only floating AI functions
+// GLOBAL FUNCTION EXPORTS
 window.sendAIMessage = function() {
   podiatristAI.sendFloatingMessage();
 };

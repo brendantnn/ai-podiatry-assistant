@@ -541,23 +541,15 @@ for (let i = 0; i < patientIdPatterns.length; i++) {
             preferredLang: profile.preferredLang
           };
 
-          // Create context for AI using your actual data structure
-          patientContext = `
-PATIENT INFORMATION FOR ${patientId.toUpperCase()}:
+         // Create FILTERED context for AI (remove sensitive data)
+patientContext = `
+PATIENT CLINICAL INFORMATION FOR ${patientId.toUpperCase()}:
 - Name: ${patientData.name}
-- Email: ${patientData.email}
 - Gender: ${patientData.gender}
-- Date of Birth: ${patientData.dob}
-- Phone: ${patientData.phone}
-- NRIC Last 4: ${patientData.nricLast4}
-- Account Status: ${patientData.isActive ? 'Active' : 'Inactive'}
-- Last Login: ${patientData.lastLoginAt ? new Date(patientData.lastLoginAt.toDate()).toLocaleDateString() : 'Never'}
 - Risk Level: ${patientData.riskLevel}
-- Assigned Podiatrist: ${patientData.assignedPodId}
 - Medical Alerts: ${patientData.medicalAlerts.join(', ') || 'None recorded'}
-- Preferred Language: ${patientData.preferredLang}
 
-Based on this patient's profile information, please provide detailed clinical guidance.
+Based on this patient's clinical profile, please provide medical guidance.
 `;
 
           console.log(`✅ Generated context for patient: ${patientId}`);
@@ -1452,6 +1444,209 @@ function parseNaturalDate(dateString) {
   
   return null;
 }
+
+// ========================================
+// DATE/TIME PARSING HELPER FUNCTION
+// ========================================
+
+function parseDateTime(dateTimeString) {
+  try {
+    // Handle "YYYY-MM-DD HH:MM" format
+    const dateTimeMatch = dateTimeString.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
+    if (dateTimeMatch) {
+      const [, datePart, timePart] = dateTimeMatch;
+      const [hours, minutes] = timePart.split(':').map(Number);
+      
+      // Create date in Singapore timezone
+      const date = new Date(`${datePart}T${timePart}:00+08:00`);
+      
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+    
+    // Fallback: try to parse as regular date
+    const fallbackDate = new Date(dateTimeString);
+    if (!isNaN(fallbackDate.getTime())) {
+      return fallbackDate;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing date/time:', error);
+    return null;
+  }
+}
+
+// EDIT APPOINTMENT ROUTE
+app.post("/edit-appointment", async (req, res) => {
+  const { patientId, newDateTime, podiatristId } = req.body;
+  
+  try {
+    console.log('📝 Editing appointment for:', patientId, 'to:', newDateTime);
+    
+    // Find the appointment
+    const appointmentQuery = await db.collection("Appointments")
+      .where("patientId", "==", patientId)
+      .where("status", "==", "scheduled")
+      .limit(1)
+      .get();
+    
+    if (appointmentQuery.empty) {
+      return res.json({
+        success: false,
+        message: "No scheduled appointment found for this patient"
+      });
+    }
+    
+    const appointmentDoc = appointmentQuery.docs[0];
+    const currentAppointment = appointmentDoc.data();
+    
+    // Parse new date/time (you'll need to implement this)
+    const newScheduledDate = parseDateTime(newDateTime);
+    
+    if (!newScheduledDate) {
+      return res.json({
+        success: false,
+        message: "Invalid date/time format. Please try again."
+      });
+    }
+    
+    // Update the appointment
+    await appointmentDoc.ref.update({
+      scheduledDate: admin.firestore.Timestamp.fromDate(newScheduledDate),
+      lastModified: admin.firestore.Timestamp.now()
+    });
+    
+    // Get patient name
+    const patientQuery = await db.collection("Users")
+      .where("userId", "==", patientId)
+      .limit(1)
+      .get();
+    
+    const patientName = !patientQuery.empty ? 
+      `${patientQuery.docs[0].data().firstName} ${patientQuery.docs[0].data().lastName}` : 
+      patientId;
+    
+    return res.json({
+      success: true,
+      patientName: patientName,
+      newDateTime: newScheduledDate.toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long", 
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      }),
+      oldDateTime: currentAppointment.scheduledDate.toDate().toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric", 
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      })
+    });
+    
+  } catch (error) {
+    console.error("❌ Error editing appointment:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating appointment"
+    });
+  }
+});
+
+// GET UPCOMING APPOINTMENTS FOR EDITING
+app.post("/get-upcoming-appointments", async (req, res) => {
+  const { podiatristId, days = 7, limit = 10 } = req.body;
+  
+  try {
+    console.log('📅 Fetching upcoming appointments for editing...');
+    
+    // Get date range (today + next X days)
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + days);
+    
+    // Query appointments
+    const appointmentsQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
+      .where("status", "==", "scheduled")
+      .orderBy("scheduledDate")
+      .limit(limit)
+      .get();
+
+    // Get total count (for "show more" functionality)
+    const countQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
+      .where("status", "==", "scheduled")
+      .get();
+
+    const appointments = [];
+    
+    for (const doc of appointmentsQuery.docs) {
+      const appointment = doc.data();
+      
+      // Get patient name
+      let patientName = appointment.patientId;
+      try {
+        const patientQuery = await db.collection("Users")
+          .where("userId", "==", appointment.patientId)
+          .limit(1)
+          .get();
+        
+        if (!patientQuery.empty) {
+          const patientData = patientQuery.docs[0].data();
+          patientName = `${patientData.firstName} ${patientData.lastName}`.trim();
+        }
+      } catch (error) {
+        console.log('Patient lookup failed:', error);
+      }
+      
+      const scheduledDate = appointment.scheduledDate.toDate();
+      appointments.push({
+        appointmentId: doc.id,
+        patientId: appointment.patientId,
+        patientName,
+        scheduledDateTime: scheduledDate.toLocaleDateString("en-SG", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        category: appointment.category || "General",
+        urgencyLevel: appointment.urgencyLevel || 4,
+        urgencyText: getUrgencyText(appointment.urgencyLevel),
+        initialDiagnosis: appointment.initialDiagnosis || "Assessment pending"
+      });
+    }
+    
+    return res.json({
+      success: true,
+      appointments,
+      totalCount: countQuery.size,
+      showing: appointments.length
+    });
+    
+  } catch (error) {
+    console.error("❌ Error fetching upcoming appointments:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch appointments"
+    });
+  }
+});
 
 // Set default path to login.html
 app.get("/", (req, res) => {

@@ -102,6 +102,28 @@ function filterPatients() {
   populateTable(filteredData);
 }
 
+// Helper function to get urgency badge class
+function getUrgencyBadgeClass(urgencyLevel) {
+  switch (urgencyLevel) {
+    case 1: return "danger";
+    case 2: return "warning"; 
+    case 3: return "info";
+    case 4: return "secondary";
+    default: return "secondary";
+  }
+}
+
+// Helper function to get urgency text
+function getUrgencyText(urgencyLevel) {
+  switch (urgencyLevel) {
+    case 1: return "🚨 Urgent";
+    case 2: return "⚠️ High";
+    case 3: return "📋 Medium";
+    case 4: return "📝 Low";
+    default: return "📋 Standard";
+  }
+}
+
 //Dynamically make dashboard
 function populateTable(data = patientQueue) {
   const tableBody = document.getElementById("patientQueue");
@@ -111,19 +133,19 @@ function populateTable(data = patientQueue) {
     const row = document.createElement("tr");
 
     row.innerHTML = `
-      <td><span class="medical-badge badge-${patient.urgencyLevel === "🚨 Urgent" ? "danger" : "warning"}">${patient.urgencyLevel}</span></td>
-      <td>${patient.patientId}</td>
-      <td>${patient.name}</td>
-      <td>${patient.category}</td>
-      <td>${patient.initialDiagnosis}</td>
-      <td>${patient.date}</td>
-      <td>
-        <button class="medical-btn medical-btn-primary medical-btn-sm"
-        onclick="openModal('${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.date}', '${patient.summary}')"
-        >👁️ View</button>
-        <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm">💬 Chat</button>
-      </td>
-    `;
+    <td><span class="medical-badge badge-${getUrgencyBadgeClass(patient.urgencyLevel)}">${getUrgencyText(patient.urgencyLevel)}</span></td>
+    <td>${patient.patientId}</td>
+    <td>${patient.name}</td>
+    <td>${patient.category}</td>
+    <td>${patient.initialDiagnosis}</td>
+    <td>${patient.date}</td>
+    <td>
+      <button class="medical-btn medical-btn-primary medical-btn-sm"
+      onclick="openModal('${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.time} on ${patient.date}', '${patient.summary}')"
+      >👁️ View</button>
+    <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatient('${patient.patientId}')">🤖 Ask AI</button>
+    </td>
+  `;
     
     tableBody.appendChild(row);
   });
@@ -236,6 +258,151 @@ function handleAIEnter(event) {
   }
 }
 
+// ========================================
+// ENHANCED REAL-TIME UPDATE FUNCTIONS
+// ========================================
+
+// Refresh patient queue data
+async function refreshPatientQueue() {
+  try {
+    console.log('🔄 Refreshing patient queue...');
+    
+    const podId = "pod_1"; // Use the same podiatrist ID
+    const res = await fetch("/podiatrist-get-queue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
+    });
+    
+    const data = await res.json();
+    patientQueue = data.appointments || [];
+    
+    // Update the table display
+    populateTable(patientQueue);
+    
+    console.log('✅ Patient queue refreshed with', patientQueue.length, 'appointments');
+    
+    // Show a brief notification
+    showUpdateNotification('Patient queue updated');
+    
+  } catch (err) {
+    console.error("❌ Failed to refresh patient queue:", err);
+  }
+}
+
+// ========================================
+// ENHANCED REFRESH FUNCTIONS FOR REAL-TIME UPDATES
+// ========================================
+
+// Enhanced refresh calendar view function
+async function refreshCalendarView() {
+  try {
+    console.log('🔄 Enhanced calendar refresh triggered...');
+    
+    // Method 1: Use calendar instance if available
+    if (window.podiatristCalendar && typeof window.podiatristCalendar.refreshCalendar === 'function') {
+      console.log('🔄 Using calendar instance refresh...');
+      await window.podiatristCalendar.refreshCalendar();
+      return;
+    }
+    
+    // Method 2: Try global refresh function
+    if (typeof window.refreshCalendar === 'function') {
+      console.log('🔄 Using global calendar refresh...');
+      await window.refreshCalendar();
+      return;
+    }
+    
+    // Method 3: Manual calendar reload
+    console.log('🔄 Manual calendar reload...');
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    if (window.podiatristCalendar && typeof window.podiatristCalendar.generateCalendarForMonth === 'function') {
+      await window.podiatristCalendar.loadAppointments();
+      window.podiatristCalendar.generateCalendarForMonth(currentMonth, currentYear);
+    }
+    
+    console.log('✅ Calendar refresh completed');
+    
+  } catch (error) {
+    console.error('❌ Error refreshing calendar:', error);
+  }
+}
+
+// Refresh calendar if it's currently visible
+async function refreshCalendarViewLegacy() {
+  try {
+    console.log('🔄 Refreshing calendar view...');
+    
+    // Always refresh calendar data, regardless of which tab is active
+    if (typeof window.refreshCalendar === 'function') {
+      await window.refreshCalendar();
+    } else {
+      console.warn('⚠️ Calendar refresh function not available');
+    }
+    
+    console.log('✅ Calendar view refreshed');
+  } catch (err) {
+    console.error("❌ Failed to refresh calendar:", err);
+  }
+}
+
+// Show brief update notification
+function showUpdateNotification(message) {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #10b981;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: slideInRight 0.3s ease-out;
+  `;
+  notification.innerHTML = `✅ ${message}`;
+  
+  // Add CSS animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Add to page
+  document.body.appendChild(notification);
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    notification.style.animation = 'slideOutRight 0.3s ease-in';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// Export enhanced functions globally
+window.refreshPatientQueue = refreshPatientQueue;
+window.refreshCalendarView = refreshCalendarView;
+window.showUpdateNotification = showUpdateNotification;
 
 // ========================================
 // DASHBOARD DATA LOADING
@@ -289,10 +456,35 @@ function viewPatient(patientId) {
   alert(`Viewing patient ${patientId} details\n\nFeatures coming soon:\n- Medical history\n- Current treatments\n- Progress notes`);
 }
 
-function chatWithPatient(patientId) {
-  console.log('Starting chat with patient:', patientId);
-  // TODO: Implement patient chat functionality
-  alert(`Starting chat with patient ${patientId}\n\nFeatures coming soon:\n- Real-time messaging\n- Medical updates\n- Appointment coordination`);
+function askAIAboutPatient(patientId) {
+  console.log('Getting AI analysis for patient:', patientId);
+  
+  // Find the specific patient case from the current queue
+  const patientCase = patientQueue.find(patient => patient.patientId === patientId);
+  
+  // Open the AI chatbot popup
+  toggleAIChat();
+  
+  // Wait for popup to open, then send simple, focused query
+  setTimeout(() => {
+    let message;
+    
+    if (patientCase) {
+      // MUCH SIMPLER MESSAGE
+      message = `Tell me about this case: ${patientCase.name} has ${patientCase.initialDiagnosis} (${patientCase.category}). ${patientCase.summary}`;
+    } else {
+      message = `Tell me about Patient ${patientId}`;
+    }
+    
+    // Send the message
+    const aiInput = document.getElementById('aiMessage');
+    if (aiInput) {
+      aiInput.value = message;
+      if (window.sendAIMessage) {
+        window.sendAIMessage();
+      }
+    }
+  }, 1000);
 }
 
 // ========================================
@@ -342,6 +534,6 @@ window.accessResources = accessResources;
 window.toggleAIChat = toggleAIChat;
 window.handleAIEnter = handleAIEnter;
 window.viewPatient = viewPatient;
-window.chatWithPatient = chatWithPatient;
+window.askAIAboutPatient = askAIAboutPatient;
 window.openSettings = openSettings;
 window.logout = logout;

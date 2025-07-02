@@ -840,7 +840,137 @@ closeSuccessModal() {
   }
 }
 
+// ========================================
+// REAL-TIME CALENDAR REFRESH FUNCTIONALITY
+// ========================================
+
+// ========================================
+// ENHANCED REAL-TIME CALENDAR REFRESH FUNCTIONALITY
+// ========================================
+
+// Enhanced refresh calendar data and redraw
+async refreshCalendar() {
+  try {
+    console.log('🔄 Enhanced calendar refresh starting...');
+    
+    // 1. Clear any existing cache
+    if (typeof scheduleCache !== 'undefined') {
+      scheduleCache.clear();
+    }
+    
+    // 2. Reload appointments from server with cache busting
+    await this.loadAppointments();
+    console.log('✅ Appointments reloaded from server');
+    
+    // 3. Get current view settings
+    const currentMonth = this.currentDate.getMonth();
+    const currentYear = this.currentDate.getFullYear();
+    
+    console.log(`🔄 Regenerating calendar for ${this.getMonthName(currentMonth)} ${currentYear}`);
+    
+    // 4. Regenerate calendar for current month/year
+    this.generateCalendarForMonth(currentMonth, currentYear);
+    
+    // 5. Reapply any active filters
+    const appointmentTypeSelect = document.getElementById('appointmentType');
+    if (appointmentTypeSelect && appointmentTypeSelect.value) {
+      console.log('🔍 Reapplying appointment type filter:', appointmentTypeSelect.value);
+      this.filterAppointmentsByType();
+    }
+    
+    console.log('✅ Enhanced calendar refresh completed successfully');
+    
+    // 6. Show success notification
+    this.showCalendarUpdateNotification('Calendar updated with latest appointment changes');
+    
+  } catch (error) {
+    console.error('❌ Error in enhanced calendar refresh:', error);
+    
+    // Show error notification
+    this.showCalendarUpdateNotification('Error updating calendar - please refresh manually');
+  }
 }
+
+// Enhanced loadAppointments with cache busting
+async loadAppointments() {
+  const podId = "pod_1";
+  try {
+    console.log('📅 Loading fresh appointments from server...');
+    
+    // Add cache busting parameter
+    const cacheBuster = Date.now();
+    
+    const res = await fetch(`/podiatrist-get-calendar?cb=${cacheBuster}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
+    });
+
+    const data = await res.json();
+    this.appointments = data.appointments || [];
+    
+    console.log(`📅 Loaded ${this.appointments.length} fresh appointments`);
+
+  } catch (err) {
+    console.error("❌ Failed to fetch fresh appointment details:", err);
+    throw err; // Re-throw to handle in refresh function
+  }
+}
+
+// Show calendar update notification
+showCalendarUpdateNotification(message) {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    background: #059669;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    font-size: 0.85rem;
+    font-weight: 500;
+    animation: slideInRight 0.3s ease-out;
+  `;
+  notification.innerHTML = `📅 ${message}`;
+  
+  // Add to page
+  document.body.appendChild(notification);
+  
+  // Remove after 2.5 seconds
+  setTimeout(() => {
+    notification.style.animation = 'slideOutRight 0.3s ease-in';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 2500);
+}
+
+}
+
+// Make refresh function globally available
+window.refreshCalendar = function() {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    return podiatristCalendar.refreshCalendar();
+  } else {
+    console.error('❌ Calendar not initialized yet');
+    return Promise.resolve();
+  }
+};
+
+window.refreshCalendarView = function() {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    return podiatristCalendar.refreshCalendar();
+  } else {
+    console.error('❌ Calendar not initialized yet');
+    return Promise.resolve();
+  }
+};
 
 // Create global calendar instance and make it globally accessible
 const podiatristCalendar = new PodiatristCalendar();
