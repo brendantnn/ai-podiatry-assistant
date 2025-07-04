@@ -2265,3 +2265,99 @@ body {
     opacity: 0; 
   }
 }
+
+/* Enhanced patient queue priority styling */
+.medical-table tr {
+  transition: all 0.2s ease;
+}
+
+.medical-table tr:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Priority row styling */
+.medical-table tr[style*="fef2f2"] {
+  /* Urgent - Red */
+  animation: pulse-urgent 3s ease-in-out infinite;
+}
+
+.medical-table tr[style*="fffbeb"] {
+  /* High - Orange */
+  animation: pulse-high 4s ease-in-out infinite;
+}
+
+@keyframes pulse-urgent {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.1);
+  }
+}
+
+@keyframes pulse-high {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1);
+  }
+}
+nput[type="text"].medical-select {
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 16px 16px !important;
+}
+
+input[type="text"].medical-select {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><path d='m21 21-4.35-4.35'></path></svg>") !important;
+}
+
+input[type="text"].medical-select:focus {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><path d='m21 21-4.35-4.35'></path></svg>") !important;
+}
+
+input.medical-select[type="text"] {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><path d='m21 21-4.35-4.35'></path></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+  padding-right: 40px;
+  background-color: var(--bg-card);
+}
+
+input.medical-select[type="text"]:focus {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><path d='m21 21-4.35-4.35'></path></svg>");
+  background-color: var(--bg-card);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+}
+
+/* Ensure consistent styling for all medical-select elements */
+.medical-select {
+  height: 42px;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-card);
+  color: var(--gray-800);
+  transition: all var(--transition-normal);
+  padding: var(--space-3) var(--space-4);
+}
+
+.medical-select:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+  outline: none;
+}
+
+/* Remove any conflicting styles */
+input.medical-select[type="text"]::placeholder {
+  color: var(--gray-400);
+  font-weight: var(--font-weight-normal);
+}

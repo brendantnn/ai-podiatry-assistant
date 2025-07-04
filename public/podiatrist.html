@@ -13,19 +13,7 @@
     </div>
     
     <div class="medical-content">
-      <!-- 
-      ========================================
-      PODIATRIST INFORMATION - LOGIC NEEDED BY JONATHAN & JUNJIE
-      ========================================
-      JONATHAN: Frontend display and user interface
-      JUNJIE: Backend authentication integration and data fetching
-      TODO: Replace hardcoded podiatrist data with real user data
-      - Fetch podiatrist name from authentication (JUNJIE)
-      - Get actual department and role from database (JUNJIE)
-      - Show real duty status from system (JUNJIE)
-      - Frontend display logic (JONATHAN)
-      ======================================== 
-      -->
+    
       <div class="medical-card mb-lg">
         <div class="flex justify-between items-center">
           <div>
@@ -40,9 +28,9 @@
             <!-- TODO: Replace with actual duty status from system -->
             <span class="medical-badge badge-success">🟢 [DUTY_STATUS]</span>
             <!-- TODO: Connect to settings page (JUNJIE - Backend routing) -->
-            <button class="medical-btn medical-btn-secondary medical-btn-sm ml-md">⚙️ Settings</button>
+            <!-- <button class="medical-btn medical-btn-secondary medical-btn-sm ml-md">⚙️ Settings</button> -->
             <!-- TODO: Connect to logout functionality (JUNJIE - Session management) -->
-            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm">🚪 Logout</button>
+            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm">Logout</button>
           </div>
         </div>
       </div>
@@ -53,20 +41,6 @@
           <div class="widget-header">
             <h3 class="widget-title">📊 Today's Overview</h3>
           </div>
-          <!-- 
-          ========================================
-          DASHBOARD METRICS - LOGIC NEEDED BY JONATHAN & JUNJIE
-          ========================================
-          JONATHAN: Frontend dashboard widgets and display
-          JUNJIE: Backend data aggregation and business logic
-          TODO: Replace placeholder numbers with real data from database
-          - Total appointments for today (JUNJIE - Database queries)
-          - Urgent cases count (JUNJIE - Priority algorithms)
-          - Completed appointments (JUNJIE - Status tracking)
-          - Cancelled appointments (JUNJIE - Status management)
-          - Widget display and UI updates (JONATHAN)
-          ======================================== 
-          -->
           <div class="dashboard-metrics">
             <div class="metric-item metric-appointments">
               <!-- TODO: Replace with actual appointment count from database -->
@@ -92,14 +66,6 @@
                 <span>Completed</span>
               </div>
             </div>
-            <div class="metric-item metric-cancelled">
-              <!-- TODO: Replace with actual cancelled count -->
-              <div class="metric-number">0</div>
-              <div class="metric-label">
-                <span>❌</span>
-                <span>Cancelled</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -114,55 +80,20 @@
             <button class="medical-btn medical-btn-secondary" onclick="scheduleAppointment()">
               📅 Schedule Appointment
             </button>
-            <!-- TODO: Connect to reports and analytics system -->
-            <button class="medical-btn medical-btn-secondary" onclick="viewReports()">
-              📊 View Reports
-            </button>
-            <!-- TODO: Connect to medical resources database -->
-            <button class="medical-btn medical-btn-secondary" onclick="accessResources()">
-              📚 Medical Resources
-            </button>
           </div>
         </div>
 
         <div class="dashboard-widget">
           <div class="widget-header">
             <h3 class="widget-title">🔔 Recent Notifications</h3>
+            <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="loadNotifications()" title="Refresh notifications">
+              🔄 Refresh
+            </button>
           </div>
-          <!-- 
-          ========================================
-          NOTIFICATIONS - LOGIC NEEDED BY JONATHAN & JUNJIE
-          ========================================
-          JONATHAN: Notification UI components and display
-          JUNJIE: Real-time notification system and business rules
-          TODO: Replace hardcoded notifications with real-time data
-          - Fetch from notification system (JUNJIE - Backend integration)
-          - Show priority-based alerts (JUNJIE - Business logic)
-          - Include timestamp and action buttons (JONATHAN - Frontend)
-          - Real-time updates and push notifications (JUNJIE)
-          ======================================== 
-          -->
           <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-            <div class="medical-card" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fecaca; padding: var(--space-md);">
-              <div class="flex items-center">
-                <span class="medical-badge badge-danger">🚨 Urgent</span>
-                <!-- TODO: Replace with actual notification content -->
-                <span class="ml-md text-sm">New urgent wound care patient</span>
-              </div>
-            </div>
-            <div class="medical-card" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-color: #fed7aa; padding: var(--space-md);">
-              <div class="flex items-center">
-                <span class="medical-badge badge-warning">📝 Update</span>
-                <!-- TODO: Replace with actual update notification -->
-                <span class="ml-md text-sm">Schedule updated for tomorrow</span>
-              </div>
-            </div>
-            <div class="medical-card" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-color: #bfdbfe; padding: var(--space-md);">
-              <div class="flex items-center">
-                <span class="medical-badge badge-info">ℹ️ Info</span>
-                <!-- TODO: Replace with actual info notification -->
-                <span class="ml-md text-sm">New clinical guidelines available</span>
-              </div>
+            <!-- Notifications will be populated by JavaScript -->
+            <div style="text-align: center; color: var(--gray-500); padding: var(--space-lg);">
+              Loading notifications...
             </div>
           </div>
         </div>
@@ -177,10 +108,6 @@
           <button class="medical-btn medical-btn-secondary tab-button" onclick="showTab('schedule')" style="border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
             📅 Schedule
           </button>
-          <!-- REMOVED: AI Assistant Tab -->
-          <button class="medical-btn medical-btn-secondary tab-button" onclick="showTab('analytics')" style="border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
-            📈 Analytics
-          </button>
         </div>
 
         <!-- Patient Queue Tab -->
@@ -188,52 +115,19 @@
           <div class="flex justify-between items-center mb-lg">
             <h3 class="medical-card-title">👥 Patient Queue (Severity-Based Priority)</h3>
             <div class="flex items-center" style="gap: var(--space-4);">
-              <!-- 
-              ========================================
-              PATIENT FILTERING - LOGIC NEEDED BY JONATHAN & JUNJIE
-              ========================================
-              JONATHAN: Filter UI and user interactions
-              JUNJIE: Backend filtering logic and database queries
-              TODO: Connect filter to actual patient data
-              - Filter by category (Wound Care, Nail Surgery, etc.) (JUNJIE)
-              - Implement real-time filtering (JUNJIE - Database queries)
-              - UI updates and interactions (JONATHAN)
-              ======================================== 
-              -->
-              <select class="medical-select" style="width: auto; min-width: 180px;">
-                <option>🔍 All Categories</option>
-                <option>🩹 Wound Care</option>
-                <option>💅 Nail Surgery</option>
-                <option>⚠️ High Risk</option>
-                <option>🦴 MSK</option>
-              </select>
+            <select id="filterCategory" class="medical-select" style="width: auto; min-width: 180px;">
+              <option value="">🔍 All Categories</option>
+              <option value="wound care">🩹 Wound Care</option>
+              <option value="nail surgery">💅 Nail Surgery</option>
+              <option value="high risk footcare">⚠️ High Risk Footcare</option>
+              <option value="MSK">🦴 MSK</option>
+            </select>
               <!-- TODO: Connect to patient queue refresh functionality (JUNJIE - Backend data refresh) -->
-              <input type="text" id="searchName" placeholder="Search by Name" onkeyup="filterPatients()">
-              <select id="filterCategory" onchange="filterPatients()">
-                <option value="">🔍 All Categories</option>
-                <option value="Wound Care">🩹 Wound Care</option>
-                <option value="Surgery">💅 Nail Surgery</option>
-                <option value="High Risk Footcare">⚠️ High Risk</option>
-                <option value="MSK">🦴 MSK</option>
-              </select>
+            <input type="text" id="searchName" class="medical-select" placeholder="🔍 Search by Name" style="width: auto; min-width: 180px;">
               <button class="medical-btn medical-btn-primary medical-btn-sm" onclick="refreshPatientQueue()">🔄 Refresh</button>
             </div>
           </div>
 
-          <!-- 
-          ========================================
-          PATIENT QUEUE TABLE - LOGIC NEEDED BY JONATHAN & JUNJIE
-          ========================================
-          JONATHAN: Table display, sorting UI, and user interactions
-          JUNJIE: Backend data management and business logic
-          TODO: Replace hardcoded patient data with real database data
-          - Fetch from patient management system (JUNJIE - Database integration)
-          - Implement severity-based sorting (JUNJIE - Priority algorithms)
-          - Add real-time updates (JUNJIE - Live data synchronization)
-          - Connect View/Chat buttons to actual functionality (JUNJIE - Routing)
-          - Table display and UI interactions (JONATHAN)
-          ======================================== 
-          -->
           <div class="medical-table-wrapper">
             <table class="medical-table">
               <thead>
@@ -243,7 +137,7 @@
                   <th>👤 Name</th>
                   <th>📋 Category</th>
                   <th>💭 Symptoms</th>
-                  <th>⏰ Wait Time</th>
+                  <th>⏰ Appointment Date</th>
                   <th>🔧 Actions</th>
                 </tr>
               </thead>
@@ -314,152 +208,6 @@
           <div class="calendar-grid" id="calendarGrid">
             <!-- Calendar will be dynamically generated by JavaScript -->
             <!-- Today's date will be automatically highlighted -->
-          </div>
-        </div>
-      </div>
-
-        <!-- Analytics Tab -->
-        <div id="analytics-tab" class="tab-content hidden">
-          <h3 class="medical-card-title mb-lg">📈 Clinical Analytics & Performance</h3>
-          <!-- 
-          ========================================
-          ANALYTICS DASHBOARD - LOGIC NEEDED BY JONATHAN & JUNJIE
-          ========================================
-          JONATHAN: Analytics UI, charts, and data visualization
-          JUNJIE: Data aggregation, calculations, and business intelligence
-          TODO: Replace hardcoded analytics with real data
-          - Connect to analytics database (JUNJIE - Database integration)
-          - Calculate real success rates and metrics (JUNJIE - Business logic)
-          - Implement real-time performance tracking (JUNJIE - Data processing)
-          - Add export functionality for reports (JUNJIE - File generation)
-          - Charts and visualization display (JONATHAN)
-          ======================================== 
-          -->
-          <div class="medical-dashboard">
-            <div class="dashboard-widget">
-              <div class="widget-header">
-                <h4 class="widget-title">✅ Patient Outcomes</h4>
-              </div>
-              <div class="text-center">
-                <!-- TODO: Replace with calculated success rate from patient outcomes -->
-                <div class="text-success" style="font-size: 2.5rem; font-weight: 700;">94%</div>
-                <div class="text-muted">Treatment Success Rate</div>
-                <div class="mt-md">
-                  <!-- TODO: Replace with actual comparison data -->
-                  <span class="medical-badge badge-success">📈 +2.5% vs last month</span>
-                </div>
-              </div>
-            </div>
-            <div class="dashboard-widget">
-              <div class="widget-header">
-                <h4 class="widget-title">⏱️ Efficiency Metrics</h4>
-              </div>
-              <div class="text-center">
-                <div class="text-primary" style="font-size: 2.5rem; font-weight: 700;">18 min</div>
-                <div class="text-muted">Avg. Consultation Time</div>
-                <div class="mt-md">
-                  <span class="medical-badge badge-info">⚡ -1.2 min vs target</span>
-                </div>
-              </div>
-            </div>
-            <div class="dashboard-widget">
-              <div class="widget-header">
-                <h4 class="widget-title">📊 Case Distribution</h4>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-                <div class="flex justify-between items-center">
-                  <span>🩹 Wound Care</span>
-                  <span class="medical-badge badge-danger">35%</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>🦴 MSK</span>
-                  <span class="medical-badge badge-info">30%</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>💅 Nail Surgery</span>
-                  <span class="medical-badge badge-warning">20%</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>⚠️ High Risk</span>
-                  <span class="medical-badge badge-secondary">15%</span>
-                </div>
-              </div>
-            </div>
-            <div class="dashboard-widget">
-              <div class="widget-header">
-                <h4 class="widget-title">📅 Weekly Overview</h4>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-                <div class="flex justify-between">
-                  <span>Monday</span>
-                  <span class="text-success">✅ 15 patients</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Tuesday</span>
-                  <span class="text-primary">🔄 12 patients (today)</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Wednesday</span>
-                  <span class="text-muted">📅 14 scheduled</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Thursday</span>
-                  <span class="text-muted">📅 11 scheduled</span>
-                </div>
-                <div class="flex justify-between">
-                  <span>Friday</span>
-                  <span class="text-muted">📅 13 scheduled</span>
-                </div>
-              </div>
-            </div>
-            <div class="dashboard-widget">
-              <div class="widget-header">
-                <h4 class="widget-title">🎯 Quality Metrics</h4>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-                <div class="flex justify-between items-center">
-                  <span>😊 Patient Satisfaction</span>
-                  <span class="medical-badge badge-success">4.8/5</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>🔄 Follow-up Rate</span>
-                  <span class="medical-badge badge-success">92%</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>📝 Documentation</span>
-                  <span class="medical-badge badge-success">98%</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span>⏰ On-time Rate</span>
-                  <span class="medical-badge badge-warning">87%</span>
-                </div>
-              </div>
-            </div>
-            <div class="dashboard-widget">
-              <div class="widget-header">
-                <h4 class="widget-title">🏆 Achievements</h4>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-                <div class="medical-card" style="background: linear-gradient(135deg, #fef7ff 0%, #f3e8ff 100%); border-color: #e9d5ff; padding: var(--space-md);">
-                  <div class="flex items-center">
-                    <span style="font-size: 1.5rem;">🏅</span>
-                    <div class="ml-md">
-                      <p class="text-primary font-semibold">Excellence Award</p>
-                      <p class="text-muted" style="font-size: 0.8rem;">Outstanding patient care - Q4 2024</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="medical-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #bbf7d0; padding: var(--space-md);">
-                  <div class="flex items-center">
-                    <span style="font-size: 1.5rem;">🎯</span>
-                    <div class="ml-md">
-                      <p class="text-success font-semibold">Target Achieved</p>
-                      <p class="text-muted" style="font-size: 0.8rem;">95% patient satisfaction goal met</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

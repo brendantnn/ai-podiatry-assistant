@@ -159,8 +159,8 @@ class PodiatristAIChat {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           podiatristId: "current_podiatrist",
-          days: 30,
-          limit: 20
+          days: 14,
+          limit: 10
         })
       });
       
@@ -182,6 +182,347 @@ class PodiatristAIChat {
       this.addMessageToChat("❌ Error loading appointments. Please try again.", 'bot', chatbox);
     }
   }
+
+  async showDirectAppointmentEdit(patientId, suggestedDateTime = null) {
+  try {
+    console.log('🔍 Fetching appointments for specific patient:', patientId);
+    console.log('🗓️ Suggested date/time:', suggestedDateTime);
+    
+    // Fetch appointments for this specific patient
+    const response = await fetch("/get-upcoming-appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        podiatristId: "current_podiatrist",
+        days: 60, // Look further ahead for specific patient
+        limit: 50
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success && result.appointments && result.appointments.length > 0) {
+      // Filter appointments for this specific patient
+      let patientAppointments = result.appointments.filter(apt => apt.patientId === patientId);
+
+      // ENHANCED DATE FILTERING - This is the key fix
+      if (suggestedDateTime) {
+        console.log('🗓️ Filtering by suggested date:', suggestedDateTime);
+        
+        let targetDateStr = null;
+        
+        // Parse different date formats
+        if (suggestedDateTime.toLowerCase().includes('july')) {
+          // Handle "6 july 2025", "july 6 2025", "6 july"
+          const patterns = [
+            /(\d{1,2})\s+july\s+(\d{4})/i,    // "6 july 2025"
+            /july\s+(\d{1,2})\s+(\d{4})/i,    // "july 6 2025"  
+            /(\d{1,2})\s+july/i               // "6 july" (no year)
+          ];
+          
+          for (const pattern of patterns) {
+            const match = suggestedDateTime.match(pattern);
+            if (match) {
+              let day, year;
+              
+              if (pattern.source.includes('july\\s+')) {
+                // "july 6 2025" format
+                day = match[1];
+                year = match[2] || new Date().getFullYear();
+              } else {
+                // "6 july 2025" or "6 july" format
+                day = match[1];
+                year = match[2] || new Date().getFullYear();
+              }
+              
+              const dayPadded = day.padStart(2, '0');
+              targetDateStr = `${year}-07-${dayPadded}`;
+              console.log('🗓️ Converted to target date:', targetDateStr);
+              break;
+            }
+          }
+        }
+        
+        // Filter appointments by date if we found a target date
+        if (targetDateStr) {
+          console.log('🔍 Filtering appointments by date:', targetDateStr);
+          
+          const dateFilteredAppointments = patientAppointments.filter(apt => {
+            console.log('🔍 Processing appointment:', apt.scheduledDateTime);
+            
+            // Extract date from appointment's scheduledDateTime
+            // Handle formats like "Wed, 9 Jul, 11:30 am"
+            let aptDateFormatted = null;
+            
+            try {
+              // Look for day and month pattern
+              const dateMatch = apt.scheduledDateTime.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i);
+              if (dateMatch) {
+                const day = dateMatch[1].padStart(2, '0');
+                const monthMap = {
+                  'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+                  'may': '05', 'jun': '06', 'jul': '07', 'aug': '08', 
+                  'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+                };
+                const month = monthMap[dateMatch[2].toLowerCase()];
+                const year = new Date().getFullYear(); // Assume current year
+                aptDateFormatted = `${year}-${month}-${day}`;
+                
+                console.log('🗓️ Converted appointment date:', apt.scheduledDateTime, '→', aptDateFormatted);
+              }
+            } catch (error) {
+              console.log('⚠️ Error parsing appointment date:', apt.scheduledDateTime, error);
+            }
+            
+            const matches = aptDateFormatted === targetDateStr;
+            console.log('🔍 Date comparison:', aptDateFormatted, '===', targetDateStr, '→', matches);
+            return matches;
+          });
+          
+          console.log('📊 Filtering results:', {
+            originalCount: patientAppointments.length,
+            filteredCount: dateFilteredAppointments.length,
+            targetDate: targetDateStr
+          });
+          
+          if (dateFilteredAppointments.length > 0) {
+            console.log('✅ Found', dateFilteredAppointments.length, 'appointments for specific date');
+            patientAppointments = dateFilteredAppointments;
+          } else {
+            console.log('❌ No appointments found for specific date');
+            // Show message about no appointments on that date
+            const chatbox = document.getElementById('aiChatbox');
+            this.addMessageToChat(`❌ No appointments found for ${patientId} on ${suggestedDateTime}. Here are all appointments for this patient:`, 'bot', chatbox);
+            // Don't filter - show all patient appointments instead
+          }
+        }
+      }
+      
+      if (patientAppointments.length > 0) {
+        console.log('✅ Found', patientAppointments.length, 'appointments for', patientId);
+        
+        // If only one appointment, go directly to edit form
+        if (patientAppointments.length === 1) {
+          const appointment = patientAppointments[0];
+          this.selectedAppointment = {
+            patientId: appointment.patientId,
+            appointmentId: appointment.appointmentId,
+            patientName: appointment.patientName,
+            currentDateTime: appointment.scheduledDateTime
+          };
+          
+          // Show edit form directly
+          this.showDirectEditForm(appointment, suggestedDateTime);
+        } else {
+          // Multiple appointments - show selection modal but filtered
+          this.showAppointmentModal(patientAppointments, patientAppointments.length);
+        }
+      } else {
+        console.log('❌ No appointments found for', patientId);
+        const chatbox = document.getElementById('aiChatbox');
+        this.addMessageToChat(`❌ No appointments found for ${patientId} on ${suggestedDateTime || 'the specified date'}. Please check the patient ID and date.`, 'bot', chatbox);
+      }
+    } else {
+      console.log('❌ No appointments available');
+      const chatbox = document.getElementById('aiChatbox');
+      this.addMessageToChat("❌ No appointments found to edit.", 'bot', chatbox);
+    }
+    
+  } catch (error) {
+    console.error("❌ Error fetching patient appointments:", error);
+    const chatbox = document.getElementById('aiChatbox');
+    this.addMessageToChat("❌ Error loading appointments. Please try again.", 'bot', chatbox);
+  }
+}
+
+  // SHOW EDIT FORM DIRECTLY (BYPASS APPOINTMENT SELECTION)
+showDirectEditForm(appointment, suggestedDateTime = null) {
+  console.log('📝 Showing direct edit form for appointment:', appointment);
+  
+  // Remove existing modal if any
+  const existingModal = document.getElementById('appointmentEditModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Create modal with edit form directly
+  const modal = document.createElement('div');
+  modal.id = 'appointmentEditModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease-out;
+  `;
+  
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 500px;
+    max-height: 80vh;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    overflow-y: auto;
+    animation: slideInScale 0.2s ease-out;
+  `;
+  
+  // Pre-fill suggested date/time if provided
+  let preFillDate = '';
+  let preFillTime = '';
+  
+  if (suggestedDateTime) {
+    // Parse suggested date/time (you can improve this logic)
+    console.log('🕐 Suggested date/time:', suggestedDateTime);
+    
+    // Handle "24 july", "tomorrow", etc.
+    if (suggestedDateTime.includes('july')) {
+      const year = new Date().getFullYear();
+      const match = suggestedDateTime.match(/(\d{1,2})\s*july/i);
+      if (match) {
+        const day = match[1].padStart(2, '0');
+        preFillDate = `${year}-07-${day}`;
+      }
+    }
+    // Add more date parsing logic as needed
+  }
+  
+  modalContent.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
+      <h3 style="margin: 0; color: #1d4ed8; font-size: 1.2rem;">✏️ Edit Appointment</h3>
+      <button onclick="podiatristAI.closeAppointmentModal()" style="
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #6b7280;
+        padding: 5px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">✕</button>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #1d4ed8;">📋 Current Appointment</h4>
+        <div style="font-size: 0.9rem; color: #374151;">
+          <div><strong>Patient:</strong> ${appointment.patientName}</div>
+          <div><strong>Current Date/Time:</strong> ${appointment.scheduledDateTime}</div>
+          <div><strong>Category:</strong> ${appointment.category}</div>
+          <div><strong>Diagnosis:</strong> ${appointment.initialDiagnosis}</div>
+        </div>
+      </div>
+      
+      <div style="background: #fefdf8; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+        <h4 style="margin: 0 0 15px 0; color: #374151;">📅 New Date & Time</h4>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Date:</label>
+          <input type="date" id="newAppointmentDate" value="${preFillDate}" style="
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+          " min="${new Date().toISOString().split('T')[0]}">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Time:</label>
+          <select id="newAppointmentTime" style="
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+          ">
+            <option value="">Select time</option>
+            <option value="08:00">8:00 AM</option>
+            <option value="08:30">8:30 AM</option>
+            <option value="09:00">9:00 AM</option>
+            <option value="09:30">9:30 AM</option>
+            <option value="10:00">10:00 AM</option>
+            <option value="10:30">10:30 AM</option>
+            <option value="11:00">11:00 AM</option>
+            <option value="11:30">11:30 AM</option>
+            <option value="12:00">12:00 PM</option>
+            <option value="12:30">12:30 PM</option>
+            <option value="13:00">1:00 PM</option>
+            <option value="13:30">1:30 PM</option>
+            <option value="14:00">2:00 PM</option>
+            <option value="14:30">2:30 PM</option>
+            <option value="15:00">3:00 PM</option>
+            <option value="15:30">3:30 PM</option>
+            <option value="16:00">4:00 PM</option>
+            <option value="16:30">4:30 PM</option>
+            <option value="17:00">5:00 PM</option>
+          </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button onclick="podiatristAI.closeAppointmentModal()" style="
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
+            Cancel
+          </button>
+          <button onclick="podiatristAI.submitAppointmentEdit('${appointment.patientId}', '${appointment.appointmentId}', '${appointment.patientName}')" style="
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'">
+            ✅ Update Appointment
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  
+  // Add animation styles
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideInScale {
+      from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Close modal when clicking outside
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      this.closeAppointmentModal();
+    }
+  });
+  
+  console.log('✅ Direct edit form displayed for', appointment.patientName);
+}
 
   // SHOW APPOINTMENT SELECTION MODAL
   showAppointmentModal(appointments, totalCount) {
@@ -617,44 +958,157 @@ async submitAppointmentEdit(patientId, appointmentId, patientName) {
 
   // DETECT EDIT/RESCHEDULE REQUESTS
   detectEditRequest(message) {
-    const lowerMessage = message.toLowerCase();
-    const editKeywords = ['edit', 'reschedule', 'change', 'move', 'update'];
-    const timeKeywords = ['appointment', 'time', 'date', 'schedule'];
-    
-    const hasEditKeyword = editKeywords.some(keyword => lowerMessage.includes(keyword));
-    const hasTimeKeyword = timeKeywords.some(keyword => lowerMessage.includes(keyword));
-    
-    return hasEditKeyword && hasTimeKeyword;
-  }
+  const lowerMessage = message.toLowerCase();
+  const editKeywords = ['edit', 'reschedule', 'change', 'move', 'update'];
+  const timeKeywords = ['appointment', 'time', 'date', 'schedule'];
+  
+  const hasEditKeyword = editKeywords.some(keyword => lowerMessage.includes(keyword));
+  const hasTimeKeyword = timeKeywords.some(keyword => lowerMessage.includes(keyword));
+  
+  console.log('🔍 Edit detection:', {
+    message: lowerMessage,
+    hasEditKeyword,
+    hasTimeKeyword,
+    result: hasEditKeyword && hasTimeKeyword
+  });
+  
+  return hasEditKeyword && hasTimeKeyword;
+}
 
-  // PARSE EDIT REQUEST
-  parseEditRequest(message) {
-    // Extract patient ID
-    const patientMatch = message.match(/patient[_\s]*(\d+)|(\w+\s+\w+)'s?\s+appointment/i);
-    let patientId = null;
-    
-    if (patientMatch) {
-      if (patientMatch[1]) {
-        patientId = `patient_${patientMatch[1]}`;
-      } else if (patientMatch[2]) {
-        // Try to find patient by name
-        patientId = this.findPatientByName(patientMatch[2]);
+ parseEditRequest(message) {
+  console.log('🔍 Parsing edit request:', message);
+  
+  // Extract patient ID - improved patterns
+  const patientIdPatterns = [
+    /patient[_\s]*(\d+)/i,                    // "patient_1" or "patient 1"
+    /(\w+\s+\w+)'?s?\s+appointment/i,         // "John Lim's appointment"
+    /edit\s+(\w+\s+\w+)/i,                    // "edit John Lim"
+    /for\s+(\w+\s+\w+)/i,                     // "for John Lim"
+    /(patient_\d+)/i                          // Direct "patient_1"
+  ];
+  
+  let patientId = null;
+  
+  for (const pattern of patientIdPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      console.log('🎯 Pattern matched:', pattern.source, 'result:', match);
+      
+      if (pattern.source.includes('patient')) {
+        patientId = match[1].includes('patient_') ? match[1] : `patient_${match[1]}`;
+      } else {
+        // For name matches, try to find in patient queue
+        const foundId = this.findPatientByName(match[1]);
+        if (foundId) {
+          patientId = foundId;
+        }
+      }
+      console.log('✅ Found patient ID:', patientId);
+      if (patientId) break;
+    }
+  }
+  
+  // ENHANCED DATE EXTRACTION - This is the key improvement
+  let newDateTime = null;
+  
+  // Enhanced date patterns to catch your specific case
+  const dateTimePatterns = [
+    // "6 july 2025", "24 july 2025" etc.
+    /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i,
+    // "july 6 2025", "july 24 2025" etc.  
+    /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s+(\d{4})/i,
+    // "6/7/2025", "24/7/2025" etc.
+    /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
+    // "on the 6 july", "on 24 july" etc.
+    /on\s+(?:the\s+)?(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i,
+    // Simple dates like "6 july", "24 july"
+    /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i,
+    // Relative dates
+    /(tomorrow|today|yesterday)/i,
+    // Day names
+    /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+    // Times
+    /(\d{1,2}[:\.]?\d{0,2}\s*(am|pm))/i
+  ];
+  
+  for (const pattern of dateTimePatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      console.log('📅 Date pattern matched:', pattern.source, 'result:', match);
+      
+      // Handle different date formats
+      if (pattern.source.includes('january|february')) {
+        // Month name patterns
+        if (match[3]) {
+          // "6 july 2025" format
+          newDateTime = `${match[1]} ${match[2]} ${match[3]}`;
+        } else if (match[2] && !match[3]) {
+          // "6 july" format - add current year
+          newDateTime = `${match[1]} ${match[2]} ${new Date().getFullYear()}`;
+        } else {
+          // "july 6 2025" format
+          newDateTime = `${match[2]} ${match[1]} ${match[3]}`;
+        }
+      } else if (pattern.source.includes('\\/')) {
+        // Date slash format "6/7/2025"
+        newDateTime = `${match[1]}/${match[2]}/${match[3]}`;
+      } else {
+        // Other formats
+        newDateTime = match[1];
+      }
+      
+      console.log('✅ Extracted date/time:', newDateTime);
+      break;
+    }
+  }
+  
+  console.log('📊 Parse result:', { patientId, newDateTime });
+  return { patientId, newDateTime };
+}
+
+ findPatientByName(name) {
+  console.log('🔍 Looking for patient by name:', name);
+  
+  // Enhanced patient mapping
+  const knownPatients = {
+    'john lim': 'patient_1',
+    'john': 'patient_1',
+    'lim': 'patient_1',
+    'j lim': 'patient_1',
+    'johnlim': 'patient_1'
+  };
+  
+  const lowerName = name.toLowerCase().trim();
+  
+  // Check hardcoded mappings first
+  for (const [patientName, patientId] of Object.entries(knownPatients)) {
+    if (lowerName.includes(patientName) || patientName.includes(lowerName)) {
+      console.log('✅ Found patient via hardcoded mapping:', patientId, 'for name:', name);
+      return patientId;
+    }
+  }
+  
+  // Try to access global patient queue
+  try {
+    if (window.patientQueue && window.patientQueue.length > 0) {
+      console.log('🔍 Searching in patient queue...');
+      
+      for (const patient of window.patientQueue) {
+        const patientName = patient.name ? patient.name.toLowerCase() : '';
+        
+        if (patientName.includes(lowerName) || lowerName.includes(patientName)) {
+          console.log('✅ Found patient in queue:', patient.patientId, 'for name:', name);
+          return patient.patientId;
+        }
       }
     }
-    
-    // Extract new date/time
-    const dateTimeMatch = message.match(/(\d{1,2}[:\.]?\d{0,2}\s*(am|pm)?|\d{1,2}\/\d{1,2}\/?\d{0,4}|tomorrow|today|monday|tuesday|wednesday|thursday|friday)/i);
-    const newDateTime = dateTimeMatch ? dateTimeMatch[0] : null;
-    
-    return { patientId, newDateTime };
+  } catch (error) {
+    console.log('⚠️ Error accessing patient queue:', error);
   }
-
-  // FIND PATIENT BY NAME (helper function)
-  findPatientByName(name) {
-    // This would search through the patient queue to find matching name
-    // For now, return null - implement based on your patient data structure
-    return null;
-  }
+  
+  console.log('❌ No patient found for name:', name);
+  return null;
+}
 
   // PROCESS APPOINTMENT EDIT
   async processAppointmentEdit(patientId, newDateTime, originalMessage) {
@@ -748,56 +1202,58 @@ async submitAppointmentEdit(patientId, appointmentId, patientName) {
   // ENHANCED sendMessage function with APPOINTMENT EDITING
   // ========================================
   async sendMessage(message) {
-    const chatbox = document.getElementById('aiChatbox');
-    
-    if (!chatbox) {
-      console.error('❌ Floating chatbox not available');
-      return;
-    }
+  const chatbox = document.getElementById('aiChatbox');
+  
+  if (!chatbox) {
+    console.error('❌ Floating chatbox not available');
+    return;
+  }
 
-    if (!message || !message.trim()) {
-      console.warn('⚠️ Empty message');
-      return;
-    }
+  if (!message || !message.trim()) {
+    console.warn('⚠️ Empty message');
+    return;
+  }
 
-    // Preprocess message
-    const processedMessage = this.preprocessPatientQuery(message);
+  // Preprocess message
+  const processedMessage = this.preprocessPatientQuery(message);
 
-    // Add user message
-    this.addMessageToChat(message, 'user', chatbox);
-    
-    // INSTANT FEEDBACK - Add thinking indicator
-    const thinkingDiv = this.addLoadingIndicator(chatbox);
-    this.updateLoadingMessage(thinkingDiv, 'AI is thinking...');
+  // Add user message
+  this.addMessageToChat(message, 'user', chatbox);
+  
+  // INSTANT FEEDBACK - Add thinking indicator
+  const thinkingDiv = this.addLoadingIndicator(chatbox);
+  this.updateLoadingMessage(thinkingDiv, 'AI is thinking...');
 
-    try {
-      // CHECK FOR EDIT/RESCHEDULE REQUESTS FIRST
-      if (this.detectEditRequest(processedMessage)) {
-        console.log('📝 Detected edit/reschedule request');
-        
-        const editInfo = this.parseEditRequest(processedMessage);
-        
-        this.removeLoadingIndicator(thinkingDiv);
-        
-        if (editInfo.patientId && editInfo.newDateTime) {
-          await this.processAppointmentEdit(editInfo.patientId, editInfo.newDateTime, processedMessage);
-          return;
-        } else if (editInfo.newDateTime && this.selectedAppointment) {
-          // If we have a selected appointment and new time, process the edit
-          await this.processAppointmentEdit(this.selectedAppointment.patientId, editInfo.newDateTime, processedMessage);
-          return;
-        } else if (editInfo.patientId) {
-          this.addMessageToChat(`I found the patient. What's the new date and time for ${editInfo.patientId}'s appointment?<br><br>You can say something like:<br>• "Change to tomorrow 2pm"<br>• "Move to July 5th 10am"<br>• "Reschedule to next Friday 3pm"`, 'bot', chatbox);
-          return;
-        } else if (this.selectedAppointment) {
-          this.addMessageToChat(`What's the new date and time for ${this.selectedAppointment.patientName}'s appointment?<br><br>You can say something like:<br>• "Change to tomorrow 2pm"<br>• "Move to July 5th 10am"<br>• "Reschedule to next Friday 3pm"`, 'bot', chatbox);
-          return;
-        } else {
-          this.addMessageToChat("Which patient's appointment would you like to edit? Please specify the patient ID or name.", 'bot', chatbox);
-          return;
-        }
+  try {
+    // CHECK FOR EDIT/RESCHEDULE REQUESTS FIRST - THIS IS THE KEY FIX
+    if (this.detectEditRequest(processedMessage)) {
+      console.log('📝 Detected edit/reschedule request');
+      
+      const editInfo = this.parseEditRequest(processedMessage);
+      console.log('🔍 Parsed edit info:', editInfo); // Debug log
+      
+      this.removeLoadingIndicator(thinkingDiv);
+      
+      if (editInfo.patientId && editInfo.newDateTime) {
+        // SPECIFIC PATIENT + DATE - Go directly to filtered appointments
+        console.log('🎯 Specific patient and date provided:', editInfo.patientId, editInfo.newDateTime);
+        this.addMessageToChat(`Looking up appointments for ${editInfo.patientId} on ${editInfo.newDateTime}...`, 'bot', chatbox);
+        await this.showDirectAppointmentEdit(editInfo.patientId, editInfo.newDateTime);
+        return; // CRITICAL: Exit here to prevent further processing
+      } else if (editInfo.patientId) {
+        // SPECIFIC PATIENT ONLY - Show all appointments for this patient
+        console.log('🎯 Specific patient provided:', editInfo.patientId);
+        this.addMessageToChat(`Looking up all appointments for ${editInfo.patientId}...`, 'bot', chatbox);
+        await this.showDirectAppointmentEdit(editInfo.patientId, null);
+        return; // CRITICAL: Exit here to prevent further processing
+      } else {
+        // NO SPECIFIC INFO - Show general appointment selection modal
+        console.log('🎯 No specific patient info, showing general selection');
+        this.addMessageToChat("Let me show you the available appointments to edit...", 'bot', chatbox);
+        await this.startAppointmentEdit();
+        return; // CRITICAL: Exit here to prevent further processing
       }
-
+    }
       // CHECK FOR DATE-SPECIFIC SCHEDULE QUERIES
       const scheduleQuery = this.detectScheduleQuery(processedMessage);
       

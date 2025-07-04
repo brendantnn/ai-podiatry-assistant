@@ -564,27 +564,49 @@ Based on this patient's clinical profile, please provide medical guidance.
     }
 
     // Enhanced system prompt with patient context
-    const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+  const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
 
-${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n` : ''}
+  ${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n
 
-RESPONSE FORMATTING RULES:
-- Use clear, professional medical language
-- Structure responses with headers and bullet points for readability
-- Bold important medical terms and conditions
-- Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
-- Keep responses concise but comprehensive
-- Always provide evidence-based recommendations
+  MANDATORY FORMAT for patient case analysis:
+  **Workload Overview for [DATE]**
+  - **Total Appointments:** 1
+  - **[Category] Cases:** 1
 
-You help with:
-1. **Patient-Specific Queries** - Detailed case analysis based on patient history
-2. **Clinical Decision Support** - Evidence-based treatment recommendations
-3. **Medical Knowledge** - Information about podiatry conditions and protocols  
-4. **Case Management** - Guidance on patient prioritization and workflow
-5. **Treatment Protocols** - Step-by-step treatment approaches
-6. **Drug Information** - Interactions, dosages, and contraindications
+  **Priority Cases**
+  - **Patient_ID (Name)** 
+    - **Category:** [category with emoji]
+    - **Priority:** [urgency text] 
+    - **Initial Diagnosis:** [diagnosis]
+    - **Summary:** [clinical summary]
 
-Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
+  **Clinical Recommendations**
+  - **Assessment:** [points]
+  - **Treatment:** [points] 
+  - **Education:** [points]
+
+  **Workflow Recommendation**
+  - [workflow priorities]
+
+  ` : ''}
+
+  RESPONSE FORMATTING RULES:
+  - Use clear, professional medical language
+  - Structure responses with headers and bullet points for readability
+  - Bold important medical terms and conditions
+  - Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
+  - Keep responses concise but comprehensive
+  - Always provide evidence-based recommendations
+
+  You help with:
+  1. **Patient-Specific Queries** - Detailed case analysis based on patient history
+  2. **Clinical Decision Support** - Evidence-based treatment recommendations
+  3. **Medical Knowledge** - Information about podiatry conditions and protocols  
+  4. **Case Management** - Guidance on patient prioritization and workflow
+  5. **Treatment Protocols** - Step-by-step treatment approaches
+  6. **Drug Information** - Interactions, dosages, and contraindications
+
+  Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
 
     const chatCompletion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -1665,6 +1687,215 @@ app.post("/get-upcoming-appointments", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to fetch appointments"
+    });
+  }
+});
+
+// GET TODAY'S DASHBOARD METRICS
+app.post("/get-dashboard-metrics", async (req, res) => {
+  const { podiatristId } = req.body;
+  
+  try {
+    console.log('📊 Fetching dashboard metrics...');
+    
+    // Get today's date range
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Get yesterday's date for completed appointments
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    
+    console.log('🔍 Date ranges:');
+    console.log('  Today:', startOfDay, 'to', endOfDay);
+    console.log('  Before today (completed):', yesterday);
+    
+    // 1. GET TODAY'S APPOINTMENTS (Total Appointments)
+    const todayAppointmentsQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+      .where("status", "==", "scheduled")
+      .get();
+    
+    const totalAppointments = todayAppointmentsQuery.size;
+    console.log('📅 Total appointments today:', totalAppointments);
+    
+    // 2. GET URGENT CASES (Urgency level 1 and 2)
+    let urgentCount = 0;
+    todayAppointmentsQuery.docs.forEach(doc => {
+      const appointment = doc.data();
+      if (appointment.urgencyLevel <= 2) {
+        urgentCount++;
+      }
+    });
+    console.log('🚨 Urgent cases today:', urgentCount);
+    
+    // 3. GET COMPLETED APPOINTMENTS (Past appointments)
+    const completedAppointmentsQuery = await db.collection("Appointments")
+      .where("scheduledDate", "<", admin.firestore.Timestamp.fromDate(startOfDay))
+      .where("status", "==", "scheduled")
+      .get();
+    
+    const completedAppointments = completedAppointmentsQuery.size;
+    console.log('✅ Completed appointments (past dates):', completedAppointments);
+    
+    // 4. CALCULATE ADDITIONAL METRICS
+    let highRiskCount = 0;
+    let mskCount = 0;
+    
+    todayAppointmentsQuery.docs.forEach(doc => {
+      const appointment = doc.data();
+      if (appointment.urgencyLevel === 3) highRiskCount++;
+      if (appointment.urgencyLevel === 4) mskCount++;
+    });
+    
+    const result = {
+      success: true,
+      metrics: {
+        totalAppointments,
+        urgentCases: urgentCount,
+        completedAppointments,
+        highRiskCases: highRiskCount,
+        mskCases: mskCount
+      },
+      date: today.toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "Asia/Singapore"
+      }),
+      lastUpdated: new Date().toISOString()
+    };
+    
+    console.log('📊 Dashboard metrics calculated:', result.metrics);
+    return res.json(result);
+    
+  } catch (error) {
+    console.error("❌ Error fetching dashboard metrics:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch dashboard metrics",
+      message: error.message
+    });
+  }
+});
+
+// OPTIMIZED GET REAL-TIME NOTIFICATIONS - MUCH FASTER
+app.post("/get-notifications", async (req, res) => {
+  const { podiatristId } = req.body;
+  
+  try {
+    console.log('🔔 FAST: Fetching notifications...');
+    
+    const notifications = [];
+    const now = new Date();
+    
+    // OPTIMIZATION 1: Single query for today's appointments instead of multiple
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // SINGLE OPTIMIZED QUERY for today's appointments
+    const todayAppointmentsQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+      .where("status", "==", "scheduled")
+      .get();
+
+    console.log('⚡ FAST: Found', todayAppointmentsQuery.size, 'appointments');
+
+    // OPTIMIZATION 2: Process all appointments in single loop
+    const next2Hours = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+    const next30Min = new Date(now.getTime() + (30 * 60 * 1000));
+    
+    // OPTIMIZATION 3: Batch patient lookups
+    const patientIds = new Set();
+    const appointmentData = [];
+    
+    todayAppointmentsQuery.docs.forEach(doc => {
+      const appointment = doc.data();
+      const scheduledTime = appointment.scheduledDate.toDate();
+      
+      patientIds.add(appointment.patientId);
+      appointmentData.push({
+        id: doc.id,
+        ...appointment,
+        scheduledTime
+      });
+    });
+
+    // OPTIMIZATION 4: Single batch patient lookup instead of individual queries
+    const patientMap = {};
+    if (patientIds.size > 0) {
+      const patientQuery = await db.collection("Users")
+        .where("userId", "in", Array.from(patientIds))
+        .get();
+      
+      patientQuery.docs.forEach(doc => {
+        const data = doc.data();
+        patientMap[data.userId] = `${data.firstName} ${data.lastName}`.trim();
+      });
+    }
+
+    // OPTIMIZATION 5: Process notifications in single loop
+    appointmentData.forEach(appointment => {
+      const patientName = patientMap[appointment.patientId] || appointment.patientId;
+      const timeUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60));
+      
+      // Urgent appointments (next 2 hours, urgency 1-2)
+      if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
+        notifications.push({
+          id: `urgent_${appointment.id}`,
+          type: "urgent",
+          title: "Urgent Appointment",
+          message: `${patientName} - ${appointment.category} in ${timeUntil} minutes`,
+          timestamp: now.toISOString(),
+          priority: 1,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // Upcoming appointments (next 30 minutes, urgency 3-4)
+      else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
+        notifications.push({
+          id: `upcoming_${appointment.id}`,
+          type: "update", 
+          title: "Upcoming Appointment",
+          message: `${patientName} - ${appointment.category} in ${timeUntil} minutes`,
+          timestamp: now.toISOString(),
+          priority: 2,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+    });
+
+    // OPTIMIZATION 6: Fast JavaScript sorting
+    notifications.sort((a, b) => a.priority - b.priority);
+    const limitedNotifications = notifications.slice(0, 5);
+
+    console.log('⚡ FAST: Generated', limitedNotifications.length, 'notifications');
+
+    return res.json({
+      success: true,
+      notifications: limitedNotifications,
+      totalCount: notifications.length,
+      lastUpdated: now.toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching notifications:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch notifications",
+      message: error.message
     });
   }
 });
