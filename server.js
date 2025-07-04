@@ -471,30 +471,36 @@ const allApptsSnap = await db.collection("Appointments")
   .orderBy("scheduledDate")
   .get();
 
-const allAppointments = [];
 
-for (const doc of allApptsSnap.docs) {
+  // Step 1: Extract unique podiatrist IDs
+const podIds = [...new Set(allApptsSnap.docs.map(doc => doc.data().podId).filter(Boolean))];
+
+// Step 2: Fetch all podiatrists in a single query
+let podiatristMap = {};
+if (podIds.length > 0) {
+  const podSnapshot = await db.collection("Users")
+    .where("userId", "in", podIds)
+    .get();
+
+  podSnapshot.forEach(doc => {
+    const d = doc.data();
+    podiatristMap[d.userId] = `${d.firstName || ""} ${d.lastName || ""}`.trim();
+  });
+}
+
+
+const allAppointments = allApptsSnap.docs.map(doc => {
   const appt = doc.data();
+  const podiatristName = podiatristMap[appt.podId] || "Unknown podiatrist";
 
-  let podiatristName = "Unknown podiatrist";
-  if (appt.podId) {
-    const podQuery = await db.collection("Users")
-      .where("userId", "==", appt.podId)
-      .limit(1)
-      .get();
-
-    if (!podQuery.empty) {
-      const podData = podQuery.docs[0].data();
-      podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
-    }
-  }
-
-  allAppointments.push({
+  return {
     date: appt.scheduledDate.toDate(),
     podiatrist: podiatristName,
     type: appt.type || "Consultation"
-  });
-}
+  };
+});
+
+
 
 
     res.json({
