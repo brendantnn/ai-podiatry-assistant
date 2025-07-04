@@ -273,7 +273,7 @@ console.log("Summary:", summary);
         s.pendingSlotData = slotData;
         s.cleanedDisplay = cleanedDisplay;
 
-        const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment? (yes/no)`;
+        const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
 
         return res.json({ reply: responseMessage });
 
@@ -340,12 +340,64 @@ console.log("Summary:", summary);
       return res.json({ reply: "❓ Please reply with 'yes' or 'no' to confirm your appointment." });
     }
 
-    // Appointment query ****************** TO BE CHANGED, HARCODED CURRENTLY************
-    if (userMessage.toLowerCase().includes("appointment")) {
+    // Appointment query 
+   if (userMessage.toLowerCase().includes("appointment")) {
+  try {
+    const patientId = "patient_1"; // *********************** TO BE CHANGED: Replace with actual session-based user ID later************************
+
+    // Get appointment
+    const apptSnapshot = await db.collection("Appointments")
+      .where("patientId", "==", patientId)
+      .where("status", "==", "scheduled")
+      .orderBy("scheduledDate")
+      .limit(1)
+      .get();
+
+    if (apptSnapshot.empty) {
       return res.json({
-        reply: "📅 You have an appointment on June 5 at 10:00 AM with Dr. Lee."
+        reply: "📅 You don't have any upcoming appointments at the moment."
       });
     }
+
+    const appt = apptSnapshot.docs[0].data();
+
+    // Get podiatrist name from Users collection
+    let podiatristName = "your podiatrist";
+    if (appt.podId) {
+      const podQuery = await db.collection("Users")
+        .where("userId", "==", appt.podId)
+        .limit(1)
+        .get();
+
+      if (!podQuery.empty) {
+        const podData = podQuery.docs[0].data();
+        podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
+      }
+    }
+
+    const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
+
+    return res.json({
+      reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching appointment:", error);
+    return res.json({
+      reply: "⚠️ An error occurred while retrieving your appointment details."
+    });
+  }
+}
+
 
     // Fallback
     return res.json({

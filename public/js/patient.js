@@ -61,7 +61,7 @@ window.onload = async () => {
     console.error("❌ Failed to fetch patient details:", err);
     chatbox.innerHTML += `
       <div class="bot">
-        <b>Bot:</b> ⚠️ Unable to fetch patient details.
+       <b>🤖 Digital Nurse Assistant:</b><br>⚠️ Unable to fetch patient details.
       </div>
     `;
   }
@@ -101,13 +101,13 @@ async function sendMessage() {
 
 
     // Display the chatbot's reply in chatbox, then scroll chatbot down to show latest message
-    chatbox.innerHTML += `<div class="bot"><b>Bot:</b> ${data.reply}</div>`;
+    chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br> ${data.reply}</div>`;
     chatbox.scrollTop = chatbox.scrollHeight;
 
   } 
   // Catch any errors 
   catch (err) {
-    chatbox.innerHTML += `<div class="bot"><b>Bot:</b> Error talking to server.</div>`;
+    chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b> <br>Error talking to server.</div>`;
   }
 }
 
