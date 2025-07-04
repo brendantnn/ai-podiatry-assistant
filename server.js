@@ -1341,8 +1341,8 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
 
         //Add data to data object
         const appointment = {
-          id: appt.patientId,
-          patientId: appt.patientId,
+          apptId: doc.id, // ID of document for this appotinment (for updating)
+          patId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }), // Convert Firestore timestamp to JavaScript Date
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }), // Convert Firestore timestamp to JavaScript Date
           type: appt.category, 
@@ -1364,7 +1364,7 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
       // Add patient names to appointments as "patient"
       appointments = appointments.map(appt => ({
         ...appt,
-        patient: userMap[appt.patientId] || "Unknown"
+        patient: userMap[appt.patId] || "Unknown"
       }));
       
       //Return result in json
@@ -1382,6 +1382,27 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
   } catch (error) {
     console.error("❌ Error in /podiatrist-get-calendar:", error);
     res.status(500).json({ error: "Failed to fetch calendar" });
+  }
+});
+
+//Update info in calander
+app.post('/calendar-update-appointment', async (req, res) => {
+  // const { apptId, newDate } = {"appt_1": "July 9 2025, 3:00 PM"};
+  const { apptId, updateData } = req.body;
+  console.log("🔍 Updating appt info for:", apptId);
+
+  try {
+    const docRef = db.collection("Appointments").doc(apptId);
+    console.log("apptId="+apptId)
+    console.log("updateData="+updateData)
+    const updates = {
+      scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)), // Convert newDate to Firestore timestamp
+    };
+    await docRef.update(updates);
+    return res.json({ success: true, message: "Appointment updated successfully." });
+  } catch (error) {
+    console.error("Error updating appointment:", error);
+    return res.status(500).json({ success: false, error: "Failed to update appointment." });
   }
 });
 
