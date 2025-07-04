@@ -511,7 +511,7 @@ class PodiatristCalendar {
         eventDiv.className = `calendar-event ${appointment.type}`;
         eventDiv.textContent = appointment.time + " " + appointment.patient;
         eventDiv.addEventListener('click', () => {
-        this.showAppointmentDetailsWithEdit(appointment.time + " " + appointment.patient, appointment.id);
+        this.showAppointmentDetailsWithEdit(appointment.patient, appointment.date, appointment.time, appointment.patId, appointment.apptId);
       });
         
         targetCell.appendChild(eventDiv);
@@ -543,7 +543,7 @@ class PodiatristCalendar {
   }
 
   // Show appointment details with edit option
-  showAppointmentDetailsWithEdit(appointmentInfo, appointmentId) {
+  showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
     const detailsModal = `
       <div id="appointmentDetailsModal" class="edit-modal-overlay">
         <div class="edit-modal-content">
@@ -553,17 +553,18 @@ class PodiatristCalendar {
           </div>
           <div class="edit-modal-body">
             <div class="appointment-details">
-              <p><strong>📅 Appointment:</strong> ${appointmentInfo}</p>
-              <p><strong>🆔 ID:</strong> ${appointmentId || 'N/A'}</p>
+              <p><strong>📅 Appointment:</strong> ${appointmentPatient+": "+appointmentDate+" "+appointmentTime}</p>
+              <p><strong>🆔 Patient ID:</strong> ${patientId || 'N/A'}</p>
             </div>
           </div>
           <div class="edit-modal-footer">
             <button class="medical-btn medical-btn-secondary" onclick="closeAppointmentDetailsModal()">❌ Close</button>
-            <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentInfo}', '${appointmentId}')">✏️ Edit Appointment</button>
+            <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentPatient}', '${appointmentDate}', '${appointmentTime}', '${patientId}', '${appointmentId}')">✏️ Edit Appointment</button>
           </div>
         </div>
       </div>
     `;
+    
     
     document.body.insertAdjacentHTML('beforeend', detailsModal);
   }
@@ -577,9 +578,9 @@ class PodiatristCalendar {
   }
 
   // Edit appointment function
-  editAppointment(appointmentInfo, appointmentId) {
+  editAppointment(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
     this.closeAppointmentDetailsModal();
-    this.showEditAppointmentModal(appointmentInfo, appointmentId);
+    this.showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId);
   }
   // Show create appointment modal
   showCreateAppointmentModal() {
@@ -625,28 +626,34 @@ class PodiatristCalendar {
 // ========================================
 
 // Show appointment edit modal
-showEditAppointmentModal(appointmentInfo, appointmentId = null) {
-  console.log('📝 Opening edit modal for:', appointmentInfo);
+showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
+  console.log('📝 Opening edit modal for:', appointmentId);
   
   // Extract appointment details if it's from a calendar event
-  let patientName = '';
-  let currentTime = '';
-  let appointmentType = '';
-  
-  if (typeof appointmentInfo === 'string') {
-    // Parse the appointment string format: "👨‍⚕️ 09:00 - John Doe"
-    const match = appointmentInfo.match(/([🩹👨‍⚕️🔄🏥]+)\s*(\d{2}:\d{2})\s*-\s*(.+)/);
-    if (match) {
-      const emoji = match[1];
-      currentTime = match[2];
-      patientName = match[3];
-      
-      // Map emoji to appointment type
-      if (emoji.includes('👨‍⚕️')) appointmentType = 'consultation';
-      else if (emoji.includes('🔄')) appointmentType = 'follow-up';
-      else if (emoji.includes('🏥')) appointmentType = 'surgery';
-      else if (emoji.includes('🩹')) appointmentType = 'wound-care';
+  let patientName = appointmentPatient;
+  let currentDate = formatDate(appointmentDate);
+  let currentTime = formatTime(appointmentTime);
+
+  function formatDate(dateString) { //Convert Date to HTML Readable 
+    const [day, month, year] = dateString.split(' ');
+    const months = {
+      January: '01', February: '02', March: '03', April: '04',
+      May: '05', June: '06', July: '07', August: '08',
+      September: '09', October: '10', November: '11', December: '12'
+    };
+    return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
+  }
+
+  function formatTime(timeString) { //Convert Date to HTML Readable 
+    const timeParts = timeString.split(' ');
+    let [hours, minutes] = timeParts[0].split(':');
+    if (timeParts[1] === 'pm' && hours !== '12') {
+      hours = String(Number(hours) + 12);
+    } else if (timeParts[1] === 'am' && hours === '12') {
+      hours = '00';
     }
+    return hours+":"+minutes;
+    
   }
   
   // Create modal HTML
@@ -654,43 +661,23 @@ showEditAppointmentModal(appointmentInfo, appointmentId = null) {
     <div id="editAppointmentModal" class="edit-modal-overlay">
       <div class="edit-modal-content">
         <div class="edit-modal-header">
-          <h3>📝 Edit Appointment</h3>
+          <h3>📝 Edit Appointment For: ${appointmentPatient}</h3>
           <button class="edit-modal-close" onclick="closeEditAppointmentModal()">✕</button>
         </div>
         <div class="edit-modal-body">
           <div class="form-group">
-            <label class="medical-label">👤 Patient Name:</label>
-            <input type="text" id="editPatientName" class="medical-input" value="${patientName}" readonly>
-          </div>
-          
-          <div class="form-group">
             <label class="medical-label">📅 New Date:</label>
-            <input type="date" id="editAppointmentDate" class="medical-input" required>
+            <input type="date" id="editAppointmentDate" class="medical-input" value="${currentDate}" required>
           </div>
           
           <div class="form-group">
             <label class="medical-label">⏰ New Time:</label>
             <input type="time" id="editAppointmentTime" class="medical-input" value="${currentTime}" required>
           </div>
-          
-          <div class="form-group">
-            <label class="medical-label">📋 Appointment Type:</label>
-            <select id="editAppointmentType" class="medical-select" required>
-              <option value="consultation" ${appointmentType === 'consultation' ? 'selected' : ''}>👨‍⚕️ Consultation</option>
-              <option value="follow-up" ${appointmentType === 'follow-up' ? 'selected' : ''}>🔄 Follow-up</option>
-              <option value="surgery" ${appointmentType === 'surgery' ? 'selected' : ''}>🏥 Surgery</option>
-              <option value="wound-care" ${appointmentType === 'wound-care' ? 'selected' : ''}>🩹 Wound Care</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label class="medical-label">💭 Reason for Change (Optional):</label>
-            <textarea id="editReason" class="medical-input" rows="3" placeholder="Enter reason for rescheduling..."></textarea>
-          </div>
-        </div>
+
         <div class="edit-modal-footer">
           <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
-          <button class="medical-btn medical-btn-primary" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}', '${patientName}')">💾 Save Changes</button>
+          <button class="medical-btn medical-btn-primary" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}')">💾 Save Changes</button>
         </div>
       </div>
     </div>
@@ -700,8 +687,8 @@ showEditAppointmentModal(appointmentInfo, appointmentId = null) {
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   
   // Set default date to today
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('editAppointmentDate').value = today;
+  // const today = new Date().toISOString().split('T')[0];
+  // document.getElementById('editAppointmentDate').value = today;
   
   // Focus on date field
   setTimeout(() => {
@@ -718,24 +705,20 @@ closeEditAppointmentModal() {
 }
 
 // Save appointment changes
-async saveAppointmentChanges(appointmentId, patientName) {
-  const newDate = document.getElementById('editAppointmentDate').value;
-  const newTime = document.getElementById('editAppointmentTime').value;
-  const newType = document.getElementById('editAppointmentType').value;
-  const reason = document.getElementById('editReason').value;
+async saveAppointmentChanges(appointmentId) {
+
+  //Retreive Date and Time and put in proper format for updating
+  const newDateTime = document.getElementById('editAppointmentDate').value + "T" +  document.getElementById('editAppointmentTime').value;
   
-  if (!newDate || !newTime) {
+  //Ensure fields are filled up
+  if (!document.getElementById('editAppointmentDate').value || !document.getElementById('editAppointmentTime').value) {
     alert('⚠️ Please fill in all required fields (date and time)');
     return;
   }
   
   console.log('💾 Saving appointment changes:', {
     appointmentId,
-    patientName,
-    newDate,
-    newTime,
-    newType,
-    reason
+    newDateTime,
   });
   
   // Show loading state
@@ -747,21 +730,12 @@ async saveAppointmentChanges(appointmentId, patientName) {
   try {
     // Here you would call your backend API to update the appointment
     // For now, we'll simulate the API call
-    await this.updateAppointmentInDatabase(appointmentId, {
-      patientName,
-      newDate,
-      newTime,
-      newType,
-      reason
-    });
-    
-    // Show success message
-    this.showSuccessMessage(`✅ Appointment updated successfully!\n\nNew Details:\n📅 Date: ${newDate}\n⏰ Time: ${newTime}\n📋 Type: ${newType}`);
-    
+    await this.updateAppointmentInDatabase(appointmentId, newDateTime);
+
     // Close modal
     this.closeEditAppointmentModal();
     
-    // Refresh calendar to show changes
+    // Refresh calendar to show changes //TODO Ensure it refresehs preoperly 
     this.generateCalendarForMonth(this.currentDate.getMonth(), this.currentDate.getFullYear());
     
   } catch (error) {
@@ -774,36 +748,21 @@ async saveAppointmentChanges(appointmentId, patientName) {
   }
 }
 
-// Simulate database update (replace with actual API call)
+// Update in DB
 async updateAppointmentInDatabase(appointmentId, updateData) {
   console.log('🔄 Simulating database update...');
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Here you would make an actual API call to your server
-  // Example:
-  /*
-  const response = await fetch('/api/update-appointment', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      appointmentId,
-      ...updateData
-    })
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to update appointment');
+
+  //Send update request to server
+  try {
+    const res = await fetch("/calendar-update-appointment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData })
+    });
+
+  } catch (err) {
+    console.error("❌ Failed to update appt:", err);
   }
-  
-  return await response.json();
-  */
-  
-  // For demo purposes, we'll just log the update
-  console.log('📅 Appointment updated in database (not actually updated into db , no db logic yet):', updateData);
 }
 
 // Show success message
@@ -1105,9 +1064,9 @@ window.closeEditAppointmentModal = function() {
   }
 };
 
-window.saveAppointmentChanges = function(appointmentId, patientName) {
+window.saveAppointmentChanges = function(appointmentId) {
   if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
-    podiatristCalendar.saveAppointmentChanges(appointmentId, patientName);
+    podiatristCalendar.saveAppointmentChanges(appointmentId);
   }
 };
 
@@ -1117,9 +1076,9 @@ window.closeAppointmentDetailsModal = function() {
   }
 };
 
-window.editAppointment = function(appointmentInfo, appointmentId) {
+window.editAppointment = function(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
   if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
-    podiatristCalendar.editAppointment(appointmentInfo, appointmentId);
+    podiatristCalendar.editAppointment(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId);
   }
 };
 
