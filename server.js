@@ -464,9 +464,43 @@ app.post('/chat-patient-details', async (req, res) => {
       };
     }
 
+    // ✅ Fetch all scheduled appointments (not just the next one)
+const allApptsSnap = await db.collection("Appointments")
+  .where("patientId", "==", patientId)
+  .where("status", "==", "scheduled")
+  .orderBy("scheduledDate")
+  .get();
+
+const allAppointments = [];
+
+for (const doc of allApptsSnap.docs) {
+  const appt = doc.data();
+
+  let podiatristName = "Unknown podiatrist";
+  if (appt.podId) {
+    const podQuery = await db.collection("Users")
+      .where("userId", "==", appt.podId)
+      .limit(1)
+      .get();
+
+    if (!podQuery.empty) {
+      const podData = podQuery.docs[0].data();
+      podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
+    }
+  }
+
+  allAppointments.push({
+    date: appt.scheduledDate.toDate(),
+    podiatrist: podiatristName,
+    type: appt.type || "Consultation"
+  });
+}
+
+
     res.json({
       name: `${userData.firstName} ${userData.lastName}`.trim(),
-      appointment
+      appointment,  
+       allAppointments 
     });
 
   } catch (error) {

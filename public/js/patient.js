@@ -25,6 +25,52 @@ window.onload = async () => {
     let appointmentText = "You have no upcoming confirmed appointments.";
     let appointmentTextTwo = "You have no upcoming confirmed appointments.";
 
+    const appointmentListContainer = document.getElementById("appointment-list");
+
+// Get all upcoming appointments
+if (data.allAppointments && Array.isArray(data.allAppointments)) {
+  appointmentListContainer.innerHTML = ""; // Clear placeholder
+
+  data.allAppointments.forEach(appt => {
+    const dateObj = new Date(appt.date);
+    const formattedDate = dateObj.toLocaleString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
+
+    const doctor = appt.podiatrist || appt.doctor || "your podiatrist";
+    const type = appt.type || "Consultation";
+
+    const html = `
+  <div class="medical-card" style="
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+    background-color: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  ">
+    <div class="flex justify-between items-center">
+      <div>
+        <p class="text-primary font-semibold" style="margin: 0;">${formattedDate}</p>
+        <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.25rem;">${doctor} - ${type}</p>
+      </div>
+      <span class="medical-badge badge-success">CONFIRMED</span>
+    </div>
+  </div>
+`;
+
+    appointmentListContainer.innerHTML += html;
+  });
+} else {
+  appointmentListContainer.innerHTML = "<p class='text-muted'>No upcoming appointments.</p>";
+}
+
     if (appointment && appointment.date) {
       const formattedDate = new Date(appointment.date).toLocaleString("en-SG", {
         weekday: "long",

@@ -23,8 +23,8 @@
             <h3 class="medical-card-title">👤 Welcome, <span id="patient-name"></span></h3>
             <p class="medical-card-subtitle">
 
-            <div id="appointment"></div> 
-    
+            <div id="appointment"></div>
+
             </p>
             <p class="text-muted" style="font-size: 0.875rem;">
               🆔 Patient ID: <span id="patient-id"></span>
@@ -59,83 +59,27 @@
             </button>
           </div>
 
-         
+
         </div>
       </div>
 
-      <!-- Additional Information Cards -->
-      <div class="medical-dashboard mt-xl">
-        <div class="dashboard-widget">
-          <div class="widget-header">
-            <h3 class="widget-title">📋 Your Health Summary</h3>
-          </div>
-          <div class="widget-content">
-            <!-- TODO: Replace with actual patient health data -->
-            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-              <div class="flex justify-between items-center">
-                <span>Last Visit:</span>
-                <span class="text-primary">[LAST_VISIT_DATE]</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span>Current Condition:</span>
-                <span class="medical-badge badge-info">[CONDITION_STATUS]</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span>Treatment Plan:</span>
-                <span class="text-muted">[TREATMENT_PLAN]</span>
-              </div>
-            </div>
-          </div>
-        </div>
+    <!-- Upcoming appointment card -->
+<div class="medical-dashboard mt-xl" style="display: flex; flex-direction: row; justify-content: center;">
 
-        <div class="dashboard-widget">
-          <div class="widget-header">
-            <h3 class="widget-title">📅 Upcoming Appointments</h3>
-          </div>
-          <div class="widget-content">
-            <!-- TODO: Replace with actual appointment data -->
-            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-              <div class="medical-card" style="padding: var(--space-md); margin: 0;">
-                <div class="flex justify-between items-center">
-                  <div>
-                    <p class="text-primary font-semibold">[APPOINTMENT_DATE]</p>
-                    <p class="text-muted" style="font-size: 0.8rem;">Dr. [DOCTOR_NAME] - [APPOINTMENT_TYPE]</p>
-                  </div>
-                  <span class="medical-badge badge-success">Confirmed</span>
-                </div>
-              </div>
-              <!-- TODO: Add more appointments dynamically -->
-            </div>
-          </div>
-        </div>
+  <div class="dashboard-widget" style="flex: 1; max-width: 100%;">
+    <div class="widget-header">
+      <h3 class="widget-title">📅 Upcoming Appointments</h3>
+    </div>
+    <div id="appointment-list" style="display: flex; flex-direction: column; gap: var(--space-sm); ">
+      <!-- Appointments will be inserted here by JS -->
+    </div>
+  </div>
 
-        <div class="dashboard-widget">
-          <div class="widget-header">
-            <h3 class="widget-title">💊 Care Instructions</h3>
-          </div>
-          <div class="widget-content">
-            <!-- TODO: Replace with actual care instructions -->
-            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-              <div class="flex items-center">
-                <span style="margin-right: var(--space-2);">🏃‍♂️</span>
-                <span>Daily foot exercises</span>
-              </div>
-              <div class="flex items-center">
-                <span style="margin-right: var(--space-2);">🧼</span>
-                <span>Keep feet clean and dry</span>
-              </div>
-              <div class="flex items-center">
-                <span style="margin-right: var(--space-2);">👟</span>
-                <span>Wear proper footwear</span>
-              </div>
-              <div class="flex items-center">
-                <span style="margin-right: var(--space-2);">🔍</span>
-                <span>Daily foot inspection</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+</div>
+
+
+
+     
 
       <!-- Emergency Contact Information -->
       <div class="medical-card mt-xl">
