@@ -1,36 +1,38 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>SGH Podiatry - Podiatrist Dashboard</title>
   <link rel="stylesheet" href="template.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
+
 <body>
+  <!-- Add page protection script first -->
+  <script src="js/utils/pageProtection.js"></script>
+
   <div class="medical-container">
     <div class="medical-header">
       <h2><span class="status-indicator status-online"></span>Podiatrist Dashboard</h2>
       <div class="subtitle">Singapore General Hospital - Clinical Management System</div>
     </div>
-    
+
     <div class="medical-content">
-    
+
       <div class="medical-card mb-lg">
         <div class="flex justify-between items-center">
           <div>
-            <!-- TODO: Replace with actual podiatrist name from login session -->
-            <h3 class="medical-card-title">👨‍⚕️ Dr. [PODIATRIST_NAME]</h3>
-            <!-- TODO: Replace with actual department and specialization -->
-            <p class="medical-card-subtitle">🏥 [SPECIALIZATION] | Department of Orthopedic Surgery</p>
-            <!-- TODO: Replace with actual current date -->
-            <p class="text-muted" style="font-size: 0.875rem;">📅 Today: [CURRENT_DATE]</p>
+            <!-- Updated to use dynamic data -->
+            <h3 class="medical-card-title">👨‍⚕️ Dr. <span id="podiatrist-name">[Loading...]</span></h3>
+            <p class="medical-card-subtitle">🏥 Podiatry Specialist | Department of Orthopedic Surgery</p>
+            <p class="text-muted" style="font-size: 0.875rem;">📅 Today: <span id="current-date">[Loading...]</span></p>
           </div>
           <div class="flex items-center">
-            <!-- TODO: Replace with actual duty status from system -->
-            <span class="medical-badge badge-success">🟢 [DUTY_STATUS]</span>
-            <!-- TODO: Connect to settings page (JUNJIE - Backend routing) -->
-            <!-- <button class="medical-btn medical-btn-secondary medical-btn-sm ml-md">⚙️ Settings</button> -->
-            <!-- TODO: Connect to logout functionality (JUNJIE - Session management) -->
-            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm">Logout</button>
+            <span class="medical-badge badge-success">🟢 On Duty</span>
+            <!-- Updated logout button with proper onclick -->
+            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm" onclick="handleLogout()">
+              🚪 Logout
+            </button>
           </div>
         </div>
       </div>
@@ -86,7 +88,8 @@
         <div class="dashboard-widget">
           <div class="widget-header">
             <h3 class="widget-title">🔔 Recent Notifications</h3>
-            <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="loadNotifications()" title="Refresh notifications">
+            <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="loadNotifications()"
+              title="Refresh notifications">
               🔄 Refresh
             </button>
           </div>
@@ -101,11 +104,14 @@
 
       <!-- Main Content Tabs -->
       <div class="medical-card mb-lg">
-        <div class="flex" style="border-bottom: 2px solid var(--gray-200); margin-bottom: var(--space-lg); gap: var(--space-md);">
-          <button class="medical-btn medical-btn-secondary tab-button active" onclick="showTab('patients')" style="border-radius: var(--radius-lg) var(--radius-lg) 0 0; border-bottom: 3px solid var(--primary-600);">
+        <div class="flex"
+          style="border-bottom: 2px solid var(--gray-200); margin-bottom: var(--space-lg); gap: var(--space-md);">
+          <button class="medical-btn medical-btn-secondary tab-button active" onclick="showTab('patients')"
+            style="border-radius: var(--radius-lg) var(--radius-lg) 0 0; border-bottom: 3px solid var(--primary-600);">
             👥 Patient Queue
           </button>
-          <button class="medical-btn medical-btn-secondary tab-button" onclick="showTab('schedule')" style="border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+          <button class="medical-btn medical-btn-secondary tab-button" onclick="showTab('schedule')"
+            style="border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
             📅 Schedule
           </button>
         </div>
@@ -115,16 +121,18 @@
           <div class="flex justify-between items-center mb-lg">
             <h3 class="medical-card-title">👥 Patient Queue (Severity-Based Priority)</h3>
             <div class="flex items-center" style="gap: var(--space-4);">
-            <select id="filterCategory" class="medical-select" style="width: auto; min-width: 180px;">
-              <option value="">🔍 All Categories</option>
-              <option value="wound care">🩹 Wound Care</option>
-              <option value="nail surgery">💅 Nail Surgery</option>
-              <option value="high risk footcare">⚠️ High Risk Footcare</option>
-              <option value="MSK">🦴 MSK</option>
-            </select>
+              <select id="filterCategory" class="medical-select" style="width: auto; min-width: 180px;">
+                <option value="">🔍 All Categories</option>
+                <option value="wound care">🩹 Wound Care</option>
+                <option value="nail surgery">💅 Nail Surgery</option>
+                <option value="high risk footcare">⚠️ High Risk Footcare</option>
+                <option value="MSK">🦴 MSK</option>
+              </select>
               <!-- TODO: Connect to patient queue refresh functionality (JUNJIE - Backend data refresh) -->
-            <input type="text" id="searchName" class="medical-select" placeholder="🔍 Search by Name" style="width: auto; min-width: 180px;">
-              <button class="medical-btn medical-btn-primary medical-btn-sm" onclick="refreshPatientQueue()">🔄 Refresh</button>
+              <input type="text" id="searchName" class="medical-select" placeholder="🔍 Search by Name"
+                style="width: auto; min-width: 180px;">
+              <button class="medical-btn medical-btn-primary medical-btn-sm" onclick="refreshPatientQueue()">🔄
+                Refresh</button>
             </div>
           </div>
 
@@ -152,161 +160,163 @@
           </div>
         </div>
 
-      <!-- Schedule Tab - IMPROVED VERSION with proper today highlighting -->
-      <div id="schedule-tab" class="tab-content hidden">
-        <div class="flex justify-between items-center mb-lg">
-          <h3 class="medical-card-title">📅 Appointment Calendar</h3>
-          <div class="flex items-center" style="gap: var(--space-4);">
-            <select class="medical-select" id="monthSelector" style="width: auto; min-width: 140px;">
-              <option value="0">January</option>
-              <option value="1">February</option>
-              <option value="2">March</option>
-              <option value="3">April</option>
-              <option value="4">May</option>
-              <option value="5">June</option>
-              <option value="6">July</option>
-              <option value="7">August</option>
-              <option value="8">September</option>
-              <option value="9">October</option>
-              <option value="10">November</option>
-              <option value="11">December</option>
-            </select>
-            <select class="medical-select" id="yearSelector" style="width: auto; min-width: 100px;">
-              <option value="2024">2024</option>
-              <option value="2025" selected>2025</option>
-              <option value="2026">2026</option>
-            </select>
-            <select class="medical-select" id="appointmentType" style="width: auto; min-width: 120px;">
-              <option value="">All types</option>
-              <option value="consultation">Consultation</option>
-              <option value="follow-up">Follow-up</option>
-              <option value="surgery">Surgery</option>
-              <option value="wound-care">Wound Care</option>
-            </select>
-            <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="resetCalendarFilters()">🔄 Reset</button>
-            <div class="flex items-center" style="gap: var(--space-2);">
-              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="navigateCalendar('prev')">‹</button>
-              <button class="medical-btn medical-btn-primary medical-btn-sm today-button-highlight" onclick="goToToday()">📅 Today</button>
-              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="navigateCalendar('next')">›</button>
+        <!-- Schedule Tab - IMPROVED VERSION with proper today highlighting -->
+        <div id="schedule-tab" class="tab-content hidden">
+          <div class="flex justify-between items-center mb-lg">
+            <h3 class="medical-card-title">📅 Appointment Calendar</h3>
+            <div class="flex items-center" style="gap: var(--space-4);">
+              <select class="medical-select" id="monthSelector" style="width: auto; min-width: 140px;">
+                <option value="0">January</option>
+                <option value="1">February</option>
+                <option value="2">March</option>
+                <option value="3">April</option>
+                <option value="4">May</option>
+                <option value="5">June</option>
+                <option value="6">July</option>
+                <option value="7">August</option>
+                <option value="8">September</option>
+                <option value="9">October</option>
+                <option value="10">November</option>
+                <option value="11">December</option>
+              </select>
+              <select class="medical-select" id="yearSelector" style="width: auto; min-width: 100px;">
+                <option value="2024">2024</option>
+                <option value="2025" selected>2025</option>
+                <option value="2026">2026</option>
+              </select>
+              <select class="medical-select" id="appointmentType" style="width: auto; min-width: 120px;">
+                <option value="">All types</option>
+                <option value="consultation">Consultation</option>
+                <option value="follow-up">Follow-up</option>
+                <option value="surgery">Surgery</option>
+                <option value="wound-care">Wound Care</option>
+              </select>
+              <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="resetCalendarFilters()">🔄
+                Reset</button>
+              <div class="flex items-center" style="gap: var(--space-2);">
+                <button class="medical-btn medical-btn-secondary medical-btn-sm"
+                  onclick="navigateCalendar('prev')">‹</button>
+                <button class="medical-btn medical-btn-primary medical-btn-sm today-button-highlight"
+                  onclick="goToToday()">📅 Today</button>
+                <button class="medical-btn medical-btn-secondary medical-btn-sm"
+                  onclick="navigateCalendar('next')">›</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="calendar-container">
+            <!-- Month/Year header will be dynamically inserted here by JavaScript -->
+
+            <div class="calendar-header">
+              <div class="calendar-day-header">Monday</div>
+              <div class="calendar-day-header">Tuesday</div>
+              <div class="calendar-day-header">Wednesday</div>
+              <div class="calendar-day-header">Thursday</div>
+              <div class="calendar-day-header">Friday</div>
+              <div class="calendar-day-header">Saturday</div>
+              <div class="calendar-day-header">Sunday</div>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid">
+              <!-- Calendar will be dynamically generated by JavaScript -->
+              <!-- Today's date will be automatically highlighted -->
             </div>
           </div>
         </div>
 
-        <div class="calendar-container">
-          <!-- Month/Year header will be dynamically inserted here by JavaScript -->
-          
-          <div class="calendar-header">
-            <div class="calendar-day-header">Monday</div>
-            <div class="calendar-day-header">Tuesday</div>
-            <div class="calendar-day-header">Wednesday</div>
-            <div class="calendar-day-header">Thursday</div>
-            <div class="calendar-day-header">Friday</div>
-            <div class="calendar-day-header">Saturday</div>
-            <div class="calendar-day-header">Sunday</div>
-          </div>
-          
-          <div class="calendar-grid" id="calendarGrid">
-            <!-- Calendar will be dynamically generated by JavaScript -->
-            <!-- Today's date will be automatically highlighted -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Additional Resources -->
-      <div class="medical-dashboard mt-xl">
-        <div class="dashboard-widget">
-          <div class="widget-header">
-            <h3 class="widget-title">📚 Clinical Resources</h3>
-          </div>
-          <div class="flex flex-col" style="gap: var(--space-sm);">
-            <a href="#" class="text-primary" style="text-decoration: none;">📖 Treatment Protocols</a>
-            <a href="#" class="text-primary" style="text-decoration: none;">🧪 Lab Results Portal</a>
-            <a href="#" class="text-primary" style="text-decoration: none;">📊 Research Database</a>
-            <a href="#" class="text-primary" style="text-decoration: none;">💊 Drug Reference</a>
-            <a href="#" class="text-primary" style="text-decoration: none;">📋 CPG Guidelines</a>
-          </div>
-        </div>
-
-        <div class="dashboard-widget">
-          <div class="widget-header">
-            <h3 class="widget-title">🔧 System Tools</h3>
-          </div>
-          <div class="flex flex-col" style="gap: var(--space-md);">
-            <button class="medical-btn medical-btn-secondary">📊 Generate Report</button>
-            <button class="medical-btn medical-btn-secondary">📥 Export Data</button>
-            <button class="medical-btn medical-btn-secondary">🔄 Sync EMR</button>
-            <button class="medical-btn medical-btn-secondary">⚙️ Settings</button>
-          </div>
-        </div>
-
-        <div class="dashboard-widget">
-          <div class="widget-header">
-            <h3 class="widget-title">📞 Department Contacts</h3>
-          </div>
-          <div class="flex flex-col" style="gap: var(--space-sm);">
-            <div class="flex items-center">
-              <span>👨‍⚕️</span>
-              <span class="ml-sm">Dr. Lee (Senior): Ext 4521</span>
+        <!-- Additional Resources -->
+        <div class="medical-dashboard mt-xl">
+          <div class="dashboard-widget">
+            <div class="widget-header">
+              <h3 class="widget-title">📚 Clinical Resources</h3>
             </div>
-            <div class="flex items-center">
-              <span>👩‍⚕️</span>
-              <span class="ml-sm">Dr. Tan (Specialist): Ext 4522</span>
+            <div class="flex flex-col" style="gap: var(--space-sm);">
+              <a href="#" class="text-primary" style="text-decoration: none;">📖 Treatment Protocols</a>
+              <a href="#" class="text-primary" style="text-decoration: none;">🧪 Lab Results Portal</a>
+              <a href="#" class="text-primary" style="text-decoration: none;">📊 Research Database</a>
+              <a href="#" class="text-primary" style="text-decoration: none;">💊 Drug Reference</a>
+              <a href="#" class="text-primary" style="text-decoration: none;">📋 CPG Guidelines</a>
             </div>
-            <div class="flex items-center">
-              <span>👩‍💼</span>
-              <span class="ml-sm">Admin Office: Ext 4377</span>
+          </div>
+
+          <div class="dashboard-widget">
+            <div class="widget-header">
+              <h3 class="widget-title">🔧 System Tools</h3>
             </div>
-            <div class="flex items-center">
-              <span>🚨</span>
-              <span class="ml-sm">Emergency: 995</span>
+            <div class="flex flex-col" style="gap: var(--space-md);">
+              <button class="medical-btn medical-btn-secondary">📊 Generate Report</button>
+              <button class="medical-btn medical-btn-secondary">📥 Export Data</button>
+              <button class="medical-btn medical-btn-secondary">🔄 Sync EMR</button>
+              <button class="medical-btn medical-btn-secondary">⚙️ Settings</button>
+            </div>
+          </div>
+
+          <div class="dashboard-widget">
+            <div class="widget-header">
+              <h3 class="widget-title">📞 Department Contacts</h3>
+            </div>
+            <div class="flex flex-col" style="gap: var(--space-sm);">
+              <div class="flex items-center">
+                <span>👨‍⚕️</span>
+                <span class="ml-sm">Dr. Lee (Senior): Ext 4521</span>
+              </div>
+              <div class="flex items-center">
+                <span>👩‍⚕️</span>
+                <span class="ml-sm">Dr. Tan (Specialist): Ext 4522</span>
+              </div>
+              <div class="flex items-center">
+                <span>👩‍💼</span>
+                <span class="ml-sm">Admin Office: Ext 4377</span>
+              </div>
+              <div class="flex items-center">
+                <span>🚨</span>
+                <span class="ml-sm">Emergency: 995</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Floating AI Assistant -->
-  <div class="floating-ai-assistant">
-    <!-- Floating Button -->
-    <button class="ai-floating-btn" onclick="toggleAIChat()" id="aiFloatingBtn">
-      <span class="ai-icon">🤖</span>
-      <span class="ai-text">AI Assistant</span>
-    </button>
+    <!-- Floating AI Assistant -->
+    <div class="floating-ai-assistant">
+      <!-- Floating Button -->
+      <button class="ai-floating-btn" onclick="toggleAIChat()" id="aiFloatingBtn">
+        <span class="ai-icon">🤖</span>
+        <span class="ai-text">AI Assistant</span>
+      </button>
 
-    <!-- AI Chat Popup -->
-    <div class="ai-chat-popup" id="aiChatPopup">
-      <div class="ai-chat-header">
-        <div class="ai-header-info">
-          <span class="ai-status-dot"></span>
-          <span class="ai-title">AI Clinical Assistant</span>
+      <!-- AI Chat Popup -->
+      <div class="ai-chat-popup" id="aiChatPopup">
+        <div class="ai-chat-header">
+          <div class="ai-header-info">
+            <span class="ai-status-dot"></span>
+            <span class="ai-title">AI Clinical Assistant</span>
+          </div>
+          <button class="ai-close-btn" onclick="toggleAIChat()">✕</button>
         </div>
-        <button class="ai-close-btn" onclick="toggleAIChat()">✕</button>
-      </div>
 
-      <div class="ai-chat-content">
-        <div id="aiChatbox" class="ai-chatbox">
-          <!-- Will be populated by JavaScript -->
-        </div>
-        
-     <div class="ai-quick-buttons">
-      <button class="ai-quick-btn" onclick="sendQuickQuery('clinical guidelines')">📋 Guidelines</button>
-      <button class="ai-quick-btn" onclick="sendQuickQuery('drug interactions')">⚠️ Interactions</button>
-      <button class="ai-quick-btn" onclick="sendQuickQuery('scheduling help')">🕐 Scheduling</button>
-     </div>
-          
+        <div class="ai-chat-content">
+          <div id="aiChatbox" class="ai-chatbox">
+            <!-- Will be populated by JavaScript -->
+          </div>
+
+          <div class="ai-quick-buttons">
+            <button class="ai-quick-btn" onclick="sendQuickQuery('clinical guidelines')">📋 Guidelines</button>
+            <button class="ai-quick-btn" onclick="sendQuickQuery('drug interactions')">⚠️ Interactions</button>
+            <button class="ai-quick-btn" onclick="sendQuickQuery('scheduling help')">🕐 Scheduling</button>
+          </div>
+
           <div class="ai-input-group">
-            <input 
-              id="aiMessage" 
-              class="ai-input" 
+            <input id="aiMessage" class="ai-input"
               placeholder="Ask about patient cases, treatments, clinical decisions..."
-              onkeypress="handleAIEnter(event)"
-            />
+              onkeypress="handleAIEnter(event)" />
             <button class="ai-send-btn" onclick="sendAIMessage()">
               <span>→</span>
             </button>
             <!-- NEW: Clear Chat Button -->
-            <button class="ai-send-btn" onclick="refreshFloatingChat()" title="Clear chat history" style="background: var(--gray-500); min-width: 80px; font-size: 0.75rem;">
+            <button class="ai-send-btn" onclick="refreshFloatingChat()" title="Clear chat history"
+              style="background: var(--gray-500); min-width: 80px; font-size: 0.75rem;">
               Clear Chat
             </button>
           </div>
@@ -330,10 +340,64 @@
     </div>
   </div>
 
+  <!-- Logout Confirmation Modal -->
+  <div id="logoutModal" class="hidden" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+  ">
+    <div style="
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    ">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🚪</div>
+      <h3 style="color: #374151; margin-bottom: 1rem;">Confirm Logout</h3>
+      <p style="margin-bottom: 1.5rem; color: #6b7280;">
+        Are you sure you want to logout? Any unsaved work will be lost.
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button onclick="cancelLogout()" style="
+          background: #6b7280;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+        ">
+          Cancel
+        </button>
+        <button onclick="confirmLogout()" style="
+          background: #ef4444;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+        ">
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
 
+  <script type="module" src="js/logout.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/podiatrist.js"></script>
   <script src="js/podiatrist_aichat.js"></script>
 
 </body>
+
 </html>

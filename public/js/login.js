@@ -1,119 +1,423 @@
-// login.js
-import { auth, db } from "./config/firebase-config.js";
-import { signInWithEmailAndPassword, signOut,  setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
-import { collection, query, where, updateDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+// ========================================
+// SIMPLIFIED LOGIN SYSTEM
+// File: js/login.js (replace existing content)
+// ========================================
 
-// LOGIN ATTEMPTS TRACKING
+import { auth, db } from "./config/firebase-config.js";
+import { 
+  signInWithEmailAndPassword, 
+  signOut, 
+  sendPasswordResetEmail 
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import { 
+  collection, 
+  query, 
+  where, 
+  updateDoc, 
+  doc, 
+  getDocs 
+} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+// ========================================
+// LOGIN SECURITY & RATE LIMITING
+// ========================================
+
 let loginAttempts = 0;
 let isLocked = false;
 const maxAttempts = 5;
 const lockoutTime = 60 * 1000; // 1 minute
 
+// ========================================
+// UI HELPER FUNCTIONS
+// ========================================
 
-// HANDLE PASSWORD RESET
-window.openModal = () => document.getElementById("forgotModal").classList.remove("hidden");
-window.closeModal = () => document.getElementById("forgotModal").classList.add("hidden");
+function showLoading(show = true) {
+  const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+  
+  if (show) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="width: 16px; height: 16px; border: 2px solid #ffffff40; border-top: 2px solid #ffffff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        Logging in...
+      </div>
+    `;
+  } else {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '✨ Login to System';
+  }
+}
+
+function showMessage(message, type = 'error') {
+  // Remove existing message
+  const existingMessage = document.getElementById('loginMessage');
+  if (existingMessage) {
+    existingMessage.remove();
+  }
+
+  // Create new message
+  const messageDiv = document.createElement('div');
+  messageDiv.id = 'loginMessage';
+  messageDiv.style.cssText = `
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease-out;
+  `;
+
+  if (type === 'error') {
+    messageDiv.style.background = '#fef2f2';
+    messageDiv.style.color = '#dc2626';
+    messageDiv.style.border = '1px solid #fecaca';
+    messageDiv.innerHTML = `❌ ${message}`;
+  } else if (type === 'success') {
+    messageDiv.style.background = '#f0fdf4';
+    messageDiv.style.color = '#16a34a';
+    messageDiv.style.border = '1px solid #bbf7d0';
+    messageDiv.innerHTML = `✅ ${message}`;
+  } else if (type === 'warning') {
+    messageDiv.style.background = '#fffbeb';
+    messageDiv.style.color = '#d97706';
+    messageDiv.style.border = '1px solid #fed7aa';
+    messageDiv.innerHTML = `⚠️ ${message}`;
+  }
+
+  // Insert before the form
+  const form = document.getElementById('loginForm');
+  form.parentNode.insertBefore(messageDiv, form);
+
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (messageDiv.parentNode) {
+      messageDiv.remove();
+    }
+  }, 5000);
+}
+
+function validateForm(role, email, password) {
+  if (!role) {
+    showMessage('Please select your user type.');
+    return false;
+  }
+
+  if (!email) {
+    showMessage('Please enter your email address.');
+    return false;
+  }
+
+  // Email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showMessage('Please enter a valid email address.');
+    return false;
+  }
+
+  if (!password) {
+    showMessage('Please enter your password.');
+    return false;
+  }
+
+  return true;
+}
+
+// ========================================
+// LOCKOUT FUNCTIONALITY
+// ========================================
+
+function lockLoginTemporarily() {
+  isLocked = true;
+  const seconds = lockoutTime / 1000;
+  showMessage(`Too many failed attempts. Please try again in ${seconds} seconds.`, 'warning');
+  
+  // Show countdown
+  let remaining = seconds;
+  const countdown = setInterval(() => {
+    remaining--;
+    if (remaining > 0) {
+      showMessage(`Too many failed attempts. Please try again in ${remaining} seconds.`, 'warning');
+    } else {
+      clearInterval(countdown);
+      isLocked = false;
+      loginAttempts = 0;
+      showMessage('You can now try logging in again.', 'success');
+    }
+  }, 1000);
+}
+
+// ========================================
+// PASSWORD RESET FUNCTIONALITY
+// ========================================
+
+window.openModal = () => {
+  const modal = document.getElementById("forgotModal");
+  modal.classList.remove("hidden");
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-out;
+  `;
+  
+  // Focus on email input
+  setTimeout(() => {
+    document.getElementById("resetEmail").focus();
+  }, 100);
+};
+
+window.closeModal = () => {
+  const modal = document.getElementById("forgotModal");
+  modal.classList.add("hidden");
+  modal.style.display = "none";
+  
+  // Clear the reset email field
+  document.getElementById("resetEmail").value = "";
+};
 
 window.sendReset = async () => {
   const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+  
+  if (!email) {
+    alert("Please enter your email address.");
+    return;
+  }
+
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert("Please enter a valid email address.");
+    return;
+  }
+
   try {
     await sendPasswordResetEmail(auth, email);
-    alert("📨 Password reset link sent to your email.");
+    alert("📨 Password reset link sent to your email. Please check your inbox and spam folder.");
     closeModal();
   } catch (err) {
-    alert("❌ " + err.message);
+    console.error("Password reset error:", err);
+    
+    let errorMessage = "Failed to send password reset email.";
+    switch (err.code) {
+      case 'auth/user-not-found':
+        errorMessage = "No account found with this email address.";
+        break;
+      case 'auth/invalid-email':
+        errorMessage = "Invalid email address format.";
+        break;
+      case 'auth/too-many-requests':
+        errorMessage = "Too many reset attempts. Please try again later.";
+        break;
+    }
+    
+    alert(`❌ ${errorMessage}`);
   }
 };
 
-// LOCK DURATION (1 MINUTE)
-function lockLoginTemporarily() {
-  isLocked = true;
-  alert(`Too many failed attempts. Please try again in ${lockoutTime / 1000} seconds.`);
-  setTimeout(() => {
-    isLocked = false;
-    loginAttempts = 0;
-  }, lockoutTime);
-}
+// ========================================
+// MAIN LOGIN HANDLER
+// ========================================
 
-// LOGIN HANDLER
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  
+  console.log("🔐 Login attempt started");
+  
+  // Get form values
   const role = document.getElementById("userType").value;
   const email = document.getElementById("email").value.trim().toLowerCase();
   const password = document.getElementById("password").value;
 
-   
-  if (!role || !email || !password) {
-    alert("Please fill in all fields.");
+  // Validation
+  if (!validateForm(role, email, password)) {
     return;
   }
 
-  // Check if login attempts exceed max allowed
-    if (isLocked) {
-    alert("Too many failed attempts. Please try again later.");
+  // Check lockout
+  if (isLocked) {
+    showMessage("Too many failed attempts. Please try again later.", 'warning');
     return;
   }
-  
+
+  // Show loading state
+  showLoading(true);
+
   try {
-    // 0. Set session persistence to browser session
-    await setPersistence(auth, browserSessionPersistence);
-
-    // 1. Sign in with Firebase Authentication
+    console.log("🔐 Attempting Firebase authentication...");
+    
+    // Authenticate with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
+    
+    console.log("✅ Firebase authentication successful, UID:", uid);
 
-    loginAttempts = 0; // reset on success
+    // Reset login attempts on successful auth
+    loginAttempts = 0;
     isLocked = false;
 
-    // 2. Query Firestore for user document by `authId` field (not by doc ID)
+    // Query Firestore for user document by EMAIL (since no authId field exists)
+    console.log("🔍 Querying Firestore for user data by email...");
     const usersRef = collection(db, "Users");
-    const userQuery = query(usersRef, where("authId", "==", uid));
+    const userQuery = query(usersRef, where("email", "==", email));
     const querySnapshot = await getDocs(userQuery);
 
     if (querySnapshot.empty) {
-      alert("User account not found. Please register first.");
+      console.error("❌ User account not found in Firestore");
+      showMessage("User account not found in database. Please contact support.");
+      await signOut(auth);
       return;
     }
 
     if (querySnapshot.size > 1) {
-      console.error("Multiple user accounts found for the same UID. This should not happen.");
-      alert("Multiple accounts found. Please contact support.");
+      console.error("❌ Multiple user accounts found for email:", email);
+      showMessage("Multiple accounts detected. Please contact support.");
+      await signOut(auth);
       return;
     }
 
     const userDoc = querySnapshot.docs[0];
     const userData = userDoc.data();
+    
+    console.log("✅ Found user data:", {
+      role: userData.role,
+      email: userData.email,
+      name: `${userData.firstName} ${userData.lastName}`
+    });
 
-    // 3. Check role matches
+    // Verify role matches
     if (userData.role !== role) {
-      alert(`This account is registered as a '${userData.role}', not '${role}'.`);
+      console.error("❌ Role mismatch:", { selected: role, actual: userData.role });
+      showMessage(`This account is registered as a '${userData.role}', not '${role}'. Please select the correct user type.`);
+      await signOut(auth);
       return;
     }
 
-    // 4. Update lastLogin and isActive fields in Firestore
+    // Update user activity in Firestore (optional)
+    console.log("📝 Updating user activity...");
     await updateDoc(userDoc.ref, {
-      lastLogin: new Date(),
+      lastLoginAt: new Date(),
       isActive: true
     });
 
-    // 5. Store session data
-    sessionStorage.setItem("uid", uid);
-    sessionStorage.setItem("email", email);
-    sessionStorage.setItem("role", role);
+    // Store basic session data in sessionStorage
+    console.log("💾 Storing basic session data...");
+    sessionStorage.setItem('uid', uid);
+    sessionStorage.setItem('email', email);
+    sessionStorage.setItem('role', role);
+    sessionStorage.setItem('userId', userData.userId);
+    sessionStorage.setItem('firstName', userData.firstName);
+    sessionStorage.setItem('lastName', userData.lastName);
 
-    // 6. Redirect user to role-based dashboard
-    window.location.href = role === "patient" ? "patient.html" : "podiatrist.html";
+    // Show success message
+    showMessage("Login successful! Redirecting...", 'success');
+
+    // Redirect after short delay
+    setTimeout(() => {
+      const redirectUrl = role === "patient" ? "patient.html" : "podiatrist.html";
+      console.log(`🚀 Redirecting to: ${redirectUrl}`);
+      window.location.href = redirectUrl;
+    }, 1500);
 
   } catch (err) {
+    console.error("❌ Login failed:", err);
+    
     loginAttempts++;
-    console.error("Login failed:", err);
+    
+    // Handle specific Firebase auth errors
+    let errorMessage = "Login failed. Please try again.";
+    
+    switch (err.code) {
+      case 'auth/user-not-found':
+        errorMessage = "No account found with this email address.";
+        break;
+      case 'auth/wrong-password':
+        errorMessage = "Incorrect password. Please try again.";
+        break;
+      case 'auth/invalid-email':
+        errorMessage = "Invalid email address format.";
+        break;
+      case 'auth/user-disabled':
+        errorMessage = "This account has been disabled. Please contact support.";
+        break;
+      case 'auth/too-many-requests':
+        errorMessage = "Too many failed attempts. Please try again later or reset your password.";
+        break;
+      case 'auth/invalid-credential':
+        errorMessage = "Invalid email or password. Please check your credentials.";
+        break;
+      case 'auth/network-request-failed':
+        errorMessage = "Network error. Please check your internet connection.";
+        break;
+      default:
+        errorMessage = `Login failed: ${err.message}`;
+    }
+
+    showMessage(`${errorMessage} (Attempt ${loginAttempts}/${maxAttempts})`);
+
+    // Check if we should lock the account
     if (loginAttempts >= maxAttempts) {
       lockLoginTemporarily();
-    } else {
-      alert(`Login failed. Attempt ${loginAttempts}/${maxAttempts}`);
     }
-    alert("Login failed: Invalid email or password.");
+
+  } finally {
+    showLoading(false);
   }
 });
 
+// ========================================
+// SIMPLE SESSION CHECK
+// ========================================
+
+// Check if user is already logged in (basic check)
+window.addEventListener('load', () => {
+  const uid = sessionStorage.getItem('uid');
+  const role = sessionStorage.getItem('role');
+  
+  if (uid && role) {
+    console.log("🔍 Existing session found, redirecting...");
+    const redirectUrl = role === "patient" ? "patient.html" : "podiatrist.html";
+    window.location.href = redirectUrl;
+  }
+});
+
+// ========================================
+// BASIC LOGOUT FUNCTIONALITY
+// ========================================
+
+window.logout = async function() {
+  try {
+    await signOut(auth);
+    sessionStorage.clear();
+    console.log("🚪 User logged out");
+    window.location.href = 'login.html';
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Force redirect even if there's an error
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+  }
+};
+
+// Add CSS for loading spinner animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+document.head.appendChild(style);
+
+console.log("🔐 Simplified login system initialized successfully");
