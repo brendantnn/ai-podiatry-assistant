@@ -50,17 +50,23 @@
 
         <div class="form-group">
           <label class="medical-label" for="phone">📞 Phone</label>
-          <input type="tel" id="phone" class="medical-input" placeholder="Enter phone number" pattern="^\+65[689]\d{7}$" maxlength="11" required />
+          <input type="tel" id="phone" class="medical-input" placeholder="+65 XXXXXXXX (Singapore default)" value="+65" maxlength="15" required />
+          <small id="phoneWarning" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;">
+            Singapore: +65 followed by 8 digits. Other countries accepted.
+          </small>
         </div>
 
         <div class="form-group">
           <label class="medical-label" for="email">📧 Email</label>
-          <input type="email" id="email" class="medical-input" placeholder="Enter email" required />
+          <input type="email" id="email" class="medical-input" placeholder="Enter email address" required />
         </div>
 
         <div class="form-group">
           <label class="medical-label" for="password">🔒 Password</label>
           <input type="password" id="password" class="medical-input" placeholder="Enter password" required />
+          <small id="passwordWarning" style="color: #dc3545; font-size: 0.9em; margin-top: 5px; display: none;">
+            Min 8 characters with uppercase, symbol, and alphanumeric
+          </small>
         </div>
 
         <div class="form-group">
