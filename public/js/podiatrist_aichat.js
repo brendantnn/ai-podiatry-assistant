@@ -7,6 +7,7 @@ class PodiatristAIChat {
     this.isInitialized = false;
     this.patientCache = new Map();
     this.selectedAppointment = null;
+    this.currentAppointmentData = null;
     
     this.init = this.init.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
@@ -335,9 +336,19 @@ class PodiatristAIChat {
   }
 }
 
-  // SHOW EDIT FORM DIRECTLY (BYPASS APPOINTMENT SELECTION)
+// SHOW EDIT FORM DIRECTLY (BYPASS APPOINTMENT SELECTION)
 showDirectEditForm(appointment, suggestedDateTime = null) {
   console.log('📝 Showing direct edit form for appointment:', appointment);
+  
+  // Store the current appointment data for later use
+  this.currentAppointmentData = {
+    patientId: appointment.patientId,
+    appointmentId: appointment.appointmentId,
+    patientName: appointment.patientName,
+    currentDateTime: appointment.scheduledDateTime,
+    category: appointment.category,
+    initialDiagnosis: appointment.initialDiagnosis
+  };
   
   // Remove existing modal if any
   const existingModal = document.getElementById('appointmentEditModal');
@@ -380,10 +391,8 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
   let preFillTime = '';
   
   if (suggestedDateTime) {
-    // Parse suggested date/time (you can improve this logic)
     console.log('🕐 Suggested date/time:', suggestedDateTime);
     
-    // Handle "24 july", "tomorrow", etc.
     if (suggestedDateTime.includes('july')) {
       const year = new Date().getFullYear();
       const match = suggestedDateTime.match(/(\d{1,2})\s*july/i);
@@ -392,7 +401,6 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
         preFillDate = `${year}-07-${day}`;
       }
     }
-    // Add more date parsing logic as needed
   }
   
   modalContent.innerHTML = `
@@ -480,7 +488,7 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
           " onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
             Cancel
           </button>
-          <button onclick="podiatristAI.submitAppointmentEdit('${appointment.patientId}', '${appointment.appointmentId}', '${appointment.patientName}')" style="
+          <button onclick="podiatristAI.submitAppointmentEditFixed('${appointment.patientId}', '${appointment.appointmentId}', '${appointment.patientName}')" style="
             background: #3b82f6;
             color: white;
             border: none;
@@ -522,6 +530,169 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
   });
   
   console.log('✅ Direct edit form displayed for', appointment.patientName);
+}
+
+// FIXED SUBMIT APPOINTMENT EDIT - USES STORED CURRENT APPOINTMENT DATA
+async submitAppointmentEditFixed(patientId, appointmentId, patientName) {
+  const dateInput = document.getElementById('newAppointmentDate');
+  const timeInput = document.getElementById('newAppointmentTime');
+  
+  if (!dateInput || !timeInput) {
+    alert('Error: Could not find date/time inputs');
+    return;
+  }
+  
+  const newDate = dateInput.value;
+  const newTime = timeInput.value;
+  
+  if (!newDate || !newTime) {
+    alert('Please select both date and time');
+    return;
+  }
+  
+  // Combine date and time
+  const newDateTime = `${newDate} ${newTime}`;
+  
+  // Get the ACTUAL current appointment data we stored earlier
+  const currentAppointmentInfo = this.currentAppointmentData || {
+    currentDateTime: 'Previous appointment date not available'
+  };
+  
+  try {
+    // Show loading in modal
+    const modal = document.getElementById('appointmentEditModal');
+    const originalContent = modal.innerHTML;
+    
+    modal.querySelector('div').innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <div style="font-size: 1.2rem; color: #1d4ed8; margin-bottom: 10px;">⏳ Updating Appointment...</div>
+        <div style="color: #6b7280;">Please wait while we process your changes.</div>
+      </div>
+    `;
+    
+    // Send edit request to server
+    const response = await fetch("/edit-appointment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId: patientId,
+        appointmentId: appointmentId,
+        newDateTime: newDateTime,
+        podiatristId: "current_podiatrist"
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // Format the new date for display
+      const newDateFormatted = new Date(`${newDate}T${newTime}:00`).toLocaleDateString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      });
+      
+      // Show success message with CORRECT previous date
+      modal.querySelector('div').innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 3rem; margin-bottom: 15px;">✅</div>
+          <h3 style="color: #059669; margin-bottom: 15px;">Appointment Updated Successfully!</h3>
+          <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+            <div><strong>Patient:</strong> ${patientName}</div>
+            <div><strong>New Date & Time:</strong> ${newDateFormatted}</div>
+            <div><strong>Previous:</strong> ${currentAppointmentInfo.currentDateTime}</div>
+          </div>
+          <div style="color: #6b7280; font-size: 0.9rem; margin-bottom: 15px;">
+            📊 Updating patient queue and calendar...
+          </div>
+          <button onclick="podiatristAI.closeAppointmentModal()" style="
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+          ">Close</button>
+        </div>
+      `;
+      
+      // Add success message to AI chat
+      const chatbox = document.getElementById('aiChatbox');
+      if (chatbox) {
+        this.addMessageToChat(`✅ **Appointment Updated**: ${patientName}'s appointment has been successfully rescheduled from ${currentAppointmentInfo.currentDateTime} to ${newDateFormatted}`, 'bot', chatbox);
+      }
+      
+      // Enhanced real-time updates
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Starting enhanced real-time updates after appointment edit...');
+          
+          if (typeof scheduleCache !== 'undefined') {
+            scheduleCache.clear();
+          }
+          
+          if (typeof window.refreshPatientQueue === 'function') {
+            console.log('🔄 Refreshing patient queue...');
+            await window.refreshPatientQueue();
+            console.log('✅ Patient queue refreshed');
+          }
+          
+          if (window.podiatristCalendar && typeof window.podiatristCalendar.refreshCalendar === 'function') {
+            await window.podiatristCalendar.refreshCalendar();
+            console.log('✅ Calendar refresh completed');
+          }
+          
+          if (typeof window.showUpdateNotification === 'function') {
+            window.showUpdateNotification('📅 Calendar updated with latest appointment changes');
+          }
+          
+          console.log('✅ All enhanced real-time updates completed successfully');
+        } catch (error) {
+          console.error('❌ Error during enhanced real-time update:', error);
+        }
+      }, 1000);
+      
+    } else {
+      // Show error message
+      modal.querySelector('div').innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 3rem; margin-bottom: 15px;">❌</div>
+          <h3 style="color: #dc2626; margin-bottom: 15px;">Update Failed</h3>
+          <div style="background: #fef2f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; color: #dc2626;">
+            ${result.message || 'Unable to update appointment. Please try again.'}
+          </div>
+          <div style="display: flex; gap: 10px; justify-content: center;">
+            <button onclick="podiatristAI.showDirectEditForm(podiatristAI.currentAppointmentData)" style="
+              background: #6b7280;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 6px;
+              cursor: pointer;
+            ">Try Again</button>
+            <button onclick="podiatristAI.closeAppointmentModal()" style="
+              background: #3b82f6;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 6px;
+              cursor: pointer;
+            ">Close</button>
+          </div>
+        </div>
+      `;
+    }
+    
+  } catch (error) {
+    console.error("Edit appointment error:", error);
+    alert('Error updating appointment. Please try again.');
+  }
 }
 
   // SHOW APPOINTMENT SELECTION MODAL
@@ -657,7 +828,7 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
     });
   }
 
-  // SELECT APPOINTMENT FROM MODAL - ENHANCED WITH IN-MODAL EDITING
+ // SELECT APPOINTMENT FROM MODAL - ENHANCED WITH IN-MODAL EDITING
 selectAppointmentFromModal(patientId, appointmentId, patientName, currentDateTime) {
   // Store selected appointment
   this.selectedAppointment = {
@@ -665,6 +836,16 @@ selectAppointmentFromModal(patientId, appointmentId, patientName, currentDateTim
     appointmentId, 
     patientName,
     currentDateTime
+  };
+  
+  // ALSO STORE IN currentAppointmentData for consistency
+  this.currentAppointmentData = {
+    patientId: patientId,
+    appointmentId: appointmentId,
+    patientName: patientName,
+    currentDateTime: currentDateTime,
+    category: 'General',
+    initialDiagnosis: 'Assessment pending'
   };
   
   // Transform the modal into an editing interface
@@ -675,6 +856,16 @@ selectAppointmentFromModal(patientId, appointmentId, patientName, currentDateTim
 showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) {
   const modal = document.getElementById('appointmentEditModal');
   if (!modal) return;
+  
+  // STORE THE CURRENT APPOINTMENT DATA HERE TOO
+  this.currentAppointmentData = {
+    patientId: patientId,
+    appointmentId: appointmentId,
+    patientName: patientName,
+    currentDateTime: currentDateTime,
+    category: 'General', // Default since we don't have it here
+    initialDiagnosis: 'Assessment pending' // Default since we don't have it here
+  };
   
   const modalContent = modal.querySelector('div');
   
@@ -762,7 +953,7 @@ showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) 
           " onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
             Cancel
           </button>
-          <button onclick="podiatristAI.submitAppointmentEdit('${patientId}', '${appointmentId}', '${patientName}')" style="
+          <button onclick="podiatristAI.submitAppointmentEditFixed('${patientId}', '${appointmentId}', '${patientName}')" style="
             background: #3b82f6;
             color: white;
             border: none;
