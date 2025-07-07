@@ -20,7 +20,7 @@ const patientId = sessionStorage.getItem("userId");
 
           
     // Set patient id at top bar
-    document.getElementById("patient-id").textContent = patientId || "no patient id";
+    //document.getElementById("patient-id").textContent = patientId || "no patient id";
 
     let appointmentText = "You have no upcoming confirmed appointments.";
     let appointmentTextTwo = "You have no upcoming confirmed appointments.";
@@ -84,7 +84,7 @@ if (data.allAppointments && Array.isArray(data.allAppointments)) {
       });
 
       const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
-      appointmentText = `You have an upcoming appointment on <b>${formattedDate}</b> with <b>${doctor}</b>.`;
+      appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b>${doctor}</b>.`;
       appointmentTextTwo = `📅 Next appointment: ${formattedDate} with ${doctor}`;
       
       document.getElementById("appointment").textContent = appointmentTextTwo;
@@ -95,9 +95,11 @@ if (data.allAppointments && Array.isArray(data.allAppointments)) {
     // Show combined message
     chatbox.innerHTML += `
       <div class="bot">
-        <b>🤖 Digital Nurse Assistant:</b> <br>Hello <b>${name}</b>! I'm your digital healthcare assistant.<br>
-        ${appointmentText}<br>
-        Type <b>'triage'</b> to begin an assessment or <b>'appointment'</b> to view your upcoming visit.
+        <b>🤖 Digital Nurse Assistant:</b> <br>Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.
+        <br><br>
+        ${appointmentText}
+        <br><br>
+         Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?
       </div>
     `;
 
@@ -132,6 +134,8 @@ async function sendMessage() {
   // Adds user message into chatbox, the clear input box so user can type new message
   chatbox.innerHTML += `<div class="user"><b>You:</b> ${userText}</div>`;
   input.value = "";
+
+  const patientId = sessionStorage.getItem("userId");
 
 
   try {

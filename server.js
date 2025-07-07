@@ -36,14 +36,30 @@ function isValidCache(cacheEntry) {
 // key = fake session ID (for now, assume 1 user)
 const session = {};
 
-// ******************************** PATIENT LOGIC *****************************************
+// ************************************************* PATIENT LOGIC **************************************************************************
 
 app.post("/chat", async (req, res) => {
   console.log("/chat route");
 
   // Store user message and user id
   const userMessage = req.body.message;
-  const userId = req.body.patientId; // use patient id sent from .js
+  const userId = req.body.patientId;
+
+  const messageText = userMessage.toLowerCase();
+
+  // Define natural language patterns
+  const triageKeywords = [
+    "pain", "hurt", "injury", "problem", "issue", "foot", "feet", "toe", "heel", "ankle", "check my foot", "something's wrong"
+  ];
+
+  const appointmentKeywords = [
+    "appointment", "schedule", "see my podiatrist", "upcoming visit", "next visit", "book", "check my appointment"
+  ];
+
+  // Check if user's message matches intent
+  const wantsTriage = triageKeywords.some(keyword => messageText.includes(keyword));
+  const wantsAppointment = appointmentKeywords.some(keyword => messageText.includes(keyword));
+
 
   // Create session object
   session[userId] = session[userId] || {
@@ -64,15 +80,14 @@ app.post("/chat", async (req, res) => {
   try {
 
     // If user message includes "triage", set state="triage" and triageState="initial query"
-    if (userMessage.toLowerCase().includes("triage")) {
-      console.log("Detected triage word, setting state=triage and triageState=initial query");
+    if (wantsTriage) {
+      console.log("🧠 Detected triage intent based on natural language.");
       s.state = "triage";
       s.triageStage = "initial_query";
       s.messages = [];
+
       console.log("🟢 Updated session (triage start):", s);
-      return res.json({
-        reply: "Please describe your foot-related concern."
-      });
+
     }
 
     // If state=triage and triageStage=initial query, send to openai to ask follow up questions, then set triageStage="clarification"
@@ -87,22 +102,27 @@ app.post("/chat", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: `You are a podiatry triage assistant. The user gave you their first description of 
-            their foot-related concern.
-            
-            Ask follow-up questions to detect:
+            content: `You are a warm, professional podiatry triage assistant. A patient has just shared their foot-related concern.
+
+Start by thanking them and letting them know you’ll ask a few short questions to understand the issue better and help arrange the right appointment.
+
+Then ask follow-up questions to detect:
 - Pus, discharge, bleeding
 - Wound, redness, swelling, warmth
 - Trauma, pain severity or location
 - Infection signs or diabetic complications
 
-Ensure you are clear and can give an accurate initial diagnosis and category
+Your goal is to identify which urgency category it fits into:
 
 The urgency categories are
 1 (most urgent). wound care: presence of wound, signs of infection like redness, swelling , pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers
 2. nail surgery: ingrown toenail, involuted toenail
 3. high risk footcare: callus, corns, warts, pathological toenails
 4 (least urgent). MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
+
+You should ONLY categorize as “urgent” if symptoms clearly suggest infection, active wound, diabetic complications, trauma, or signs of rapid worsening.
+
+Arch pain or flat feet without alarming symptoms should NOT be urgent. These fall under MSK and are not considered emergencies.
             
   Only ask **questions** at this stage. Do NOT attempt to diagnose or categorize yet. Your questions must help determine if the case could fall under wound care, nail surgery, high-risk footcare, or MSK.
 
@@ -167,7 +187,14 @@ Summary: A brief but informative clinical-style description for the podiatrist, 
 ---
 
 [DISPLAY MESSAGE, SH]
-You need to see a podiatrist urgently. Would Tuesday 2 July at 10:00 AM work for you?<br>
+Write a message that starts with an appropriate sentence based on the urgency level:
+
+- If urgency level = 1 → "You need to see a podiatrist urgently."
+- If urgency level = 2 → "You should see a podiatrist soon."
+- If urgency level = 3 → "This should be checked by a podiatrist."
+- If urgency level = 4 → "This is not urgent, but a podiatrist can help manage the issue."
+<br><br>
+
 While you wait for your appointment, here's what you should do:<br>
 • Tip 1<br>
 • Tip 2<br>
@@ -183,61 +210,77 @@ Do not show internal data to the patient.
       const fullReply = classification.choices[0].message.content;
       console.log("🧠 Full GPT reply:\n", fullReply);
 
- 
+
       // Split based on the last valid separator in case multiple '---' blocks exist
-const splitReply = fullReply.trim().split(/-{3,}/);
-const lastInternal = splitReply.length > 1 ? splitReply[splitReply.length - 2] : "";
-const lastDisplay = splitReply[splitReply.length - 1] || "";
+      const splitReply = fullReply.trim().split(/-{3,}/);
+      const lastInternal = splitReply.length > 1 ? splitReply[splitReply.length - 2] : "";
+      const lastDisplay = splitReply[splitReply.length - 1] || "";
 
-// Extract Summary field from internal block
-const summaryMatch = lastInternal.match(/Summary:\s*([\s\S]*?)$/i); // capture multiline
-const summary = summaryMatch?.[1]?.trim() || "No summary available.";
+      // Extract Summary field from internal block
+      const summaryMatch = lastInternal.match(/Summary:\s*([\s\S]*?)$/i); // capture multiline
+      const summary = summaryMatch?.[1]?.trim() || "No summary available.";
 
-// Clean display message (remove tag and trim)
-const cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
+      // Clean display message (remove tag and trim)
+      const cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
 
-// Extract internal info
-const categoryMatch = lastInternal.match(/Category:\s*(.*)/i);
-const diagnosisMatch = lastInternal.match(/Diagnosis:\s*(.*)/i);
-const urgencyMatch = lastInternal.match(/Urgency level:\s*(\d)/i);
+      // Extract internal info
+      const categoryMatch = lastInternal.match(/Category:\s*(.*)/i);
+      const diagnosisMatch = lastInternal.match(/Diagnosis:\s*(.*)/i);
+      const urgencyMatch = lastInternal.match(/Urgency level:\s*(\d)/i);
 
-const category = categoryMatch?.[1]?.trim() || "Unknown";
-const diagnosis = diagnosisMatch?.[1]?.trim() || "Unclear";
-const urgencyLevel = parseInt(urgencyMatch?.[1]) || 4;
+      const category = categoryMatch?.[1]?.trim() || "Unknown";
+      const diagnosis = diagnosisMatch?.[1]?.trim() || "Unclear";
+      const urgencyLevel = parseInt(urgencyMatch?.[1]) || 4;
 
-// Store to session
-s.urgencyLevel = urgencyLevel;
-s.category = category;
-s.diagnosis = diagnosis;
-s.cleanedDisplay = cleanedDisplay;
-s.summary = summary;
+      // Store to session
+      s.urgencyLevel = urgencyLevel;
+      s.category = category;
+      s.diagnosis = diagnosis;
+      s.cleanedDisplay = cleanedDisplay;
+      s.summary = summary;
 
-console.log("🧠 Full GPT reply:\n", fullReply);
-console.log("✅ GPT classification reply:\n", cleanedDisplay);
-console.log("📊 Parsed category:", category);
-console.log("➡️ Diagnosis:", diagnosis);
-console.log("⚠️  Parsed urgency:", urgencyLevel);
-console.log("Summary:", summary);
+      console.log("🧠 Full GPT reply:\n", fullReply);
+      console.log("✅ GPT classification reply:\n", cleanedDisplay);
+      console.log("📊 Parsed category:", category);
+      console.log("➡️ Diagnosis:", diagnosis);
+      console.log("⚠️  Parsed urgency:", urgencyLevel);
+      console.log("Summary:", summary);
 
-      let daysRange = 14;
-      if (urgencyLevel === 1) daysRange = 2;
-      else if (urgencyLevel === 2) daysRange = 7;
-      else if (urgencyLevel === 3) daysRange = 14;
-      else if (urgencyLevel === 4) daysRange = 21;
+      // Set appointemnt urgency
+      const now = new Date();
+      const minDate = new Date();
+      const maxDate = new Date();
+
+      //Level 1: Book immediately, Level 2: Book starting tomorrow, Level 3: Book from 3 days later,Level 4: Book from 5 days later
+
+      if (urgencyLevel === 1) {
+        // Wound care – immediate
+        minDate.setDate(now.getDate());       // today
+        maxDate.setDate(now.getDate() + 2);   // up to 2 days
+      } else if (urgencyLevel === 2) {
+        // Nail surgery
+        minDate.setDate(now.getDate() + 1);   // earliest tomorrow
+        maxDate.setDate(now.getDate() + 7);   // up to 1 week
+      } else if (urgencyLevel === 3) {
+        // High risk footcare
+        minDate.setDate(now.getDate() + 3);   // not before 3 days
+        maxDate.setDate(now.getDate() + 14);  // up to 2 weeks
+      } else if (urgencyLevel === 4) {
+        // MSK
+        minDate.setDate(now.getDate() + 5);   // not before 5 days
+        maxDate.setDate(now.getDate() + 21);  // up to 3 weeks
+      }
+
 
       console.log("✅ GPT classification reply:\n", cleanedDisplay);
       console.log("📊 Parsed category:", category);
       console.log("⚠️  Parsed urgency:", urgencyLevel);
 
-      const now = new Date();
-      const endDate = new Date();
-      endDate.setDate(now.getDate() + daysRange);
-
       try {
         const slotQuery = await db.collection("Availability")
           .where("status", "==", "available")
-          .where("availableDate", ">=", now)
-          .where("availableDate", "<=", endDate)
+          .where("availableDate", ">=", minDate)
+          .where("availableDate", "<=",  maxDate)
           .orderBy("availableDate")
           .limit(1)
           .get();
@@ -247,7 +290,7 @@ console.log("Summary:", summary);
           s.triageStage = null;
           s.messages = [];
           return res.json({
-            reply: `${ cleanedDisplay}\n\n⚠️ An error occurred while checking availability.`
+            reply: `${cleanedDisplay}\n\n⚠️ An error occurred while checking availability.`
           });
         }
 
@@ -295,17 +338,17 @@ console.log("Summary:", summary);
         const slotData = s.pendingSlotData;
 
         await db.collection("Appointments").add({
-          patientId: userId, 
+          patientId: userId,
           podId: slotData.podId,
           scheduledDate: slotData.availableDate,
           status: "scheduled",
           urgencyLevel: s.urgencyLevel,
           category: s.category,
           initialDiagnosis: s.diagnosis,
-          summary: s.summary, 
-          triageDateTime: admin.firestore.Timestamp.now() 
-});
-      
+          summary: s.summary,
+          triageDateTime: admin.firestore.Timestamp.now()
+        });
+
 
         await slotDoc.ref.update({ status: "booked" });
 
@@ -341,67 +384,67 @@ console.log("Summary:", summary);
     }
 
     // Appointment query 
-   if (userMessage.toLowerCase().includes("appointment")) {
-  try {
-    const patientId = req.body.patientId;
+    if (wantsAppointment) {
+      try {
+        const patientId = req.body.patientId;
 
-    // Get appointment
-    const apptSnapshot = await db.collection("Appointments")
-      .where("patientId", "==", patientId)
-      .where("status", "==", "scheduled")
-      .orderBy("scheduledDate")
-      .limit(1)
-      .get();
+        // Get appointment
+        const apptSnapshot = await db.collection("Appointments")
+          .where("patientId", "==", patientId)
+          .where("status", "==", "scheduled")
+          .orderBy("scheduledDate")
+          .limit(1)
+          .get();
 
-    if (apptSnapshot.empty) {
-      return res.json({
-        reply: "📅 You don't have any upcoming appointments at the moment."
-      });
-    }
+        if (apptSnapshot.empty) {
+          return res.json({
+            reply: "📅 You don't have any upcoming appointments at the moment."
+          });
+        }
 
-    const appt = apptSnapshot.docs[0].data();
+        const appt = apptSnapshot.docs[0].data();
 
-    // Get podiatrist name from Users collection
-    let podiatristName = "your podiatrist";
-    if (appt.podId) {
-      const podQuery = await db.collection("Users")
-        .where("userId", "==", appt.podId)
-        .limit(1)
-        .get();
+        // Get podiatrist name from Users collection
+        let podiatristName = "your podiatrist";
+        if (appt.podId) {
+          const podQuery = await db.collection("Users")
+            .where("userId", "==", appt.podId)
+            .limit(1)
+            .get();
 
-      if (!podQuery.empty) {
-        const podData = podQuery.docs[0].data();
-        podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
+          if (!podQuery.empty) {
+            const podData = podQuery.docs[0].data();
+            podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
+          }
+        }
+
+        const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        });
+
+        return res.json({
+          reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
+        });
+
+      } catch (error) {
+        console.error("❌ Error fetching appointment:", error);
+        return res.json({
+          reply: "⚠️ An error occurred while retrieving your appointment details."
+        });
       }
     }
-
-    const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Singapore"
-    });
-
-    return res.json({
-      reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
-    });
-
-  } catch (error) {
-    console.error("❌ Error fetching appointment:", error);
-    return res.json({
-      reply: "⚠️ An error occurred while retrieving your appointment details."
-    });
-  }
-}
 
 
     // Fallback
     return res.json({
-      reply: "🤖 I'm not sure what you mean. You can type 'triage' or 'appointment'."
+      reply: "I'm not sure what you mean. You can type 'triage' or 'appointment'."
     });
 
   } catch (err) {
@@ -464,49 +507,49 @@ app.post('/chat-patient-details', async (req, res) => {
       };
     }
 
-    // ✅ Fetch all scheduled appointments (not just the next one)
-const allApptsSnap = await db.collection("Appointments")
-  .where("patientId", "==", patientId)
-  .where("status", "==", "scheduled")
-  .orderBy("scheduledDate")
-  .get();
+    // Fetch all scheduled appointments 
+    const allApptsSnap = await db.collection("Appointments")
+      .where("patientId", "==", patientId)
+      .where("status", "==", "scheduled")
+      .orderBy("scheduledDate")
+      .get();
 
 
-  // Step 1: Extract unique podiatrist IDs
-const podIds = [...new Set(allApptsSnap.docs.map(doc => doc.data().podId).filter(Boolean))];
+    // Step 1: Extract unique podiatrist IDs
+    const podIds = [...new Set(allApptsSnap.docs.map(doc => doc.data().podId).filter(Boolean))];
 
-// Step 2: Fetch all podiatrists in a single query
-let podiatristMap = {};
-if (podIds.length > 0) {
-  const podSnapshot = await db.collection("Users")
-    .where("userId", "in", podIds)
-    .get();
+    // Step 2: Fetch all podiatrists in a single query
+    let podiatristMap = {};
+    if (podIds.length > 0) {
+      const podSnapshot = await db.collection("Users")
+        .where("userId", "in", podIds)
+        .get();
 
-  podSnapshot.forEach(doc => {
-    const d = doc.data();
-    podiatristMap[d.userId] = `${d.firstName || ""} ${d.lastName || ""}`.trim();
-  });
-}
+      podSnapshot.forEach(doc => {
+        const d = doc.data();
+        podiatristMap[d.userId] = `${d.firstName || ""} ${d.lastName || ""}`.trim();
+      });
+    }
 
 
-const allAppointments = allApptsSnap.docs.map(doc => {
-  const appt = doc.data();
-  const podiatristName = podiatristMap[appt.podId] || "Unknown podiatrist";
+    const allAppointments = allApptsSnap.docs.map(doc => {
+      const appt = doc.data();
+      const podiatristName = podiatristMap[appt.podId] || "Unknown podiatrist";
 
-  return {
-    date: appt.scheduledDate.toDate(),
-    podiatrist: podiatristName,
-    type: appt.type || "Consultation"
-  };
-});
+      return {
+        date: appt.scheduledDate.toDate(),
+        podiatrist: podiatristName,
+        type: appt.type || "Consultation"
+      };
+    });
 
 
 
 
     res.json({
       name: `${userData.firstName} ${userData.lastName}`.trim(),
-      appointment,  
-       allAppointments 
+      appointment,
+      allAppointments
     });
 
   } catch (error) {
@@ -524,56 +567,56 @@ app.post("/podiatrist-chat", async (req, res) => {
 
   try {
     console.log('🤖 Podiatrist chat message:', userMessage);
-    
-   // REPLACE the entire patient ID detection section in server.js /podiatrist-chat route
-// Find this section around line 400 and replace it completely
 
-// FIXED patient ID detection patterns
-const patientIdPatterns = [
-  /\b(patient_\d+)\b/gi,                    // ONLY "patient_1", "patient_2", etc.
-  /\bpatient\s+(\d+)\b/gi,                  // ONLY "patient 1", "patient 2", etc.
-  /tell me about (patient_\d+)/gi,          // "tell me about patient_1"
-  /\b(p\d+)\b/gi,                           // "p1", "p2", etc.
-  /\b(pt\d+)\b/gi                           // "pt1", "pt2", etc.
-];
+    // REPLACE the entire patient ID detection section in server.js /podiatrist-chat route
+    // Find this section around line 400 and replace it completely
 
-let patientId = null;
-let patientData = null;
-let patientContext = "";
+    // FIXED patient ID detection patterns
+    const patientIdPatterns = [
+      /\b(patient_\d+)\b/gi,                    // ONLY "patient_1", "patient_2", etc.
+      /\bpatient\s+(\d+)\b/gi,                  // ONLY "patient 1", "patient 2", etc.
+      /tell me about (patient_\d+)/gi,          // "tell me about patient_1"
+      /\b(p\d+)\b/gi,                           // "p1", "p2", etc.
+      /\b(pt\d+)\b/gi                           // "pt1", "pt2", etc.
+    ];
 
-console.log(`🔍 Analyzing message for patient ID: "${userMessage}"`);
+    let patientId = null;
+    let patientData = null;
+    let patientContext = "";
 
-// Try each pattern to find patient ID
-for (let i = 0; i < patientIdPatterns.length; i++) {
-  const pattern = patientIdPatterns[i];
-  const matches = [...userMessage.matchAll(pattern)];
-  
-  if (matches.length > 0) {
-    const match = matches[0]; // Get first match
-    console.log(`🎯 Pattern ${i + 1} matched:`, match);
-    
-    if (i === 0 || i === 2) {
-      // For "patient_1" or "tell me about patient_1" patterns
-      patientId = match[1];
-    } else if (i === 1) {
-      // For "patient 1" pattern - construct "patient_1"
-      patientId = `patient_${match[1]}`;
-    } else {
-      // For p1, pt1 patterns - use as is
-      patientId = match[1];
+    console.log(`🔍 Analyzing message for patient ID: "${userMessage}"`);
+
+    // Try each pattern to find patient ID
+    for (let i = 0; i < patientIdPatterns.length; i++) {
+      const pattern = patientIdPatterns[i];
+      const matches = [...userMessage.matchAll(pattern)];
+
+      if (matches.length > 0) {
+        const match = matches[0]; // Get first match
+        console.log(`🎯 Pattern ${i + 1} matched:`, match);
+
+        if (i === 0 || i === 2) {
+          // For "patient_1" or "tell me about patient_1" patterns
+          patientId = match[1];
+        } else if (i === 1) {
+          // For "patient 1" pattern - construct "patient_1"
+          patientId = `patient_${match[1]}`;
+        } else {
+          // For p1, pt1 patterns - use as is
+          patientId = match[1];
+        }
+
+        console.log(`✅ Extracted patient ID: "${patientId}" from pattern ${i + 1}`);
+
+        // VALIDATE that it's a real patient ID format
+        if (/^(patient_\d+|p\d+|pt\d+)$/i.test(patientId)) {
+          break;
+        } else {
+          console.log(`❌ Invalid patient ID format: "${patientId}", continuing search...`);
+          patientId = null;
+        }
+      }
     }
-    
-    console.log(`✅ Extracted patient ID: "${patientId}" from pattern ${i + 1}`);
-    
-    // VALIDATE that it's a real patient ID format
-    if (/^(patient_\d+|p\d+|pt\d+)$/i.test(patientId)) {
-      break;
-    } else {
-      console.log(`❌ Invalid patient ID format: "${patientId}", continuing search...`);
-      patientId = null;
-    }
-  }
-}
 
     // DEBUG LOGGING
     if (patientId) {
@@ -583,7 +626,7 @@ for (let i = 0; i < patientIdPatterns.length; i++) {
       console.log(`🔍 PatientId length: ${patientId.length}`);
       console.log(`🔍 PatientId characters: ${JSON.stringify(patientId.split(''))}`);
       console.log(`🔍 About to search database for: "${patientId}"`);
-      
+
       try {
         // Find user by userId field
         const userQuery = await db.collection("Users")
@@ -597,20 +640,20 @@ for (let i = 0; i < patientIdPatterns.length; i++) {
           const userDoc = userQuery.docs[0];
           const userData = userDoc.data();
           const userDocId = userDoc.id; // e.g., "user_1"
-          
+
           console.log(`✅ Found user: ${userData.firstName} ${userData.lastName} (Doc ID: ${userDocId})`);
-          
+
           // Get patient profile using the document ID
           const profileSnapshot = await db.collection("PatientProfiles").doc(userDocId).get();
-          
-          let profile = { 
-            riskLevel: "unknown", 
-            assignedPodId: "", 
+
+          let profile = {
+            riskLevel: "unknown",
+            assignedPodId: "",
             medicalAlerts: [],
             nricLast4: "",
             preferredLang: "en"
           };
-          
+
           if (profileSnapshot.exists) {
             profile = profileSnapshot.data();
             console.log(`✅ Found patient profile: Risk level ${profile.riskLevel}`);
@@ -633,8 +676,8 @@ for (let i = 0; i < patientIdPatterns.length; i++) {
             preferredLang: profile.preferredLang
           };
 
-         // Create FILTERED context for AI (remove sensitive data)
-patientContext = `
+          // Create FILTERED context for AI (remove sensitive data)
+          patientContext = `
 PATIENT CLINICAL INFORMATION FOR ${patientId.toUpperCase()}:
 - Name: ${patientData.name}
 - Gender: ${patientData.gender}
@@ -656,7 +699,7 @@ Based on this patient's clinical profile, please provide medical guidance.
     }
 
     // Enhanced system prompt with patient context
-  const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+    const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
 
   ${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n
 
@@ -732,17 +775,17 @@ Based on this patient's clinical profile, please provide medical guidance.
 // GET URGENT CASES - Separate route for better organization
 app.post("/get-urgent-cases", async (req, res) => {
   const { podiatristId } = req.body;
-  
+
   try {
     console.log('🚨 Fetching urgent cases...');
-    
+
     // Get today's date range
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     // Query for urgent cases (urgency level 1 and 2)
     const urgentQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
@@ -754,13 +797,13 @@ app.post("/get-urgent-cases", async (req, res) => {
 
     // Filter for urgent cases (level 1 and 2)
     const urgentAppointments = [];
-    
+
     for (const appointmentDoc of urgentQuery.docs) {
       const appointment = appointmentDoc.data();
-      
+
       // Only include urgent cases (level 1 and 2)
       if (appointment.urgencyLevel <= 2) {
-        
+
         // Get patient details
         let patientInfo = {
           name: appointment.patientId,
@@ -820,7 +863,7 @@ app.post("/get-urgent-cases", async (req, res) => {
       totalCount: urgentAppointments.length,
       date: new Date().toLocaleDateString("en-SG", {
         weekday: "long",
-        year: "numeric", 
+        year: "numeric",
         month: "long",
         day: "numeric",
         timeZone: "Asia/Singapore"
@@ -840,14 +883,14 @@ app.post("/get-urgent-cases", async (req, res) => {
 // FIXED GET RECENT PATIENT SUMMARIES - Uses actual database data
 app.post("/get-recent-summaries", async (req, res) => {
   const { podiatristId } = req.body;
-  
+
   try {
     console.log('📝 Fetching recent patient summaries from actual database...');
-    
+
     // Get all appointments (recent ones) - adjust date range as needed
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
+
     const appointmentsQuery = await db.collection("Appointments")
       .where("triageDateTime", ">=", admin.firestore.Timestamp.fromDate(oneWeekAgo))
       .orderBy("triageDateTime", "desc")
@@ -865,12 +908,12 @@ app.post("/get-recent-summaries", async (req, res) => {
     }
 
     const recentSummaries = [];
-    
+
     // Process each appointment and get REAL patient details
     for (const appointmentDoc of appointmentsQuery.docs) {
       const appointment = appointmentDoc.data();
       console.log('Processing appointment for patient:', appointment.patientId);
-      
+
       // Get REAL patient details from Users collection
       let realPatientInfo = {
         name: appointment.patientId, // fallback to patientId
@@ -888,7 +931,7 @@ app.post("/get-recent-summaries", async (req, res) => {
         if (!patientQuery.empty) {
           const patientData = patientQuery.docs[0].data();
           console.log('✅ Found REAL patient:', patientData.firstName, patientData.lastName);
-          
+
           realPatientInfo = {
             name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
             phone: patientData.phone || "N/A",
@@ -902,14 +945,14 @@ app.post("/get-recent-summaries", async (req, res) => {
       }
 
       // Format the REAL appointment data
-      const triageDate = appointment.triageDateTime ? 
-        appointment.triageDateTime.toDate() : 
+      const triageDate = appointment.triageDateTime ?
+        appointment.triageDateTime.toDate() :
         new Date();
-      
-      const scheduledDate = appointment.scheduledDate ? 
-        appointment.scheduledDate.toDate() : 
+
+      const scheduledDate = appointment.scheduledDate ?
+        appointment.scheduledDate.toDate() :
         new Date();
-      
+
       const realSummary = {
         appointmentId: appointmentDoc.id,
         patientId: appointment.patientId,
@@ -918,7 +961,7 @@ app.post("/get-recent-summaries", async (req, res) => {
         patientEmail: realPatientInfo.email,
         triageDate: triageDate.toLocaleDateString("en-SG", {
           weekday: "short",
-          month: "short", 
+          month: "short",
           day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
@@ -928,7 +971,7 @@ app.post("/get-recent-summaries", async (req, res) => {
         scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
           weekday: "long",
           month: "long",
-          day: "numeric", 
+          day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
           hour12: true,
@@ -984,28 +1027,28 @@ let scheduleCache2 = {
 
 app.post("/get-todays-schedule", async (req, res) => {
   const { podiatristId } = req.body;
-  
+
   try {
     // CHECK CACHE FIRST (INSTANT RESPONSE IF CACHED)
     const now = Date.now();
-    if (scheduleCache2.data && 
-        scheduleCache2.timestamp && 
-        (now - scheduleCache2.timestamp) < scheduleCache2.TTL) {
+    if (scheduleCache2.data &&
+      scheduleCache2.timestamp &&
+      (now - scheduleCache2.timestamp) < scheduleCache2.TTL) {
       console.log('📋 Returning cached schedule data (INSTANT)');
       return res.json(scheduleCache2.data);
     }
-    
+
     console.log('📅 Fetching fresh schedule from database...');
-    
+
     // Get today's date range
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     console.log('🔍 Date range:', startOfDay, 'to', endOfDay);
-    
+
     // SIMPLIFIED QUERY - Remove orderBy to avoid index issues
     const appointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
@@ -1015,34 +1058,34 @@ app.post("/get-todays-schedule", async (req, res) => {
 
     console.log('📊 Found appointments:', appointmentsQuery.size);
 
-   if (appointmentsQuery.empty) {
-    const emptyResult = {
-      success: true,
-      appointments: [],
-      totalCount: 0,
-      message: "No appointments scheduled for today",
-      date: new Date().toLocaleDateString("en-SG", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        timeZone: "Asia/Singapore"
-      }),
-      isEmpty: true // ADD EMPTY FLAG
-    };
-    
-    // CACHE EMPTY RESULT TOO
-    scheduleCache2.data = emptyResult;
-    scheduleCache2.timestamp = now;
-    
-    return res.json(emptyResult);
-  }
+    if (appointmentsQuery.empty) {
+      const emptyResult = {
+        success: true,
+        appointments: [],
+        totalCount: 0,
+        message: "No appointments scheduled for today",
+        date: new Date().toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Singapore"
+        }),
+        isEmpty: true // ADD EMPTY FLAG
+      };
+
+      // CACHE EMPTY RESULT TOO
+      scheduleCache2.data = emptyResult;
+      scheduleCache2.timestamp = now;
+
+      return res.json(emptyResult);
+    }
 
     // Process appointments in parallel for speed
     const appointmentPromises = appointmentsQuery.docs.map(async (appointmentDoc) => {
       const appointment = appointmentDoc.data();
       console.log('📋 Processing appointment:', appointmentDoc.id, 'for patient:', appointment.patientId);
-      
+
       let patientInfo = {
         name: appointment.patientId,
         phone: "N/A",
@@ -1056,7 +1099,7 @@ app.post("/get-todays-schedule", async (req, res) => {
             .where("userId", "==", appointment.patientId)
             .limit(1)
             .get(),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Patient lookup timeout')), 2000)
           )
         ]);
@@ -1159,19 +1202,19 @@ function getUrgencyText(urgencyLevel) {
 // OPTIMIZED SCHEDULE BY DATE ROUTE - FASTER DATABASE QUERIES
 app.post("/get-schedule-by-date", async (req, res) => {
   const { podiatristId, targetDate } = req.body;
-  
+
   try {
     // CACHE CHECK FIRST
     const cacheKey = getCacheKey(targetDate, podiatristId);
     const cachedResult = scheduleCache.get(cacheKey);
-    
+
     if (isValidCache(cachedResult)) {
       console.log('⚡ CACHE HIT: Returning cached schedule');
       return res.json(cachedResult.data);
     }
-    
+
     console.log('📅 CACHE MISS: Fetching fresh schedule for date:', targetDate);
-    
+
     // OPTIMIZATION 1: Create date range more efficiently
     let scheduleDate;
     if (targetDate && targetDate !== 'today') {
@@ -1180,7 +1223,7 @@ app.post("/get-schedule-by-date", async (req, res) => {
       } else {
         scheduleDate = new Date(targetDate);
       }
-      
+
       if (isNaN(scheduleDate.getTime())) {
         return res.status(400).json({
           success: false,
@@ -1190,16 +1233,16 @@ app.post("/get-schedule-by-date", async (req, res) => {
     } else {
       scheduleDate = new Date();
     }
-    
+
     const dateStr = scheduleDate.toISOString().split('T')[0];
     const startOfDay = new Date(dateStr + 'T00:00:00+08:00');
     const endOfDay = new Date(dateStr + 'T23:59:59.999+08:00');
-    
+
     console.log('🚀 FAST: Querying Firebase...');
     console.log('🔍 FAST Date string:', dateStr);
     console.log('🔍 FAST Start of day (Singapore):', startOfDay.toISOString());
     console.log('🔍 FAST End of day (Singapore):', endOfDay.toISOString());
-    
+
     // OPTIMIZATION 2: Single optimized query
     const appointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
@@ -1209,38 +1252,38 @@ app.post("/get-schedule-by-date", async (req, res) => {
 
     console.log('⚡ FAST: Found', appointmentsQuery.size, 'appointments');
 
-   if (appointmentsQuery.empty) {
-    const emptyResult = {
-      success: true,
-      appointments: [],
-      totalCount: 0,
-      message: `No appointments scheduled for ${scheduleDate.toLocaleDateString("en-SG")}`,
-      date: scheduleDate.toLocaleDateString("en-SG", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        timeZone: "Asia/Singapore"
-      }),
-      isEmpty: true  // ADD EMPTY FLAG FOR DIRECT HANDLING
-    };
-    
-    // CACHE EMPTY RESULT TOO
-    scheduleCache.set(cacheKey, {
-      data: emptyResult,
-      timestamp: Date.now()
-    });
-    
-    return res.json(emptyResult);
-  }
+    if (appointmentsQuery.empty) {
+      const emptyResult = {
+        success: true,
+        appointments: [],
+        totalCount: 0,
+        message: `No appointments scheduled for ${scheduleDate.toLocaleDateString("en-SG")}`,
+        date: scheduleDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "Asia/Singapore"
+        }),
+        isEmpty: true  // ADD EMPTY FLAG FOR DIRECT HANDLING
+      };
+
+      // CACHE EMPTY RESULT TOO
+      scheduleCache.set(cacheKey, {
+        data: emptyResult,
+        timestamp: Date.now()
+      });
+
+      return res.json(emptyResult);
+    }
 
     // OPTIMIZATION 3: Batch patient lookups with timeout and parallel processing
     console.log('🔄 FAST: Processing appointments in parallel...');
-    
+
     // Get all unique patient IDs first
     const patientIds = [...new Set(appointmentsQuery.docs.map(doc => doc.data().patientId))];
     console.log('👥 FAST: Looking up', patientIds.length, 'unique patients');
-    
+
     // OPTIMIZATION 4: Batch patient lookup
     const patientLookupPromises = patientIds.map(async (patientId) => {
       try {
@@ -1249,7 +1292,7 @@ app.post("/get-schedule-by-date", async (req, res) => {
             .where("userId", "==", patientId)
             .limit(1)
             .get(),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('timeout')), 1500) // Reduced timeout
           )
         ]);
@@ -1266,7 +1309,7 @@ app.post("/get-schedule-by-date", async (req, res) => {
       } catch (error) {
         console.log(`⚠️ FAST: Patient lookup failed for ${patientId}:`, error.message);
       }
-      
+
       // Fallback
       return {
         patientId,
@@ -1381,7 +1424,7 @@ app.post('/podiatrist-get-queue', async (req, res) => {
     if (!apptSnapshot.empty) {
       const patientIds = [];
 
-      apptSnapshot.docs.forEach(doc=>{ //Loop and get data from each entry retreived
+      apptSnapshot.docs.forEach(doc => { //Loop and get data from each entry retreived
         const appt = doc.data();
         patientIds.push(appt.patientId);
 
@@ -1397,7 +1440,7 @@ app.post('/podiatrist-get-queue', async (req, res) => {
         };
         appointments.push(appointment); //Put data object into appointments list
       });
-      
+
       //Get list of users that match appointments
       const userSnapshots = await db.collection("Users")
         .where("userId", "in", patientIds)
@@ -1406,7 +1449,7 @@ app.post('/podiatrist-get-queue', async (req, res) => {
       const userMap = {};
       userSnapshots.docs.forEach(userDoc => {
         const userData = userDoc.data();
-        userMap[userData.userId] = userData.firstName + " " + userData.lastName; 
+        userMap[userData.userId] = userData.firstName + " " + userData.lastName;
       });
 
       // Add patient names to appointments
@@ -1414,13 +1457,13 @@ app.post('/podiatrist-get-queue', async (req, res) => {
         ...appt,
         name: userMap[appt.patientId] || "Unknown"
       }));
-      
+
       //Return result in json
       return res.json({
         appointments
       });
 
-    }else{
+    } else {
       console.log("❌ No Appointments found");
       return res.json({
         response: "No Appointments Found",
@@ -1449,7 +1492,7 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
     let appointments = [];// Make data list
     if (!apptSnapshot.empty) {
       const patientIds = [];
-      apptSnapshot.docs.forEach(doc=>{ //Loop and get data from each entry retreived
+      apptSnapshot.docs.forEach(doc => { //Loop and get data from each entry retreived
         const appt = doc.data();
         patientIds.push(appt.patientId);
 
@@ -1459,7 +1502,7 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
           patId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }), // Convert Firestore timestamp to JavaScript Date
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }), // Convert Firestore timestamp to JavaScript Date
-          type: appt.category, 
+          type: appt.category,
         };
         appointments.push(appointment); //Put data object into appointments list
       });
@@ -1480,13 +1523,13 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
         ...appt,
         patient: userMap[appt.patId] || "Unknown"
       }));
-      
+
       //Return result in json
       return res.json({
         appointments
       });
 
-    }else{
+    } else {
       console.log("❌ No Appointments found");
       return res.json({
         response: "No Appointments Found",
@@ -1507,8 +1550,8 @@ app.post('/calendar-update-appointment', async (req, res) => {
 
   try {
     const docRef = db.collection("Appointments").doc(apptId);
-    console.log("apptId="+apptId)
-    console.log("updateData="+updateData)
+    console.log("apptId=" + apptId)
+    console.log("updateData=" + updateData)
     const updates = {
       scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)), // Convert newDate to Firestore timestamp
     };
@@ -1528,25 +1571,25 @@ function parseNaturalDate(dateString) {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-  
+
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  
+
   // Handle relative dates
   const lowerCase = dateString.toLowerCase();
-  
+
   if (lowerCase.includes('today')) {
     return today.toISOString().split('T')[0];
   }
-  
+
   if (lowerCase.includes('tomorrow')) {
     return tomorrow.toISOString().split('T')[0];
   }
-  
+
   if (lowerCase.includes('yesterday')) {
     return yesterday.toISOString().split('T')[0];
   }
-  
+
   // Handle "next monday", "this friday" etc.
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   for (let i = 0; i < dayNames.length; i++) {
@@ -1554,29 +1597,29 @@ function parseNaturalDate(dateString) {
       const targetDay = i;
       const currentDay = today.getDay();
       let daysToAdd = targetDay - currentDay;
-      
+
       if (lowerCase.includes('next') || daysToAdd <= 0) {
         daysToAdd += (daysToAdd <= 0 ? 7 : 0);
       }
-      
+
       const targetDate = new Date(today);
       targetDate.setDate(today.getDate() + daysToAdd);
       return targetDate.toISOString().split('T')[0];
     }
   }
-  
+
   // Handle specific dates like "July 1", "1st July", "2025-07-01"
   const dateMatch = dateString.match(/(\d{4}-\d{2}-\d{2})/);
   if (dateMatch) {
     return dateMatch[1];
   }
-  
+
   // Try to parse as a regular date
   const parsedDate = new Date(dateString);
   if (!isNaN(parsedDate.getTime())) {
     return parsedDate.toISOString().split('T')[0];
   }
-  
+
   return null;
 }
 
@@ -1591,21 +1634,21 @@ function parseDateTime(dateTimeString) {
     if (dateTimeMatch) {
       const [, datePart, timePart] = dateTimeMatch;
       const [hours, minutes] = timePart.split(':').map(Number);
-      
+
       // Create date in Singapore timezone
       const date = new Date(`${datePart}T${timePart}:00+08:00`);
-      
+
       if (!isNaN(date.getTime())) {
         return date;
       }
     }
-    
+
     // Fallback: try to parse as regular date
     const fallbackDate = new Date(dateTimeString);
     if (!isNaN(fallbackDate.getTime())) {
       return fallbackDate;
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error parsing date/time:', error);
@@ -1616,60 +1659,60 @@ function parseDateTime(dateTimeString) {
 // EDIT APPOINTMENT ROUTE
 app.post("/edit-appointment", async (req, res) => {
   const { patientId, newDateTime, podiatristId } = req.body;
-  
+
   try {
     console.log('📝 Editing appointment for:', patientId, 'to:', newDateTime);
-    
+
     // Find the appointment
     const appointmentQuery = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
       .limit(1)
       .get();
-    
+
     if (appointmentQuery.empty) {
       return res.json({
         success: false,
         message: "No scheduled appointment found for this patient"
       });
     }
-    
+
     const appointmentDoc = appointmentQuery.docs[0];
     const currentAppointment = appointmentDoc.data();
-    
+
     // Parse new date/time (you'll need to implement this)
     const newScheduledDate = parseDateTime(newDateTime);
-    
+
     if (!newScheduledDate) {
       return res.json({
         success: false,
         message: "Invalid date/time format. Please try again."
       });
     }
-    
+
     // Update the appointment
     await appointmentDoc.ref.update({
       scheduledDate: admin.firestore.Timestamp.fromDate(newScheduledDate),
       lastModified: admin.firestore.Timestamp.now()
     });
-    
+
     // Get patient name
     const patientQuery = await db.collection("Users")
       .where("userId", "==", patientId)
       .limit(1)
       .get();
-    
-    const patientName = !patientQuery.empty ? 
-      `${patientQuery.docs[0].data().firstName} ${patientQuery.docs[0].data().lastName}` : 
+
+    const patientName = !patientQuery.empty ?
+      `${patientQuery.docs[0].data().firstName} ${patientQuery.docs[0].data().lastName}` :
       patientId;
-    
+
     return res.json({
       success: true,
       patientName: patientName,
       newDateTime: newScheduledDate.toLocaleDateString("en-SG", {
         weekday: "long",
         year: "numeric",
-        month: "long", 
+        month: "long",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
@@ -1680,14 +1723,14 @@ app.post("/edit-appointment", async (req, res) => {
         weekday: "long",
         year: "numeric",
         month: "long",
-        day: "numeric", 
+        day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
         timeZone: "Asia/Singapore"
       })
     });
-    
+
   } catch (error) {
     console.error("❌ Error editing appointment:", error);
     return res.status(500).json({
@@ -1700,15 +1743,15 @@ app.post("/edit-appointment", async (req, res) => {
 // GET UPCOMING APPOINTMENTS FOR EDITING
 app.post("/get-upcoming-appointments", async (req, res) => {
   const { podiatristId, days = 7, limit = 10 } = req.body;
-  
+
   try {
     console.log('📅 Fetching upcoming appointments for editing...');
-    
+
     // Get date range (today + next X days)
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + days);
-    
+
     // Query appointments
     const appointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
@@ -1726,10 +1769,10 @@ app.post("/get-upcoming-appointments", async (req, res) => {
       .get();
 
     const appointments = [];
-    
+
     for (const doc of appointmentsQuery.docs) {
       const appointment = doc.data();
-      
+
       // Get patient name
       let patientName = appointment.patientId;
       try {
@@ -1737,7 +1780,7 @@ app.post("/get-upcoming-appointments", async (req, res) => {
           .where("userId", "==", appointment.patientId)
           .limit(1)
           .get();
-        
+
         if (!patientQuery.empty) {
           const patientData = patientQuery.docs[0].data();
           patientName = `${patientData.firstName} ${patientData.lastName}`.trim();
@@ -1745,7 +1788,7 @@ app.post("/get-upcoming-appointments", async (req, res) => {
       } catch (error) {
         console.log('Patient lookup failed:', error);
       }
-      
+
       const scheduledDate = appointment.scheduledDate.toDate();
       appointments.push({
         appointmentId: doc.id,
@@ -1766,14 +1809,14 @@ app.post("/get-upcoming-appointments", async (req, res) => {
         initialDiagnosis: appointment.initialDiagnosis || "Assessment pending"
       });
     }
-    
+
     return res.json({
       success: true,
       appointments,
       totalCount: countQuery.size,
       showing: appointments.length
     });
-    
+
   } catch (error) {
     console.error("❌ Error fetching upcoming appointments:", error);
     return res.status(500).json({
@@ -1786,36 +1829,36 @@ app.post("/get-upcoming-appointments", async (req, res) => {
 // GET TODAY'S DASHBOARD METRICS
 app.post("/get-dashboard-metrics", async (req, res) => {
   const { podiatristId } = req.body;
-  
+
   try {
     console.log('📊 Fetching dashboard metrics...');
-    
+
     // Get today's date range
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     // Get yesterday's date for completed appointments
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    
+
     console.log('🔍 Date ranges:');
     console.log('  Today:', startOfDay, 'to', endOfDay);
     console.log('  Before today (completed):', yesterday);
-    
+
     // 1. GET TODAY'S APPOINTMENTS (Total Appointments)
     const todayAppointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
       .where("status", "==", "scheduled")
       .get();
-    
+
     const totalAppointments = todayAppointmentsQuery.size;
     console.log('📅 Total appointments today:', totalAppointments);
-    
+
     // 2. GET URGENT CASES (Urgency level 1 and 2)
     let urgentCount = 0;
     todayAppointmentsQuery.docs.forEach(doc => {
@@ -1825,26 +1868,26 @@ app.post("/get-dashboard-metrics", async (req, res) => {
       }
     });
     console.log('🚨 Urgent cases today:', urgentCount);
-    
+
     // 3. GET COMPLETED APPOINTMENTS (Past appointments)
     const completedAppointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", "<", admin.firestore.Timestamp.fromDate(startOfDay))
       .where("status", "==", "scheduled")
       .get();
-    
+
     const completedAppointments = completedAppointmentsQuery.size;
     console.log('✅ Completed appointments (past dates):', completedAppointments);
-    
+
     // 4. CALCULATE ADDITIONAL METRICS
     let highRiskCount = 0;
     let mskCount = 0;
-    
+
     todayAppointmentsQuery.docs.forEach(doc => {
       const appointment = doc.data();
       if (appointment.urgencyLevel === 3) highRiskCount++;
       if (appointment.urgencyLevel === 4) mskCount++;
     });
-    
+
     const result = {
       success: true,
       metrics: {
@@ -1863,10 +1906,10 @@ app.post("/get-dashboard-metrics", async (req, res) => {
       }),
       lastUpdated: new Date().toISOString()
     };
-    
+
     console.log('📊 Dashboard metrics calculated:', result.metrics);
     return res.json(result);
-    
+
   } catch (error) {
     console.error("❌ Error fetching dashboard metrics:", error);
     return res.status(500).json({
@@ -1880,20 +1923,20 @@ app.post("/get-dashboard-metrics", async (req, res) => {
 // OPTIMIZED GET REAL-TIME NOTIFICATIONS - MUCH FASTER
 app.post("/get-notifications", async (req, res) => {
   const { podiatristId } = req.body;
-  
+
   try {
     console.log('🔔 FAST: Fetching notifications...');
-    
+
     const notifications = [];
     const now = new Date();
-    
+
     // OPTIMIZATION 1: Single query for today's appointments instead of multiple
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     // SINGLE OPTIMIZED QUERY for today's appointments
     const todayAppointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
@@ -1906,15 +1949,15 @@ app.post("/get-notifications", async (req, res) => {
     // OPTIMIZATION 2: Process all appointments in single loop
     const next2Hours = new Date(now.getTime() + (2 * 60 * 60 * 1000));
     const next30Min = new Date(now.getTime() + (30 * 60 * 1000));
-    
+
     // OPTIMIZATION 3: Batch patient lookups
     const patientIds = new Set();
     const appointmentData = [];
-    
+
     todayAppointmentsQuery.docs.forEach(doc => {
       const appointment = doc.data();
       const scheduledTime = appointment.scheduledDate.toDate();
-      
+
       patientIds.add(appointment.patientId);
       appointmentData.push({
         id: doc.id,
@@ -1929,7 +1972,7 @@ app.post("/get-notifications", async (req, res) => {
       const patientQuery = await db.collection("Users")
         .where("userId", "in", Array.from(patientIds))
         .get();
-      
+
       patientQuery.docs.forEach(doc => {
         const data = doc.data();
         patientMap[data.userId] = `${data.firstName} ${data.lastName}`.trim();
@@ -1940,7 +1983,7 @@ app.post("/get-notifications", async (req, res) => {
     appointmentData.forEach(appointment => {
       const patientName = patientMap[appointment.patientId] || appointment.patientId;
       const timeUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60));
-      
+
       // Urgent appointments (next 2 hours, urgency 1-2)
       if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
         notifications.push({
@@ -1958,7 +2001,7 @@ app.post("/get-notifications", async (req, res) => {
       else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
         notifications.push({
           id: `upcoming_${appointment.id}`,
-          type: "update", 
+          type: "update",
           title: "Upcoming Appointment",
           message: `${patientName} - ${appointment.category} in ${timeUntil} minutes`,
           timestamp: now.toISOString(),
