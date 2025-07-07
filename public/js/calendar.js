@@ -511,7 +511,24 @@ class PodiatristCalendar {
         eventDiv.className = `calendar-event ${appointment.type}`;
         eventDiv.textContent = appointment.time + " " + appointment.patient;
         eventDiv.addEventListener('click', () => {
-        this.showAppointmentDetailsWithEdit(appointment.patient, appointment.date, appointment.time, appointment.patId, appointment.apptId);
+        // Store additional appointment data for the popup
+        const appointmentDataForPopup = {
+          urgencyLevel: appointment.urgencyLevel || 3,
+          category: appointment.type || appointment.category || 'General',
+          summary: appointment.summary || appointment.initialDiagnosis || 'No case summary available',
+          initialDiagnosis: appointment.initialDiagnosis || 'Assessment pending'
+        };
+        
+        // Temporarily store this data on the calendar instance
+        this.currentAppointmentData = appointmentDataForPopup;
+        
+        this.showAppointmentDetailsWithEdit(
+          appointment.patient, 
+          appointment.date, 
+          appointment.time, 
+          appointment.patId, 
+          appointment.apptId
+        );
       });
         
         targetCell.appendChild(eventDiv);
@@ -542,32 +559,148 @@ class PodiatristCalendar {
     alert(`Appointment Details:\n${appointmentInfo}\n\nFeatures coming soon:\n- View patient history\n- Reschedule appointment\n- Add notes`);
   }
 
-  // Show appointment details with edit option
-  showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
-    const detailsModal = `
-      <div id="appointmentDetailsModal" class="edit-modal-overlay">
-        <div class="edit-modal-content">
-          <div class="edit-modal-header">
-            <h3>📋 Appointment Details</h3>
-            <button class="edit-modal-close" onclick="closeAppointmentDetailsModal()">✕</button>
-          </div>
-          <div class="edit-modal-body">
-            <div class="appointment-details">
-              <p><strong>📅 Appointment:</strong> ${appointmentPatient+": "+appointmentDate+" "+appointmentTime}</p>
-              <p><strong>🆔 Patient ID:</strong> ${patientId || 'N/A'}</p>
+  // // Show appointment details with edit option
+  // showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
+  //   const detailsModal = `
+  //     <div id="appointmentDetailsModal" class="edit-modal-overlay">
+  //       <div class="edit-modal-content">
+  //         <div class="edit-modal-header">
+  //           <h3>📋 Appointment Details</h3>
+  //           <button class="edit-modal-close" onclick="closeAppointmentDetailsModal()">✕</button>
+  //         </div>
+  //         <div class="edit-modal-body">
+  //           <div class="appointment-details">
+  //             <p><strong>📅 Appointment:</strong> ${appointmentPatient+": "+appointmentDate+" "+appointmentTime}</p>
+  //             <p><strong>🆔 Patient ID:</strong> ${patientId || 'N/A'}</p>
+  //           </div>
+  //         </div>
+  //         <div class="edit-modal-footer">
+  //           <button class="medical-btn medical-btn-secondary" onclick="closeAppointmentDetailsModal()">❌ Close</button>
+  //           <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentPatient}', '${appointmentDate}', '${appointmentTime}', '${patientId}', '${appointmentId}')">✏️ Edit Appointment</button>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   `;
+    
+    
+  //   document.body.insertAdjacentHTML('beforeend', detailsModal);
+  // }
+
+// Show appointment details with edit option
+showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
+  // Get additional appointment data from stored data first
+  let appointmentData = this.currentAppointmentData;
+
+  // If no stored data, try to find from appointments array
+  if (!appointmentData && this.appointments && this.appointments.length > 0) {
+    const foundAppointment = this.appointments.find(apt => 
+      apt.apptId === appointmentId || 
+      (apt.patId === patientId && apt.date === appointmentDate && apt.time === appointmentTime) ||
+      (apt.patient === appointmentPatient && apt.date === appointmentDate && apt.time === appointmentTime)
+    );
+    
+    if (foundAppointment) {
+      appointmentData = {
+        urgencyLevel: foundAppointment.urgencyLevel || 3,
+        category: foundAppointment.category || foundAppointment.type || 'General',
+        summary: foundAppointment.summary || foundAppointment.initialDiagnosis || 'No case summary available',
+        initialDiagnosis: foundAppointment.initialDiagnosis || 'Assessment pending'
+      };
+      console.log('✅ Found appointment data:', appointmentData);
+    }
+  }
+  
+  // Clear the stored data after use
+  this.currentAppointmentData = null;
+  
+  // Fallback data if nothing found
+  if (!appointmentData) {
+    console.log('⚠️ Using fallback appointment data');
+    appointmentData = {
+      urgencyLevel: 3,
+      category: 'General',
+      summary: 'No case summary available from database',
+      initialDiagnosis: 'Assessment pending'
+    };
+  }
+  
+  // Get urgency info
+  const urgencyText = this.getUrgencyText(appointmentData.urgencyLevel || 3);
+  const urgencyBadgeClass = this.getUrgencyBadgeClass(appointmentData.urgencyLevel || 3);
+  
+  const detailsModal = `
+    <div id="appointmentDetailsModal" class="edit-modal-overlay">
+      <div class="edit-modal-content">
+        <div class="edit-modal-header">
+          <h3>📋 Appointment Details</h3>
+          <button class="edit-modal-close" onclick="closeAppointmentDetailsModal()">✕</button>
+        </div>
+        <div class="edit-modal-body">
+          <div class="appointment-details">
+            <!-- Patient Information -->
+            <div style="background: var(--blue-50); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--blue-200); margin-bottom: var(--space-4);">
+              <h4 style="color: var(--blue-700); margin: 0 0 var(--space-3) 0; font-size: 1rem;">👤 Patient Information</h4>
+              <p style="margin: var(--space-2) 0;"><strong>Patient:</strong> ${appointmentPatient}</p>
+              <p style="margin: var(--space-2) 0;"><strong>Patient ID:</strong> ${patientId || 'N/A'}</p>
+            </div>
+            
+            <!-- Appointment Details -->
+            <div style="background: var(--cream-50); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--cream-200); margin-bottom: var(--space-4);">
+              <h4 style="color: var(--gray-700); margin: 0 0 var(--space-3) 0; font-size: 1rem;">📅 Appointment Schedule</h4>
+              <p style="margin: var(--space-2) 0;"><strong>Date:</strong> ${appointmentDate}</p>
+              <p style="margin: var(--space-2) 0;"><strong>Time:</strong> ${appointmentTime}</p>
+            </div>
+            
+            <!-- Clinical Information -->
+            <div style="background: var(--gray-50); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--gray-200); margin-bottom: var(--space-4);">
+              <h4 style="color: var(--gray-700); margin: 0 0 var(--space-3) 0; font-size: 1rem;">🩺 Clinical Details</h4>
+              <div style="margin: var(--space-2) 0;">
+                <strong>Priority Level:</strong>
+                <span class="medical-badge badge-${urgencyBadgeClass}" style="margin-left: var(--space-2);">${urgencyText}</span>
+              </div>
+              <p style="margin: var(--space-2) 0;"><strong>Category:</strong> ${appointmentData.category || 'General'}</p>
+              <p style="margin: var(--space-2) 0;"><strong>Initial Diagnosis:</strong> ${appointmentData.initialDiagnosis || 'Assessment pending'}</p>
+              <div style="margin: var(--space-3) 0;">
+                <strong>Case Summary:</strong>
+                <div style="background: white; padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--gray-200); margin-top: var(--space-2); line-height: 1.5; min-height: 60px;">
+                  ${appointmentData.summary || 'No case summary available'}
+                </div>
+              </div>
             </div>
           </div>
-          <div class="edit-modal-footer">
-            <button class="medical-btn medical-btn-secondary" onclick="closeAppointmentDetailsModal()">❌ Close</button>
-            <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentPatient}', '${appointmentDate}', '${appointmentTime}', '${patientId}', '${appointmentId}')">✏️ Edit Appointment</button>
-          </div>
+        </div>
+        <div class="edit-modal-footer">
+          <button class="medical-btn medical-btn-secondary" onclick="closeAppointmentDetailsModal()">❌ Close</button>
+          <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentPatient}', '${appointmentDate}', '${appointmentTime}', '${patientId}', '${appointmentId}')">✏️ Edit Appointment</button>
         </div>
       </div>
-    `;
-    
-    
-    document.body.insertAdjacentHTML('beforeend', detailsModal);
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', detailsModal);
+}
+
+// Helper function to get urgency badge class
+getUrgencyBadgeClass(urgencyLevel) {
+  switch (urgencyLevel) {
+    case 1: return "danger";
+    case 2: return "warning"; 
+    case 3: return "info";
+    case 4: return "secondary";
+    default: return "secondary";
   }
+}
+
+// Helper function to get urgency text
+getUrgencyText(urgencyLevel) {
+  switch (urgencyLevel) {
+    case 1: return "🚨 Urgent - Wound Care";
+    case 2: return "⚠️ High - Nail Surgery";
+    case 3: return "📋 Medium - High Risk Footcare";
+    case 4: return "📝 Low - MSK";
+    default: return "📋 Standard";
+  }
+}
 
   // Close appointment details modal
   closeAppointmentDetailsModal() {
@@ -760,8 +893,29 @@ async updateAppointmentInDatabase(appointmentId, updateData) {
       body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData })
     });
 
+    const result = await res.json();
+    
+    if (result.success) {
+      console.log('✅ Database update successful:', result);
+      
+      // IMMEDIATE: Trigger calendar refresh right after successful update
+      setTimeout(async () => {
+        console.log('🔄 IMMEDIATE: Triggering calendar refresh...');
+        await this.refreshCalendar();
+        
+        // Also refresh patient queue if available
+        if (typeof window.refreshPatientQueue === 'function') {
+          await window.refreshPatientQueue();
+        }
+      }, 500); // Short delay to ensure DB update is complete
+      
+    } else {
+      console.error('❌ Database update failed:', result);
+    }
+
   } catch (err) {
     console.error("❌ Failed to update appt:", err);
+    throw err; // Re-throw to handle in calling function
   }
 }
 
@@ -799,14 +953,6 @@ closeSuccessModal() {
   }
 }
 
-// ========================================
-// REAL-TIME CALENDAR REFRESH FUNCTIONALITY
-// ========================================
-
-// ========================================
-// ENHANCED REAL-TIME CALENDAR REFRESH FUNCTIONALITY
-// ========================================
-
 // Enhanced refresh calendar data and redraw
 async refreshCalendar() {
   try {
@@ -817,20 +963,40 @@ async refreshCalendar() {
       scheduleCache.clear();
     }
     
-    // 2. Reload appointments from server with cache busting
+    // 2. Show loading indicator
+    const calendarGrid = document.getElementById('calendarGrid');
+    if (calendarGrid) {
+      const originalContent = calendarGrid.innerHTML;
+      calendarGrid.innerHTML = `
+        <div style="
+          grid-column: 1 / -1;
+          text-align: center;
+          padding: 40px;
+          color: #6b7280;
+          font-size: 1rem;
+        ">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <div class="loading-spinner"></div>
+            <span>Updating calendar...</span>
+          </div>
+        </div>
+      `;
+    }
+    
+    // 3. Reload appointments from server with cache busting
     await this.loadAppointments();
     console.log('✅ Appointments reloaded from server');
     
-    // 3. Get current view settings
+    // 4. Get current view settings
     const currentMonth = this.currentDate.getMonth();
     const currentYear = this.currentDate.getFullYear();
     
     console.log(`🔄 Regenerating calendar for ${this.getMonthName(currentMonth)} ${currentYear}`);
     
-    // 4. Regenerate calendar for current month/year
+    // 5. Regenerate calendar for current month/year
     this.generateCalendarForMonth(currentMonth, currentYear);
     
-    // 5. Reapply any active filters
+    // 6. Reapply any active filters
     const appointmentTypeSelect = document.getElementById('appointmentType');
     if (appointmentTypeSelect && appointmentTypeSelect.value) {
       console.log('🔍 Reapplying appointment type filter:', appointmentTypeSelect.value);
@@ -839,14 +1005,19 @@ async refreshCalendar() {
     
     console.log('✅ Enhanced calendar refresh completed successfully');
     
-    // 6. Show success notification
-    this.showCalendarUpdateNotification('Calendar updated with latest appointment changes');
+    // 7. Show success notification
+    this.showCalendarUpdateNotification('📅 Calendar updated with latest changes');
     
   } catch (error) {
     console.error('❌ Error in enhanced calendar refresh:', error);
     
     // Show error notification
-    this.showCalendarUpdateNotification('Error updating calendar - please refresh manually');
+    this.showCalendarUpdateNotification('❌ Error updating calendar - please refresh manually');
+    
+    // Restore calendar if possible
+    const currentMonth = this.currentDate.getMonth();
+    const currentYear = this.currentDate.getFullYear();
+    this.generateCalendarForMonth(currentMonth, currentYear);
   }
 }
 

@@ -1476,7 +1476,7 @@ app.post('/podiatrist-get-queue', async (req, res) => {
   }
 });
 
-// Fetch appouintments for calander
+// Fetch appointments for calendar
 app.post('/podiatrist-get-calendar', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching calendar info for:", podId);
@@ -1492,17 +1492,22 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
     let appointments = [];// Make data list
     if (!apptSnapshot.empty) {
       const patientIds = [];
-      apptSnapshot.docs.forEach(doc => { //Loop and get data from each entry retreived
+      apptSnapshot.docs.forEach(doc => { //Loop and get data from each entry retrieved
         const appt = doc.data();
         patientIds.push(appt.patientId);
 
-        //Add data to data object
+        //Add data to data object - NOW WITH CASE SUMMARY
         const appointment = {
-          apptId: doc.id, // ID of document for this appotinment (for updating)
+          apptId: doc.id, // ID of document for this appointment (for updating)
           patId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }), // Convert Firestore timestamp to JavaScript Date
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }), // Convert Firestore timestamp to JavaScript Date
           type: appt.category,
+          // ADD THESE FIELDS FOR CASE SUMMARY
+          urgencyLevel: appt.urgencyLevel || 3,
+          category: appt.category || 'General',
+          initialDiagnosis: appt.initialDiagnosis || 'Assessment pending',
+          summary: appt.summary || 'No case summary available'
         };
         appointments.push(appointment); //Put data object into appointments list
       });
@@ -1542,9 +1547,8 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
   }
 });
 
-//Update info in calander
+//Update info in calendar
 app.post('/calendar-update-appointment', async (req, res) => {
-  // const { apptId, newDate } = {"appt_1": "July 9 2025, 3:00 PM"};
   const { apptId, updateData } = req.body;
   console.log("🔍 Updating appt info for:", apptId);
 
@@ -1552,14 +1556,41 @@ app.post('/calendar-update-appointment', async (req, res) => {
     const docRef = db.collection("Appointments").doc(apptId);
     console.log("apptId=" + apptId)
     console.log("updateData=" + updateData)
+    
     const updates = {
-      scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)), // Convert newDate to Firestore timestamp
+      scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)),
+      lastModified: admin.firestore.Timestamp.now() // Add timestamp
     };
+    
     await docRef.update(updates);
-    return res.json({ success: true, message: "Appointment updated successfully." });
+    
+    // ENHANCED: Return more detailed response for frontend
+    return res.json({ 
+      success: true, 
+      message: "Appointment updated successfully.",
+      timestamp: new Date().toISOString(),
+      updatedAppointment: {
+        id: apptId,
+        newScheduledDate: updateData,
+        formattedDate: new Date(updateData).toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric", 
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        })
+      }
+    });
   } catch (error) {
     console.error("Error updating appointment:", error);
-    return res.status(500).json({ success: false, error: "Failed to update appointment." });
+    return res.status(500).json({ 
+      success: false, 
+      error: "Failed to update appointment.",
+      message: error.message 
+    });
   }
 });
 

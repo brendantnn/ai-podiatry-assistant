@@ -859,43 +859,56 @@ async submitAppointmentEdit(patientId, appointmentId, patientName) {
         this.addMessageToChat(`✅ **Appointment Updated**: ${patientName}'s appointment has been successfully rescheduled to ${result.newDateTime || newDateTime}`, 'bot', chatbox);
       }
       
-      // ✨ FIXED: REAL-TIME UPDATES - Refresh patient queue and calendar
+      // ✨ ENHANCED: REAL-TIME UPDATES - Refresh patient queue and calendar
       setTimeout(async () => {
         try {
-          console.log('🔄 Starting real-time updates after appointment edit...');
+          console.log('🔄 Starting enhanced real-time updates after appointment edit...');
           
-          // 1. Refresh patient queue
+          // 1. Clear any existing cache
+          if (typeof scheduleCache !== 'undefined') {
+            scheduleCache.clear();
+          }
+          
+          // 2. Refresh patient queue
           if (typeof window.refreshPatientQueue === 'function') {
             console.log('🔄 Refreshing patient queue...');
             await window.refreshPatientQueue();
             console.log('✅ Patient queue refreshed');
-          } else {
-            console.warn('⚠️ Patient queue refresh function not available');
           }
           
-          // 2. FIXED: Refresh calendar view properly
-          if (typeof window.refreshCalendarView === 'function') {
-            console.log('🔄 Refreshing calendar view...');
-            await window.refreshCalendarView();
-            console.log('✅ Calendar view refreshed');
-          } else if (window.podiatristCalendar && typeof window.podiatristCalendar.refreshCalendar === 'function') {
-            console.log('🔄 Refreshing calendar directly...');
+          // 3. FORCE CALENDAR REFRESH - Multiple methods for reliability
+          console.log('🔄 Force refreshing calendar with multiple methods...');
+          
+          // Method 1: Direct calendar refresh
+          if (window.podiatristCalendar && typeof window.podiatristCalendar.refreshCalendar === 'function') {
             await window.podiatristCalendar.refreshCalendar();
-            console.log('✅ Calendar refreshed directly');
-          } else {
-            console.warn('⚠️ Calendar refresh function not available');
+            console.log('✅ Method 1: Direct calendar refresh completed');
           }
           
-          // 3. Show update notification
+          // Method 2: Global calendar refresh
+          if (typeof window.refreshCalendarView === 'function') {
+            await window.refreshCalendarView();
+            console.log('✅ Method 2: Global calendar refresh completed');
+          }
+          
+          // Method 3: Manual calendar regeneration
+          if (window.podiatristCalendar && typeof window.podiatristCalendar.generateCalendarForMonth === 'function') {
+            const currentDate = window.podiatristCalendar.currentDate || new Date();
+            await window.podiatristCalendar.loadAppointments(); // Reload data first
+            window.podiatristCalendar.generateCalendarForMonth(currentDate.getMonth(), currentDate.getFullYear());
+            console.log('✅ Method 3: Manual calendar regeneration completed');
+          }
+          
+          // 4. Show success notification
           if (typeof window.showUpdateNotification === 'function') {
-            window.showUpdateNotification('Calendar and queue updated with latest appointment changes');
+            window.showUpdateNotification('📅 Calendar updated with latest appointment changes');
           }
           
-          console.log('✅ All real-time updates completed successfully');
+          console.log('✅ All enhanced real-time updates completed successfully');
         } catch (error) {
-          console.error('❌ Error during real-time update:', error);
+          console.error('❌ Error during enhanced real-time update:', error);
         }
-      }, 1000); // 1 second delay to allow success message to show
+      }, 1000);
       
     } else {
       // Show error message

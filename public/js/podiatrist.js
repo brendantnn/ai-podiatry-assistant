@@ -921,6 +921,65 @@ function showUpdateNotification(message) {
   }, 3000);
 }
 
+
+// ========================================
+// AUTO-REFRESH FUNCTIONS FOR REAL-TIME UPDATES
+// ========================================
+
+// Enhanced calendar refresh that actually works
+async function forceRefreshCalendar() {
+  try {
+    console.log('🔄 FORCE: Refreshing calendar with all methods...');
+    
+    // Method 1: Clear cache first
+    if (typeof scheduleCache !== 'undefined') {
+      scheduleCache.clear();
+    }
+    
+    // Method 2: Use calendar instance if available
+    if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+      console.log('🔄 FORCE: Using calendar instance...');
+      await window.podiatristCalendar.refreshCalendar();
+    }
+    
+    // Method 3: Use global function
+    if (typeof window.refreshCalendarView === 'function') {
+      console.log('🔄 FORCE: Using global function...');
+      await window.refreshCalendarView();
+    }
+    
+    // Method 4: Manual reload and regenerate
+    if (window.podiatristCalendar) {
+      console.log('🔄 FORCE: Manual reload...');
+      await window.podiatristCalendar.loadAppointments();
+      const currentDate = window.podiatristCalendar.currentDate || new Date();
+      window.podiatristCalendar.generateCalendarForMonth(
+        currentDate.getMonth(), 
+        currentDate.getFullYear()
+      );
+    }
+    
+    console.log('✅ FORCE: Calendar refresh completed');
+    
+    // Show notification
+    showUpdateNotification('📅 Calendar updated successfully');
+    
+  } catch (error) {
+    console.error('❌ FORCE: Calendar refresh failed:', error);
+  }
+}
+
+// Export the function globally
+window.forceRefreshCalendar = forceRefreshCalendar;
+
+// Auto-refresh calendar every 30 seconds to catch any missed updates
+setInterval(() => {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    console.log('🔄 AUTO: Periodic calendar refresh...');
+    window.podiatristCalendar.refreshCalendar();
+  }
+}, 30000); // 30 seconds
+
 // ========================================
 // SYSTEM FUNCTIONS
 // ========================================
