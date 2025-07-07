@@ -1,5 +1,5 @@
 // ========================================
-// SIMPLIFIED LOGIN SYSTEM
+// ENHANCED LOGIN SYSTEM WITH SESSION MANAGEMENT
 // File: js/login.js (replace existing content)
 // ========================================
 
@@ -7,7 +7,8 @@ import { auth, db } from "./config/firebase-config.js";
 import { 
   signInWithEmailAndPassword, 
   signOut, 
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 import { 
   collection, 
@@ -26,6 +27,47 @@ let loginAttempts = 0;
 let isLocked = false;
 const maxAttempts = 5;
 const lockoutTime = 60 * 1000; // 1 minute
+
+// ========================================
+// INITIALIZATION
+// ========================================
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🔐 Enhanced login system initializing...');
+  
+  // Check for existing session
+  checkExistingSession();
+  
+  console.log('✅ Enhanced login system ready');
+});
+
+// ========================================
+// SESSION MANAGEMENT INTEGRATION
+// ========================================
+
+function checkExistingSession() {
+  const uid = sessionStorage.getItem('uid');
+  const role = sessionStorage.getItem('role');
+  const lastActivity = parseInt(sessionStorage.getItem('lastActivity')) || 0;
+  
+  if (uid && role) {
+    const timeSinceActivity = Date.now() - lastActivity;
+    const sessionTimeout = 30 * 60 * 1000; // 30 minutes
+    
+    if (timeSinceActivity < sessionTimeout) {
+      console.log("🔍 Valid existing session found, redirecting...");
+      showMessage("Welcome back! Redirecting...", 'success');
+      
+      setTimeout(() => {
+        const redirectUrl = role === "patient" ? "patient.html" : "podiatrist.html";
+        window.location.href = redirectUrl;
+      }, 1000);
+    } else {
+      console.log("🕐 Existing session expired, clearing...");
+      sessionStorage.clear();
+    }
+  }
+}
 
 // ========================================
 // UI HELPER FUNCTIONS
@@ -222,13 +264,64 @@ window.sendReset = async () => {
 };
 
 // ========================================
-// MAIN LOGIN HANDLER
+// ENHANCED SESSION CREATION
+// ========================================
+
+async function createSecureSession(userData, userCredential) {
+  console.log("🔐 Creating secure session...");
+  
+  const sessionData = {
+    // Basic user info
+    uid: userCredential.user.uid,
+    email: userData.email,
+    role: userData.role,
+    userId: userData.userId,
+    firstName: userData.firstName,
+    lastName: userData.lastName,
+    
+    // Session metadata
+    sessionStart: Date.now(),
+    lastActivity: Date.now(),
+    isActive: true,
+    
+    // Security info
+    loginTime: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+    ipAddress: await getUserIP(),
+    
+    // User preferences
+    preferredLanguage: userData.preferredLanguage || 'en',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  };
+
+  // Store in sessionStorage (more secure than localStorage)
+  Object.keys(sessionData).forEach(key => {
+    sessionStorage.setItem(key, sessionData[key]);
+  });
+
+  console.log("✅ Secure session created successfully");
+  return sessionData;
+}
+
+async function getUserIP() {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    return data.ip;
+  } catch (error) {
+    console.warn('Could not get IP address:', error);
+    return 'unknown';
+  }
+}
+
+// ========================================
+// MAIN LOGIN HANDLER WITH SESSION MANAGEMENT
 // ========================================
 
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   
-  console.log("🔐 Login attempt started");
+  console.log("🔐 Enhanced login attempt started");
   
   // Get form values
   const role = document.getElementById("userType").value;
@@ -262,8 +355,8 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     loginAttempts = 0;
     isLocked = false;
 
-    // Query Firestore for user document by EMAIL (since no authId field exists)
-    console.log("🔍 Querying Firestore for user data by email...");
+    // Query Firestore for user document by EMAIL
+    console.log("🔍 Querying Firestore for user data...");
     const usersRef = collection(db, "Users");
     const userQuery = query(usersRef, where("email", "==", email));
     const querySnapshot = await getDocs(userQuery);
@@ -299,34 +392,36 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       return;
     }
 
-    // Update user activity in Firestore (optional)
+    // Update user activity in Firestore
     console.log("📝 Updating user activity...");
     await updateDoc(userDoc.ref, {
       lastLoginAt: new Date(),
-      isActive: true
+      isActive: true,
+      lastLoginIP: await getUserIP(),
+      loginCount: (userData.loginCount || 0) + 1
     });
 
-    // Store basic session data in sessionStorage
-    console.log("💾 Storing basic session data...");
-    sessionStorage.setItem('uid', uid);
-    sessionStorage.setItem('email', email);
-    sessionStorage.setItem('role', role);
-    sessionStorage.setItem('userId', userData.userId);
-    sessionStorage.setItem('firstName', userData.firstName);
-    sessionStorage.setItem('lastName', userData.lastName);
+    // Create secure session
+    const sessionData = await createSecureSession(userData, userCredential);
 
     // Show success message
-    showMessage("Login successful! Redirecting...", 'success');
+    showMessage("Login successful! Setting up your session...", 'success');
 
-    // Redirect after short delay
+    // Add security delay to prevent rapid login attempts
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Redirect after session setup
     setTimeout(() => {
       const redirectUrl = role === "patient" ? "patient.html" : "podiatrist.html";
       console.log(`🚀 Redirecting to: ${redirectUrl}`);
       window.location.href = redirectUrl;
     }, 1500);
 
+    // Log successful login
+    console.log("✅ Enhanced login completed successfully");
+
   } catch (err) {
-    console.error("❌ Login failed:", err);
+    console.error("❌ Enhanced login failed:", err);
     
     loginAttempts++;
     
@@ -366,24 +461,43 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       lockLoginTemporarily();
     }
 
+    // Log failed attempt with security info
+    console.warn("🚨 Failed login attempt:", {
+      email: email,
+      role: role,
+      attempt: loginAttempts,
+      error: err.code,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
+
   } finally {
     showLoading(false);
   }
 });
 
 // ========================================
-// SIMPLE SESSION CHECK
+// SECURITY ENHANCEMENTS
 // ========================================
 
-// Check if user is already logged in (basic check)
-window.addEventListener('load', () => {
-  const uid = sessionStorage.getItem('uid');
-  const role = sessionStorage.getItem('role');
-  
-  if (uid && role) {
-    console.log("🔍 Existing session found, redirecting...");
-    const redirectUrl = role === "patient" ? "patient.html" : "podiatrist.html";
-    window.location.href = redirectUrl;
+// Prevent multiple login tabs
+window.addEventListener('storage', function(e) {
+  if (e.key === 'isActive' && e.newValue === 'true' && e.oldValue === 'false') {
+    // Another tab logged in
+    showMessage('Login detected in another tab', 'warning');
+  }
+});
+
+// Clear any existing auth state on page load
+window.addEventListener('load', async () => {
+  try {
+    // Only sign out if we're on login page and have no valid session
+    if (auth.currentUser && !sessionStorage.getItem('uid')) {
+      await signOut(auth);
+      console.log('🧹 Cleared existing auth state');
+    }
+  } catch (error) {
+    console.warn('Error clearing auth state:', error);
   }
 });
 
@@ -420,4 +534,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-console.log("🔐 Simplified login system initialized successfully");
+console.log("🔐 Enhanced login system with session management loaded successfully");

@@ -1,233 +1,325 @@
 // ========================================
-// SIMPLE PAGE PROTECTION SCRIPT
+// PAGE PROTECTION UTILITY
 // File: js/utils/pageProtection.js
-// Include this at the top of patient.html and podiatrist.html
 // ========================================
 
-(function() {
+// This script should be loaded FIRST on protected pages
+// It provides immediate protection before other scripts load
+
+(function () {
   'use strict';
-  
-  console.log("🛡️ Simple page protection initialized");
-  
+
+  console.log('🛡️ Page Protection initializing...');
+
   // ========================================
-  // BASIC SESSION CHECK
+  // IMMEDIATE PROTECTION CHECK
   // ========================================
-  
-  function checkLogin() {
+
+  function checkSessionImmediate() {
     const uid = sessionStorage.getItem('uid');
     const role = sessionStorage.getItem('role');
-    
-    if (!uid || !role) {
-      console.log("🔐 No valid session found - redirecting to login");
-      alert("Please log in to access this page.");
-      window.location.href = 'login.html';
+    const email = sessionStorage.getItem('email');
+    const isActive = sessionStorage.getItem('isActive');
+    const lastActivity = parseInt(sessionStorage.getItem('lastActivity')) || 0;
+
+    // Check if session data exists
+    if (!uid || !role || !email) {
+      console.warn('⚠️ No valid session found - redirecting to login');
+      redirectToLogin('No session data');
       return false;
     }
-    
+
+    // Check if session is marked as active
+    if (isActive === 'false') {
+      console.warn('⚠️ Session marked inactive - redirecting to login');
+      redirectToLogin('Session inactive');
+      return false;
+    }
+
+    // Check activity timeout (30 minutes)
+    const sessionTimeout = 30 * 60 * 1000; // 30 minutes
+    const timeSinceActivity = Date.now() - lastActivity;
+
+    if (timeSinceActivity > sessionTimeout) {
+      console.warn('⚠️ Session expired due to inactivity - redirecting to login');
+      redirectToLogin('Session timeout');
+      return false;
+    }
+
     return true;
   }
-  
+
   // ========================================
-  // ROLE-BASED ACCESS CONTROL
+  // ROLE-BASED PAGE ACCESS
   // ========================================
-  
+
   function checkPageAccess() {
     const currentPage = window.location.pathname.split('/').pop();
     const userRole = sessionStorage.getItem('role');
-    
+
     // Define page access rules
-    const pageRoles = {
-      'patient.html': 'patient',
-      'podiatrist.html': 'podiatrist'
+    const pageAccess = {
+      'patient.html': ['patient'],
+      'podiatrist.html': ['podiatrist'],
+      'login.html': ['*'], // Anyone can access
+      'register.html': ['*'], // Anyone can access
+      'index.html': ['*'] // Anyone can access
     };
-    
-    const requiredRole = pageRoles[currentPage];
-    
-    if (requiredRole && userRole !== requiredRole) {
-      console.log(`🔐 Access denied: ${currentPage} requires ${requiredRole} role, but user has ${userRole}`);
-      
-      // Redirect to correct dashboard
-      const correctPage = userRole === 'patient' ? 'patient.html' : 'podiatrist.html';
-      alert(`Access denied. Redirecting to your ${userRole} dashboard.`);
-      window.location.href = correctPage;
+
+    const allowedRoles = pageAccess[currentPage];
+
+    if (!allowedRoles) {
+      console.warn('⚠️ Unknown page - allowing access');
+      return true;
+    }
+
+    if (allowedRoles.includes('*')) {
+      // Public page - anyone can access
+      return true;
+    }
+
+    if (!allowedRoles.includes(userRole)) {
+      console.warn(`⚠️ Access denied - ${userRole} cannot access ${currentPage}`);
+      redirectToLogin(`Access denied for role: ${userRole}`);
       return false;
     }
-    
+
     return true;
   }
-  
+
   // ========================================
-  // USER INFO DISPLAY
+  // REDIRECT HANDLER
   // ========================================
-  
-  function updateUserInfo() {
-    const firstName = sessionStorage.getItem('firstName') || 'User';
-    const lastName = sessionStorage.getItem('lastName') || '';
-    const userId = sessionStorage.getItem('userId') || 'Unknown';
-    const role = sessionStorage.getItem('role') || 'User';
-    
-    // Update patient name if element exists
-    const patientNameEl = document.getElementById('patient-name');
-    if (patientNameEl) {
-      patientNameEl.textContent = `${firstName} ${lastName}`.trim();
+
+  function redirectToLogin(reason) {
+    console.log(`🚪 Redirecting to login: ${reason}`);
+
+    // Clear potentially corrupted session data
+    try {
+      sessionStorage.clear();
+    } catch (e) {
+      console.error('Error clearing session:', e);
     }
-    
-    // Update patient ID if element exists
-    const patientIdEl = document.getElementById('patient-id');
-    if (patientIdEl) {
-      patientIdEl.textContent = userId;
-    }
-    
-    // Update podiatrist name placeholders
-    const podiatristNameEls = document.querySelectorAll('[data-user-name]');
-    podiatristNameEls.forEach(el => {
-      el.textContent = `${firstName} ${lastName}`.trim();
-    });
-    
-    // Replace role placeholders
-    const roleEls = document.querySelectorAll('[data-user-role]');
-    roleEls.forEach(el => {
-      el.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-    });
-    
-    // Update current date placeholders
-    const today = new Date().toLocaleDateString('en-SG', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    
-    const dateEls = document.querySelectorAll('[data-current-date]');
-    dateEls.forEach(el => {
-      el.textContent = today;
-    });
-    
-    console.log(`✅ User info updated for ${role}: ${firstName} ${lastName}`);
+
+    // Show brief message before redirect
+    showRedirectMessage(reason);
+
+    // Redirect after short delay
+    setTimeout(() => {
+      window.location.href = 'login.html';
+    }, 1500);
   }
-  
+
+  function showRedirectMessage(reason) {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    overlay.innerHTML = `
+      <div style="text-align: center; max-width: 400px; padding: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
+        <h2 style="margin-bottom: 1rem; color: #fbbf24;">Session Required</h2>
+        <p style="margin-bottom: 1.5rem; opacity: 0.9; line-height: 1.5;">
+          ${reason}. Please log in to continue.
+        </p>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <div style="
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff40;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          "></div>
+          <span>Redirecting to login...</span>
+        </div>
+      </div>
+    `;
+
+    // Add to page immediately
+    document.documentElement.appendChild(overlay);
+  }
+
   // ========================================
-  // SIMPLE LOGOUT FUNCTIONALITY
+  // PREVENT BACK BUTTON BYPASS
   // ========================================
-  
-  function setupLogout() {
-    // Find all logout buttons
-    const logoutButtons = document.querySelectorAll('button[onclick*="logout"], .logout-btn, [data-action="logout"]');
-    
-    logoutButtons.forEach(button => {
-      button.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        if (confirm('Are you sure you want to logout?')) {
-          console.log("🚪 Logging out user");
-          
-          // Clear session storage
-          sessionStorage.clear();
-          
-          // Show logout message
-          const message = document.createElement('div');
-          message.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #3b82f6;
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            z-index: 9999;
-            text-align: center;
-          `;
-          message.innerHTML = '👋 Logging out...';
-          document.body.appendChild(message);
-          
-          // Redirect after short delay
-          setTimeout(() => {
-            window.location.href = 'login.html';
-          }, 1500);
+
+  function preventBackButtonBypass() {
+    // Add state to history to prevent back button bypass
+    if (window.history && window.history.pushState) {
+      window.history.pushState(null, null, window.location.href);
+
+      window.addEventListener('popstate', function () {
+        // If user tries to go back and session is invalid, redirect to login
+        if (!checkSessionImmediate()) {
+          window.history.pushState(null, null, window.location.href);
+          redirectToLogin('Back button security check failed');
         }
       });
-    });
-  }
-  
-  // ========================================
-  // INITIALIZATION
-  // ========================================
-  
-  function init() {
-    // Immediate session and access checks
-    if (!checkLogin()) return;
-    if (!checkPageAccess()) return;
-    
-    // Update user info when DOM is ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        updateUserInfo();
-        setupLogout();
-      });
-    } else {
-      updateUserInfo();
-      setupLogout();
     }
-    
-    console.log("✅ Simple page protection initialized");
   }
-  
+
   // ========================================
-  // PREVENT BACK BUTTON AFTER LOGOUT
+  // CONTENT PROTECTION
   // ========================================
-  
-  function preventBackAfterLogout() {
-    window.addEventListener('pageshow', function(event) {
-      if (event.persisted) {
-        // Page was loaded from cache - check session
-        if (!checkLogin()) {
-          return;
-        }
+
+  function protectPageContent() {
+    // Hide page content initially
+    const style = document.createElement('style');
+    style.id = 'pageProtectionStyle';
+    style.textContent = `
+      body { 
+        visibility: hidden !important; 
+        opacity: 0 !important;
       }
-    });
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Show content only after validation
+    function showContent() {
+      const protectionStyle = document.getElementById('pageProtectionStyle');
+      if (protectionStyle) {
+        protectionStyle.remove();
+      }
+
+      // Fade in content
+      document.body.style.visibility = 'visible';
+      document.body.style.opacity = '0';
+      document.body.style.transition = 'opacity 0.3s ease-in';
+
+      setTimeout(() => {
+        document.body.style.opacity = '1';
+      }, 50);
+    }
+
+    return showContent;
   }
-  
-  // Start initialization
-  init();
-  preventBackAfterLogout();
-  
-})();
 
-// ========================================
-// GLOBAL UTILITY FUNCTIONS
-// ========================================
+  // ========================================
+  // DEVELOPER CONSOLE WARNING
+  // ========================================
 
-// Check if user is logged in (can be called from other scripts)
-window.isLoggedIn = function() {
-  const uid = sessionStorage.getItem('uid');
-  const role = sessionStorage.getItem('role');
-  return !!(uid && role);
-};
-
-// Get current user info (can be called from other scripts)
-window.getCurrentUser = function() {
-  if (!window.isLoggedIn()) {
-    return null;
+  function showConsoleWarning() {
+    console.log('%c⚠️ SECURITY WARNING', 'color: red; font-size: 20px; font-weight: bold;');
+    console.log('%cThis is a browser feature intended for developers. Do not paste any code here that you don\'t understand. Malicious scripts could compromise your account security.', 'color: red; font-size: 14px;');
+    console.log('%cIf someone told you to copy-paste something here, it\'s likely a scam.', 'color: red; font-size: 14px; font-weight: bold;');
   }
-  
-  return {
-    uid: sessionStorage.getItem('uid'),
-    email: sessionStorage.getItem('email'),
-    role: sessionStorage.getItem('role'),
-    userId: sessionStorage.getItem('userId'),
-    firstName: sessionStorage.getItem('firstName'),
-    lastName: sessionStorage.getItem('lastName'),
-    fullName: `${sessionStorage.getItem('firstName')} ${sessionStorage.getItem('lastName')}`.trim()
+
+  // ========================================
+  // MAIN PROTECTION EXECUTION
+  // ========================================
+
+  function initPageProtection() {
+    const currentPage = window.location.pathname.split('/').pop();
+
+    // Skip protection for public pages
+    if (['login.html', 'register.html', 'index.html', ''].includes(currentPage)) {
+      console.log('📖 Public page - skipping protection');
+      return;
+    }
+
+    console.log('🛡️ Initializing page protection for:', currentPage);
+
+    // Set up content protection
+    const showContent = protectPageContent();
+
+    // Perform immediate checks
+    const hasValidSession = checkSessionImmediate();
+    const hasPageAccess = hasValidSession ? checkPageAccess() : false;
+
+    if (hasValidSession && hasPageAccess) {
+      console.log('✅ Session valid - allowing page access');
+
+      // Show content after brief delay to prevent flash
+      setTimeout(showContent, 100);
+
+      // Set up additional protections
+      preventBackButtonBypass();
+      showConsoleWarning();
+
+      // Update last activity
+      sessionStorage.setItem('lastActivity', Date.now().toString());
+
+    } else {
+      console.log('❌ Protection check failed');
+      // redirectToLogin will be called by the check functions
+    }
+  }
+
+  // ========================================
+  // ENHANCED SESSION VALIDATION
+  // ========================================
+
+  function validateSessionFormat() {
+    try {
+      const uid = sessionStorage.getItem('uid');
+      const email = sessionStorage.getItem('email');
+      const role = sessionStorage.getItem('role');
+
+      // Basic format validation
+      if (uid && uid.length < 10) {
+        console.warn('⚠️ UID format invalid');
+        return false;
+      }
+
+      if (email && !email.includes('@')) {
+        console.warn('⚠️ Email format invalid');
+        return false;
+      }
+
+      if (role && !['patient', 'podiatrist'].includes(role)) {
+        console.warn('⚠️ Role format invalid');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('❌ Session validation error:', error);
+      return false;
+    }
+  }
+
+  // ========================================
+  // GLOBAL FUNCTIONS
+  // ========================================
+
+  // Make some functions globally available
+  window.pageProtection = {
+    checkSession: checkSessionImmediate,
+    validateFormat: validateSessionFormat,
+    forceRecheck: initPageProtection
   };
-};
 
-// Simple logout (can be called from other scripts)
-window.logout = function() {
-  if (confirm('Are you sure you want to logout?')) {
-    sessionStorage.clear();
-    window.location.href = 'login.html';
+  // ========================================
+  // AUTO-INITIALIZATION
+  // ========================================
+
+  // Run protection immediately
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPageProtection);
+  } else {
+    initPageProtection();
   }
-};
 
-console.log("🛡️ Simple page protection script loaded");
+  console.log('✅ Page Protection utility loaded');
+
+})();

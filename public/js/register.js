@@ -249,6 +249,10 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 
     // Step 6: Success - redirect to login
     alert("✅ Account created successfully! Please log in with your credentials.");
+    
+    // Sign out the user immediately after registration
+    await signOut(auth);
+    
     window.location.href = "login.html";
 
   } catch (err) {
