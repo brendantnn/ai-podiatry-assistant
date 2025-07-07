@@ -43,7 +43,7 @@ app.post("/chat", async (req, res) => {
 
   // Store user message and user id
   const userMessage = req.body.message;
-  const userId = "session1"; // *** HARDCODED SESSION TO BE CHANGED ***
+  const userId = req.body.patientId; // use patient id sent from .js
 
   // Create session object
   session[userId] = session[userId] || {
@@ -295,7 +295,7 @@ console.log("Summary:", summary);
         const slotData = s.pendingSlotData;
 
         await db.collection("Appointments").add({
-          patientId: "patient_1", // ******************* HARDCODED CHANGE AFTER LOGIN IS DONE ************************* 
+          patientId: userId, 
           podId: slotData.podId,
           scheduledDate: slotData.availableDate,
           status: "scheduled",
@@ -343,7 +343,7 @@ console.log("Summary:", summary);
     // Appointment query 
    if (userMessage.toLowerCase().includes("appointment")) {
   try {
-    const patientId = "patient_1"; // *********************** TO BE CHANGED: Replace with actual session-based user ID later************************
+    const patientId = req.body.patientId;
 
     // Get appointment
     const apptSnapshot = await db.collection("Appointments")

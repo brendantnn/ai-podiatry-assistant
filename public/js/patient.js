@@ -1,5 +1,5 @@
 window.onload = async () => {
-  const patientId = "patient_1"; // Simulated logged-in patient
+const patientId = sessionStorage.getItem("userId");
 
   const chatbox = document.getElementById("chatbox");
   
@@ -139,7 +139,7 @@ async function sendMessage() {
     const response = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userText }) //user text sent in JSON so server can read
+      body: JSON.stringify({ message: userText, patientId }) //user text sent in JSON so server can read
     });
 
     // Wait for server reply, and convert it from JSON to javascript object

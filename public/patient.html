@@ -8,6 +8,9 @@
 </head>
 
 <body>
+
+  <script src="js/utils/pageProtection.js"></script>
+
   <div class="medical-container">
     <div class="medical-header">
       <h1>🏥 Patient Portal</h1>
@@ -33,7 +36,7 @@
           <div class="flex items-center">
             <span class="medical-badge badge-success">✅ [APPOINTMENT_STATUS]</span>
             <button class="medical-btn medical-btn-secondary medical-btn-sm ml-md">⚙️ Settings</button>
-            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm">🚪 Logout</button>
+            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm" data-action="logout"> 🚪 Logout</button>
           </div>
         </div>
       </div>
