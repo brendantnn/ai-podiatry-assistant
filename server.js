@@ -2066,6 +2066,251 @@ app.post("/get-notifications", async (req, res) => {
   }
 });
 
+// GET SPECIFIC PATIENT APPOINTMENTS FOR EDITING
+app.post("/get-patient-appointments", async (req, res) => {
+  const { patientId, suggestedDateTime, podiatristId } = req.body;
+
+  try {
+    console.log('🔍 Searching for appointments:', { patientId, suggestedDateTime });
+
+    // Step 1: First try to find by patientId directly
+    let appointmentsQuery = await db.collection("Appointments")
+      .where("patientId", "==", patientId)
+      .where("status", "==", "scheduled")
+      .get();
+
+    console.log('📊 Direct patientId search results:', appointmentsQuery.size);
+
+    // Step 2: If no results and patientId looks like a name, search by name
+    if (appointmentsQuery.empty && !patientId.startsWith('patient_')) {
+      console.log('🔍 No direct match, searching by patient name...');
+      
+      // Search for users with matching names
+      const userQuery = await db.collection("Users")
+        .get(); // Get all users and filter in JavaScript
+      
+      let matchingUserId = null;
+      const searchName = patientId.toLowerCase();
+      
+      userQuery.docs.forEach(userDoc => {
+        const userData = userDoc.data();
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.toLowerCase().trim();
+        
+        if (fullName.includes(searchName) || searchName.includes(fullName)) {
+          matchingUserId = userData.userId;
+          console.log('✅ Found matching user:', fullName, '→', matchingUserId);
+        }
+      });
+      
+      // Search appointments with the found userId
+      if (matchingUserId) {
+        appointmentsQuery = await db.collection("Appointments")
+          .where("patientId", "==", matchingUserId)
+          .where("status", "==", "scheduled")
+          .get();
+        
+        console.log('📊 Name-based search results:', appointmentsQuery.size);
+      }
+    }
+
+    if (appointmentsQuery.empty) {
+      return res.json({
+        success: false,
+        message: `No appointments found for ${patientId}`,
+        appointments: []
+      });
+    }
+
+    // Step 3: Process appointments and filter by date if provided
+    const appointments = [];
+    
+    for (const appointmentDoc of appointmentsQuery.docs) {
+      const appointment = appointmentDoc.data();
+      
+      // Get patient details
+      let patientInfo = {
+        name: appointment.patientId,
+        phone: "N/A",
+        email: "N/A"
+      };
+
+      try {
+        const patientQuery = await db.collection("Users")
+          .where("userId", "==", appointment.patientId)
+          .limit(1)
+          .get();
+
+        if (!patientQuery.empty) {
+          const patientData = patientQuery.docs[0].data();
+          patientInfo = {
+            name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+            phone: patientData.phone || "N/A",
+            email: patientData.email || "N/A"
+          };
+        }
+      } catch (patientError) {
+        console.log('⚠️ Patient lookup failed:', patientError.message);
+      }
+
+      const scheduledDate = appointment.scheduledDate.toDate();
+      const appointmentData = {
+        appointmentId: appointmentDoc.id,
+        patientId: appointment.patientId,
+        patientName: patientInfo.name,
+        patientPhone: patientInfo.phone,
+        patientEmail: patientInfo.email,
+        scheduledDateTime: scheduledDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        category: appointment.category || "General",
+        urgencyLevel: appointment.urgencyLevel || 4,
+        urgencyText: getUrgencyText(appointment.urgencyLevel),
+        initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+        summary: appointment.summary || "No additional notes"
+      };
+
+      // Step 4: Filter by suggested date if provided
+      let includeAppointment = true;
+      
+      if (suggestedDateTime) {
+        const targetDate = parseDateForFiltering(suggestedDateTime);
+        const appointmentDateStr = scheduledDate.toISOString().split('T')[0];
+        
+        console.log('📅 Date filtering:', {
+          suggested: suggestedDateTime,
+          parsed: targetDate,
+          appointment: appointmentDateStr,
+          match: targetDate === appointmentDateStr
+        });
+        
+        includeAppointment = (targetDate === appointmentDateStr);
+      }
+
+      if (includeAppointment) {
+        appointments.push(appointmentData);
+      }
+    }
+
+    // Sort by date (earliest first)
+    appointments.sort((a, b) => new Date(a.scheduledDateTime) - new Date(b.scheduledDateTime));
+
+    console.log('✅ Returning', appointments.length, 'filtered appointments');
+
+    return res.json({
+      success: true,
+      appointments,
+      totalCount: appointments.length,
+      message: appointments.length > 0 ? 
+        `Found ${appointments.length} appointment(s) for ${patientId}` : 
+        `No appointments found for ${patientId}${suggestedDateTime ? ' on ' + suggestedDateTime : ''}`
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching patient appointments:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch appointments",
+      message: error.message,
+      appointments: []
+    });
+  }
+});
+
+// Helper function to parse date for filtering
+function parseDateForFiltering(dateString) {
+  try {
+    console.log('🗓️ Parsing date string:', dateString);
+    
+    // Handle "5th july 2025", "july 5th 2025" formats
+    const monthNames = {
+      'january': '01', 'february': '02', 'march': '03', 'april': '04',
+      'may': '05', 'june': '06', 'july': '07', 'august': '08',
+      'september': '09', 'october': '10', 'november': '11', 'december': '12'
+    };
+    
+    // Pattern: "5th july 2025" (with ordinals)
+    let match = dateString.match(/(\d{1,2})(st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i);
+    if (match) {
+      const day = match[1].padStart(2, '0');
+      const month = monthNames[match[3].toLowerCase()];
+      const year = match[4];
+      console.log('✅ Matched pattern "5th july 2025":', { day, month, year });
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Pattern: "july 5th 2025" (with ordinals)
+    match = dateString.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)?\s+(\d{4})/i);
+    if (match) {
+      const month = monthNames[match[1].toLowerCase()];
+      const day = match[2].padStart(2, '0');
+      const year = match[4];
+      console.log('✅ Matched pattern "july 5th 2025":', { day, month, year });
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Pattern: "5 july 2025" (without ordinals)
+    match = dateString.match(/(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i);
+    if (match) {
+      const day = match[1].padStart(2, '0');
+      const month = monthNames[match[2].toLowerCase()];
+      const year = match[3];
+      console.log('✅ Matched pattern "5 july 2025":', { day, month, year });
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Pattern: "july 5 2025" (without ordinals)
+    match = dateString.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s+(\d{4})/i);
+    if (match) {
+      const month = monthNames[match[1].toLowerCase()];
+      const day = match[2].padStart(2, '0');
+      const year = match[3];
+      console.log('✅ Matched pattern "july 5 2025":', { day, month, year });
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Pattern: "5th july" (assume current year, with ordinals)
+    match = dateString.match(/(\d{1,2})(st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i);
+    if (match) {
+      const day = match[1].padStart(2, '0');
+      const month = monthNames[match[3].toLowerCase()];
+      const year = new Date().getFullYear();
+      console.log('✅ Matched pattern "5th july" (current year):', { day, month, year });
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Pattern: "july 5th" (assume current year, with ordinals)
+    match = dateString.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)?/i);
+    if (match) {
+      const month = monthNames[match[1].toLowerCase()];
+      const day = match[2].padStart(2, '0');
+      const year = new Date().getFullYear();
+      console.log('✅ Matched pattern "july 5th" (current year):', { day, month, year });
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Try direct date parsing as fallback
+    const parsed = new Date(dateString);
+    if (!isNaN(parsed.getTime())) {
+      const result = parsed.toISOString().split('T')[0];
+      console.log('✅ Fallback date parsing successful:', result);
+      return result;
+    }
+    
+    console.log('❌ No date pattern matched');
+    return null;
+  } catch (error) {
+    console.error('❌ Error parsing date:', error);
+    return null;
+  }
+}
+
 // Set default path to login.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
