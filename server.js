@@ -47,18 +47,32 @@ app.post("/chat", async (req, res) => {
 
   const messageText = userMessage.toLowerCase();
 
-  // Define natural language patterns
-  const triageKeywords = [
-    "pain", "hurt", "injury", "problem", "issue", "foot", "feet", "toe", "heel", "ankle", "check my foot", "something's wrong"
-  ];
+  // Use OpenAI to classify the intent - appointment, triage, or other
+  const intentResponse = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: `You are an intent classifier for a podiatry chatbot.
 
-  const appointmentKeywords = [
-    "appointment", "schedule", "see my podiatrist", "upcoming visit", "next visit", "book", "check my appointment"
-  ];
+The user may be asking about:
+1. "appointment" → checking existing appointments or viewing upcoming schedules (e.g. "When is my next visit?", "Do I have anything booked?")
+2. "triage" → describing symptoms, foot concerns, or trying to book a new appointment (e.g. "My heel hurts", "I want to book an appointment", "Can I see a podiatrist?")
+3. "other" → small talk or questions unrelated to podiatry
 
-  // Check if user's message matches intent
-  const wantsTriage = triageKeywords.some(keyword => messageText.includes(keyword));
-  const wantsAppointment = appointmentKeywords.some(keyword => messageText.includes(keyword));
+Just return one word: "appointment", "triage", or "other".`
+      },
+      {
+        role: "user",
+        content: messageText
+      }
+    ]
+  });
+
+  const intent = intentResponse.choices[0].message.content.trim().toLowerCase();
+  console.log("🧠 Detected intent:", intent);
+
+
 
 
   // Create session object
@@ -79,15 +93,16 @@ app.post("/chat", async (req, res) => {
 
   try {
 
-    // If user message includes "triage", set state="triage" and triageState="initial query"
-    if (wantsTriage) {
+
+
+    // If intent = "triage", set state="triage" and triageState="initial query"
+    if (intent === "triage" && s.state === "idle") {
       console.log("🧠 Detected triage intent based on natural language.");
       s.state = "triage";
       s.triageStage = "initial_query";
       s.messages = [];
 
       console.log("🟢 Updated session (triage start):", s);
-
     }
 
     // If state=triage and triageStage=initial query, send to openai to ask follow up questions, then set triageStage="clarification"
@@ -187,7 +202,7 @@ Summary: A brief but informative clinical-style description for the podiatrist, 
 ---
 
 [DISPLAY MESSAGE, SH]
-Write a message that starts with an appropriate sentence based on the urgency level:
+Write a message that starts with an appropriate sentence based on the urgency level and use <br> for line breaks:
 
 - If urgency level = 1 → "You need to see a podiatrist urgently."
 - If urgency level = 2 → "You should see a podiatrist soon."
@@ -280,7 +295,7 @@ Do not show internal data to the patient.
         const slotQuery = await db.collection("Availability")
           .where("status", "==", "available")
           .where("availableDate", ">=", minDate)
-          .where("availableDate", "<=",  maxDate)
+          .where("availableDate", "<=", maxDate)
           .orderBy("availableDate")
           .limit(1)
           .get();
@@ -288,9 +303,8 @@ Do not show internal data to the patient.
         if (slotQuery.empty) {
           s.state = "idle";
           s.triageStage = null;
-          s.messages = [];
           return res.json({
-            reply: `${cleanedDisplay}\n\n⚠️ An error occurred while checking availability.`
+            reply: `${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`
           });
         }
 
@@ -311,7 +325,6 @@ Do not show internal data to the patient.
 
         s.state = "awaiting_confirmation";
         s.triageStage = null;
-        s.messages = [];
         s.pendingSlot = slotDoc;
         s.pendingSlotData = slotData;
         s.cleanedDisplay = cleanedDisplay;
@@ -324,7 +337,6 @@ Do not show internal data to the patient.
         console.error("❌ Error finding available slot:", err);
         s.state = "idle";
         s.triageStage = null;
-        s.messages = [];
         return res.json({ reply: `${cleanedDisplay}\n\n⚠️ An error occurred while checking availability.` });
       }
     }
@@ -383,17 +395,19 @@ Do not show internal data to the patient.
       return res.json({ reply: "❓ Please reply with 'yes' or 'no' to confirm your appointment." });
     }
 
-    // Appointment query 
-    if (wantsAppointment) {
+    // ****** Appointment query patient *******
+    if (intent === "appointment") {
       try {
         const patientId = req.body.patientId;
 
-        // Get appointment
+        // Detect if user wants "all" appointments
+        const wantsAllAppointments = /all appointments|more appointments|other appointments|future visits/.test(messageText);
+
+        // Get ALL scheduled appointments
         const apptSnapshot = await db.collection("Appointments")
           .where("patientId", "==", patientId)
           .where("status", "==", "scheduled")
           .orderBy("scheduledDate")
-          .limit(1)
           .get();
 
         if (apptSnapshot.empty) {
@@ -402,36 +416,57 @@ Do not show internal data to the patient.
           });
         }
 
-        const appt = apptSnapshot.docs[0].data();
+        const allAppts = apptSnapshot.docs.map(doc => doc.data());
 
-        // Get podiatrist name from Users collection
-        let podiatristName = "your podiatrist";
-        if (appt.podId) {
-          const podQuery = await db.collection("Users")
-            .where("userId", "==", appt.podId)
-            .limit(1)
-            .get();
-
-          if (!podQuery.empty) {
-            const podData = podQuery.docs[0].data();
-            podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
-          }
+        // Helper function
+        async function getPodiatristName(podId) {
+          if (!podId) return "Unknown";
+          const podQuery = await db.collection("Users").where("userId", "==", podId).limit(1).get();
+          if (podQuery.empty) return "Unknown";
+          const pod = podQuery.docs[0].data();
+          return `${pod.firstName || ""} ${pod.lastName || ""}`.trim();
         }
 
-        const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "Asia/Singapore"
-        });
+        if (allAppts.length === 1) {
+          const appt = allAppts[0];
+          const podiatristName = await getPodiatristName(appt.podId);
+          const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore"
+          });
 
-        return res.json({
-          reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
-        });
+          return res.json({
+            reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
+          });
+        } else {
+          const replies = await Promise.all(allAppts.map(async appt => {
+            const podiatristName = await getPodiatristName(appt.podId);
+            const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: "Asia/Singapore"
+            });
+            return `📅 ${formattedDate} with Dr. ${podiatristName}`;
+          }));
+
+          return res.json({
+            reply: "📋 Here are your upcoming appointments:<br><br>" +
+              replies.join("<br>") +
+              "<br><br>Let me know if you have a foot symptom and want to make another appointment!"
+          });
+        }
+
 
       } catch (error) {
         console.error("❌ Error fetching appointment:", error);
@@ -440,6 +475,7 @@ Do not show internal data to the patient.
         });
       }
     }
+
 
 
     // Fallback
@@ -1556,17 +1592,17 @@ app.post('/calendar-update-appointment', async (req, res) => {
     const docRef = db.collection("Appointments").doc(apptId);
     console.log("apptId=" + apptId)
     console.log("updateData=" + updateData)
-    
+
     const updates = {
       scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)),
       lastModified: admin.firestore.Timestamp.now() // Add timestamp
     };
-    
+
     await docRef.update(updates);
-    
+
     // ENHANCED: Return more detailed response for frontend
-    return res.json({ 
-      success: true, 
+    return res.json({
+      success: true,
       message: "Appointment updated successfully.",
       timestamp: new Date().toISOString(),
       updatedAppointment: {
@@ -1574,7 +1610,7 @@ app.post('/calendar-update-appointment', async (req, res) => {
         newScheduledDate: updateData,
         formattedDate: new Date(updateData).toLocaleDateString("en-SG", {
           weekday: "long",
-          year: "numeric", 
+          year: "numeric",
           month: "long",
           day: "numeric",
           hour: "2-digit",
@@ -1586,10 +1622,10 @@ app.post('/calendar-update-appointment', async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating appointment:", error);
-    return res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       error: "Failed to update appointment.",
-      message: error.message 
+      message: error.message
     });
   }
 });
@@ -2126,31 +2162,31 @@ app.post("/get-patient-appointments", async (req, res) => {
     // Step 2: If no results and patientId looks like a name, search by name
     if (appointmentsQuery.empty && !patientId.startsWith('patient_')) {
       console.log('🔍 No direct match, searching by patient name...');
-      
+
       // Search for users with matching names
       const userQuery = await db.collection("Users")
         .get(); // Get all users and filter in JavaScript
-      
+
       let matchingUserId = null;
       const searchName = patientId.toLowerCase();
-      
+
       userQuery.docs.forEach(userDoc => {
         const userData = userDoc.data();
         const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.toLowerCase().trim();
-        
+
         if (fullName.includes(searchName) || searchName.includes(fullName)) {
           matchingUserId = userData.userId;
           console.log('✅ Found matching user:', fullName, '→', matchingUserId);
         }
       });
-      
+
       // Search appointments with the found userId
       if (matchingUserId) {
         appointmentsQuery = await db.collection("Appointments")
           .where("patientId", "==", matchingUserId)
           .where("status", "==", "scheduled")
           .get();
-        
+
         console.log('📊 Name-based search results:', appointmentsQuery.size);
       }
     }
@@ -2165,10 +2201,10 @@ app.post("/get-patient-appointments", async (req, res) => {
 
     // Step 3: Process appointments and filter by date if provided
     const appointments = [];
-    
+
     for (const appointmentDoc of appointmentsQuery.docs) {
       const appointment = appointmentDoc.data();
-      
+
       // Get patient details
       let patientInfo = {
         name: appointment.patientId,
@@ -2220,18 +2256,18 @@ app.post("/get-patient-appointments", async (req, res) => {
 
       // Step 4: Filter by suggested date if provided
       let includeAppointment = true;
-      
+
       if (suggestedDateTime) {
         const targetDate = parseDateForFiltering(suggestedDateTime);
         const appointmentDateStr = scheduledDate.toISOString().split('T')[0];
-        
+
         console.log('📅 Date filtering:', {
           suggested: suggestedDateTime,
           parsed: targetDate,
           appointment: appointmentDateStr,
           match: targetDate === appointmentDateStr
         });
-        
+
         includeAppointment = (targetDate === appointmentDateStr);
       }
 
@@ -2249,8 +2285,8 @@ app.post("/get-patient-appointments", async (req, res) => {
       success: true,
       appointments,
       totalCount: appointments.length,
-      message: appointments.length > 0 ? 
-        `Found ${appointments.length} appointment(s) for ${patientId}` : 
+      message: appointments.length > 0 ?
+        `Found ${appointments.length} appointment(s) for ${patientId}` :
         `No appointments found for ${patientId}${suggestedDateTime ? ' on ' + suggestedDateTime : ''}`
     });
 
@@ -2269,14 +2305,14 @@ app.post("/get-patient-appointments", async (req, res) => {
 function parseDateForFiltering(dateString) {
   try {
     console.log('🗓️ Parsing date string:', dateString);
-    
+
     // Handle "5th july 2025", "july 5th 2025" formats
     const monthNames = {
       'january': '01', 'february': '02', 'march': '03', 'april': '04',
       'may': '05', 'june': '06', 'july': '07', 'august': '08',
       'september': '09', 'october': '10', 'november': '11', 'december': '12'
     };
-    
+
     // Pattern: "5th july 2025" (with ordinals)
     let match = dateString.match(/(\d{1,2})(st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i);
     if (match) {
@@ -2286,7 +2322,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Matched pattern "5th july 2025":', { day, month, year });
       return `${year}-${month}-${day}`;
     }
-    
+
     // Pattern: "july 5th 2025" (with ordinals)
     match = dateString.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)?\s+(\d{4})/i);
     if (match) {
@@ -2296,7 +2332,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Matched pattern "july 5th 2025":', { day, month, year });
       return `${year}-${month}-${day}`;
     }
-    
+
     // Pattern: "5 july 2025" (without ordinals)
     match = dateString.match(/(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i);
     if (match) {
@@ -2306,7 +2342,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Matched pattern "5 july 2025":', { day, month, year });
       return `${year}-${month}-${day}`;
     }
-    
+
     // Pattern: "july 5 2025" (without ordinals)
     match = dateString.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})\s+(\d{4})/i);
     if (match) {
@@ -2316,7 +2352,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Matched pattern "july 5 2025":', { day, month, year });
       return `${year}-${month}-${day}`;
     }
-    
+
     // Pattern: "5th july" (assume current year, with ordinals)
     match = dateString.match(/(\d{1,2})(st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i);
     if (match) {
@@ -2326,7 +2362,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Matched pattern "5th july" (current year):', { day, month, year });
       return `${year}-${month}-${day}`;
     }
-    
+
     // Pattern: "july 5th" (assume current year, with ordinals)
     match = dateString.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)?/i);
     if (match) {
@@ -2336,7 +2372,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Matched pattern "july 5th" (current year):', { day, month, year });
       return `${year}-${month}-${day}`;
     }
-    
+
     // Try direct date parsing as fallback
     const parsed = new Date(dateString);
     if (!isNaN(parsed.getTime())) {
@@ -2344,7 +2380,7 @@ function parseDateForFiltering(dateString) {
       console.log('✅ Fallback date parsing successful:', result);
       return result;
     }
-    
+
     console.log('❌ No date pattern matched');
     return null;
   } catch (error) {
