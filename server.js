@@ -47,18 +47,32 @@ app.post("/chat", async (req, res) => {
 
   const messageText = userMessage.toLowerCase();
 
-  // Define natural language patterns
-  const triageKeywords = [
-    "pain", "hurt", "injury", "problem", "issue", "foot", "feet", "toe", "heel", "ankle", "check my foot", "something's wrong"
-  ];
+// 🔍 Use OpenAI to classify the intent
+const intentResponse = await openai.chat.completions.create({
+  model: "gpt-3.5-turbo",
+  messages: [
+    {
+      role: "system",
+      content: `You are an intent classifier for a podiatry chatbot.
 
-  const appointmentKeywords = [
-    "appointment", "schedule", "see my podiatrist", "upcoming visit", "next visit", "book", "check my appointment"
-  ];
+The user may be asking about:
+1. "appointment" → checking existing appointments or viewing upcoming schedules (e.g. "When is my next visit?", "Do I have anything booked?")
+2. "triage" → describing symptoms, foot concerns, or trying to book a new appointment (e.g. "My heel hurts", "I want to book an appointment", "Can I see a podiatrist?")
+3. "other" → small talk or questions unrelated to podiatry
 
-  // Check if user's message matches intent
-  const wantsTriage = triageKeywords.some(keyword => messageText.includes(keyword));
-  const wantsAppointment = appointmentKeywords.some(keyword => messageText.includes(keyword));
+Just return one word: "appointment", "triage", or "other".`
+    },
+    {
+      role: "user",
+      content: messageText
+    }
+  ]
+});
+
+const intent = intentResponse.choices[0].message.content.trim().toLowerCase();
+console.log("🧠 Detected intent:", intent);
+
+
 
 
   // Create session object
@@ -80,7 +94,7 @@ app.post("/chat", async (req, res) => {
   try {
 
     // If user message includes "triage", set state="triage" and triageState="initial query"
-    if (wantsTriage) {
+    if (intent === "triage") {
       console.log("🧠 Detected triage intent based on natural language.");
       s.state = "triage";
       s.triageStage = "initial_query";
@@ -383,41 +397,42 @@ Do not show internal data to the patient.
       return res.json({ reply: "❓ Please reply with 'yes' or 'no' to confirm your appointment." });
     }
 
-    // Appointment query 
-    if (wantsAppointment) {
-      try {
-        const patientId = req.body.patientId;
+    // ****** Appointment query patient *******
+    if (intent === "appointment") {
+  try {
+    const patientId = req.body.patientId;
 
-        // Get appointment
-        const apptSnapshot = await db.collection("Appointments")
-          .where("patientId", "==", patientId)
-          .where("status", "==", "scheduled")
-          .orderBy("scheduledDate")
-          .limit(1)
-          .get();
+    // Detect if user wants "all" appointments
+    const wantsAllAppointments = /all appointments|more appointments|other appointments|future visits/.test(messageText);
 
-        if (apptSnapshot.empty) {
-          return res.json({
-            reply: "📅 You don't have any upcoming appointments at the moment."
-          });
-        }
+    // Get ALL scheduled appointments
+    const apptSnapshot = await db.collection("Appointments")
+      .where("patientId", "==", patientId)
+      .where("status", "==", "scheduled")
+      .orderBy("scheduledDate")
+      .get();
 
-        const appt = apptSnapshot.docs[0].data();
+    if (apptSnapshot.empty) {
+      return res.json({
+        reply: "📅 You don't have any upcoming appointments at the moment."
+      });
+    }
 
-        // Get podiatrist name from Users collection
-        let podiatristName = "your podiatrist";
-        if (appt.podId) {
-          const podQuery = await db.collection("Users")
-            .where("userId", "==", appt.podId)
-            .limit(1)
-            .get();
+    const allAppts = apptSnapshot.docs.map(doc => doc.data());
 
-          if (!podQuery.empty) {
-            const podData = podQuery.docs[0].data();
-            podiatristName = `${podData.firstName || ""} ${podData.lastName || ""}`.trim();
-          }
-        }
+    // Helper function
+    async function getPodiatristName(podId) {
+      if (!podId) return "Unknown";
+      const podQuery = await db.collection("Users").where("userId", "==", podId).limit(1).get();
+      if (podQuery.empty) return "Unknown";
+      const pod = podQuery.docs[0].data();
+      return `${pod.firstName || ""} ${pod.lastName || ""}`.trim();
+    }
 
+    if (wantsAllAppointments && allAppts.length > 1) {
+      // Show ALL
+      const replies = await Promise.all(allAppts.map(async appt => {
+        const podiatristName = await getPodiatristName(appt.podId);
         const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
           weekday: "long",
           year: "numeric",
@@ -428,18 +443,40 @@ Do not show internal data to the patient.
           hour12: true,
           timeZone: "Asia/Singapore"
         });
+        return `📅 ${formattedDate} with Dr. ${podiatristName}`;
+      }));
 
-        return res.json({
-          reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
-        });
+      return res.json({
+        reply: "📋 Here are your upcoming appointments:<br><br>" + replies.join("<br>")
+      });
+    } else {
+      // Show only the next one
+      const nextAppt = allAppts[0];
+      const podiatristName = await getPodiatristName(nextAppt.podId);
+      const formattedDate = nextAppt.scheduledDate.toDate().toLocaleString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      });
 
-      } catch (error) {
-        console.error("❌ Error fetching appointment:", error);
-        return res.json({
-          reply: "⚠️ An error occurred while retrieving your appointment details."
-        });
-      }
+      return res.json({
+        reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
+      });
     }
+
+  } catch (error) {
+    console.error("❌ Error fetching appointment:", error);
+    return res.json({
+      reply: "⚠️ An error occurred while retrieving your appointment details."
+    });
+  }
+}
+
 
 
     // Fallback
