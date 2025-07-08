@@ -972,13 +972,13 @@ async function forceRefreshCalendar() {
 // Export the function globally
 window.forceRefreshCalendar = forceRefreshCalendar;
 
-// Auto-refresh calendar every 30 seconds to catch any missed updates
-setInterval(() => {
-  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
-    console.log('🔄 AUTO: Periodic calendar refresh...');
-    window.podiatristCalendar.refreshCalendar();
-  }
-}, 30000); // 30 seconds
+// // Auto-refresh calendar every 30 seconds to catch any missed updates
+// setInterval(() => {
+//   if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+//     console.log('🔄 AUTO: Periodic calendar refresh...');
+//     window.podiatristCalendar.refreshCalendar();
+//   }
+// }, 30000); // 30 seconds
 
 // ========================================
 // SYSTEM FUNCTIONS
