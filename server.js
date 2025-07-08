@@ -2048,78 +2048,86 @@ app.post("/get-notifications", async (req, res) => {
       });
     }
 
-    // OPTIMIZATION 5: Process notifications in single loop
-    appointmentData.forEach(appointment => {
-      const patientName = patientMap[appointment.patientId] || appointment.patientId;
-      const timeUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60));
-      const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
-
-      // Urgent appointments (next 2 hours, urgency 1-2)
-      if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
-        notifications.push({
-          id: `urgent_${appointment.id}`,
-          type: "urgent",
-          title: "Urgent Appointment",
-          message: `${patientName} - ${appointment.category} in ${timeUntil} minutes`,
-          timestamp: now.toISOString(),
-          priority: 1,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
-      // Upcoming appointments (next 30 minutes, urgency 3-4)
-      else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
-        notifications.push({
-          id: `upcoming_${appointment.id}`,
-          type: "update",
-          title: "Upcoming Appointment",
-          message: `${patientName} - ${appointment.category} in ${timeUntil} minutes`,
-          timestamp: now.toISOString(),
-          priority: 2,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
-      // NEW: Tomorrow's appointments (urgent cases only)
-      else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
-        notifications.push({
-          id: `tomorrow_urgent_${appointment.id}`,
-          type: "urgent",
-          title: "Urgent Appointment Tomorrow",
-          message: `${patientName} - ${appointment.category} tomorrow at ${appointment.scheduledTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
-          timestamp: now.toISOString(),
-          priority: 3,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
-      // NEW: Day after tomorrow's appointments (urgent cases only)
-      else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
-        notifications.push({
-          id: `day_after_urgent_${appointment.id}`,
-          type: "info",
-          title: "Urgent Appointment in 2 Days",
-          message: `${patientName} - ${appointment.category} in 2 days at ${appointment.scheduledTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
-          timestamp: now.toISOString(),
-          priority: 4,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
-      // NEW: Tomorrow's regular appointments (urgency 3-4)
-      else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
-        notifications.push({
-          id: `tomorrow_regular_${appointment.id}`,
-          type: "info",
-          title: "Appointment Tomorrow",
-          message: `${patientName} - ${appointment.category} tomorrow at ${appointment.scheduledTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
-          timestamp: now.toISOString(),
-          priority: 5,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
+   // OPTIMIZATION 5: Process notifications in single loop
+  appointmentData.forEach(appointment => {
+    const patientName = patientMap[appointment.patientId] || appointment.patientId;
+    const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
+    
+    // Get formatted appointment time
+    const appointmentTime = appointment.scheduledTime.toLocaleTimeString("en-SG", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
     });
+
+    // Urgent appointments (next 2 hours, urgency 1-2)
+    if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
+      notifications.push({
+        id: `urgent_${appointment.id}`,
+        type: "urgent",
+        title: "Urgent Appointment",
+        message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+        timestamp: now.toISOString(),
+        priority: 1,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId
+      });
+    }
+    // Upcoming appointments (next 30 minutes, urgency 3-4)
+    else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
+      notifications.push({
+        id: `upcoming_${appointment.id}`,
+        type: "upcoming",
+        title: "Upcoming Appointment",
+        message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+        timestamp: now.toISOString(),
+        priority: 2,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId
+      });
+    }
+    // NEW: Tomorrow's appointments (urgent cases only)
+    else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
+      notifications.push({
+        id: `tomorrow_urgent_${appointment.id}`,
+        type: "urgent",
+        title: "Urgent Appointment Tomorrow",
+        message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+        timestamp: now.toISOString(),
+        priority: 3,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId
+      });
+    }
+    // NEW: Day after tomorrow's appointments (urgent cases only)
+    else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
+      notifications.push({
+        id: `day_after_urgent_${appointment.id}`,
+        type: "reminder",
+        title: "Urgent Appointment in 2 Days",
+        message: `${patientName} - ${appointment.category} in 2 days at ${appointmentTime}`,
+        timestamp: now.toISOString(),
+        priority: 4,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId
+      });
+    }
+    // NEW: Tomorrow's regular appointments (urgency 3-4)
+    else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
+      notifications.push({
+        id: `tomorrow_regular_${appointment.id}`,
+        type: "reminder",
+        title: "Appointment Tomorrow",
+        message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+        timestamp: now.toISOString(),
+        priority: 5,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId
+      });
+    }
+  });
+   
 
     // OPTIMIZATION 6: Fast JavaScript sorting
     notifications.sort((a, b) => a.priority - b.priority);

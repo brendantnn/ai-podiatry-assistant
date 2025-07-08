@@ -240,17 +240,23 @@ function createNotificationElement(notification) {
       badgeClass = 'badge-danger';
       badgeText = '🚨 Urgent';
       break;
+    case 'upcoming':
+      bgStyle = 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)';
+      borderColor = '#fed7aa';
+      badgeClass = 'badge-warning';
+      badgeText = '⏰ Soon';
+      break;
+    case 'reminder':
+      bgStyle = 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)';
+      borderColor = '#bfdbfe';
+      badgeClass = 'badge-info';
+      badgeText = '📅 Reminder';
+      break;
     case 'update':
       bgStyle = 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)';
       borderColor = '#fed7aa';
       badgeClass = 'badge-warning';
       badgeText = '📝 Update';
-      break;
-    case 'info':
-      bgStyle = 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)';
-      borderColor = '#bfdbfe';
-      badgeClass = 'badge-info';
-      badgeText = 'ℹ️ Info';
       break;
     default:
       bgStyle = 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)';
