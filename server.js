@@ -1961,11 +1961,13 @@ app.post("/get-notifications", async (req, res) => {
     const notifications = [];
     const now = new Date();
 
-    // OPTIMIZATION 1: Single query for today's appointments instead of multiple
+    // Get today's date range  
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
 
+    // CHANGED: Extend end date to include next 2 days
     const endOfDay = new Date(now);
+    endOfDay.setDate(endOfDay.getDate() + 2); // Add 2 days
     endOfDay.setHours(23, 59, 59, 999);
 
     // SINGLE OPTIMIZED QUERY for today's appointments
@@ -2014,6 +2016,7 @@ app.post("/get-notifications", async (req, res) => {
     appointmentData.forEach(appointment => {
       const patientName = patientMap[appointment.patientId] || appointment.patientId;
       const timeUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60));
+      const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
 
       // Urgent appointments (next 2 hours, urgency 1-2)
       if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
@@ -2037,6 +2040,45 @@ app.post("/get-notifications", async (req, res) => {
           message: `${patientName} - ${appointment.category} in ${timeUntil} minutes`,
           timestamp: now.toISOString(),
           priority: 2,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // NEW: Tomorrow's appointments (urgent cases only)
+      else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
+        notifications.push({
+          id: `tomorrow_urgent_${appointment.id}`,
+          type: "urgent",
+          title: "Urgent Appointment Tomorrow",
+          message: `${patientName} - ${appointment.category} tomorrow at ${appointment.scheduledTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
+          timestamp: now.toISOString(),
+          priority: 3,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // NEW: Day after tomorrow's appointments (urgent cases only)
+      else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
+        notifications.push({
+          id: `day_after_urgent_${appointment.id}`,
+          type: "info",
+          title: "Urgent Appointment in 2 Days",
+          message: `${patientName} - ${appointment.category} in 2 days at ${appointment.scheduledTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
+          timestamp: now.toISOString(),
+          priority: 4,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // NEW: Tomorrow's regular appointments (urgency 3-4)
+      else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
+        notifications.push({
+          id: `tomorrow_regular_${appointment.id}`,
+          type: "info",
+          title: "Appointment Tomorrow",
+          message: `${patientName} - ${appointment.category} tomorrow at ${appointment.scheduledTime.toLocaleTimeString("en-SG", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
+          timestamp: now.toISOString(),
+          priority: 5,
           appointmentId: appointment.id,
           patientId: appointment.patientId
         });
