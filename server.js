@@ -44,11 +44,12 @@ app.post("/chat", async (req, res) => {
   // Store user message and user id
   const userMessage = req.body.message;
   const userId = req.body.patientId;
-
   const messageText = userMessage.toLowerCase();
 
-  // Use OpenAI to classify the intent - appointment, triage, or other
-  const intentResponse = await openai.chat.completions.create({
+
+  // *************** STEP 1: CLASSIFY USER'S INTENT *******************
+  // Use OpenAI to classify user's intent - appointment, triage, or other into a cosntant variable
+  const intentResponse = await openai.chat.completions.create({ // this returns an array ".choices" with the possible replies
     model: "gpt-3.5-turbo",
     messages: [
       {
@@ -68,50 +69,45 @@ Just return one word: "appointment", "triage", or "other".`
       }
     ]
   });
-
+  // Gets response from the array returned by GPT - "appointment", "triage", "other"
   const intent = intentResponse.choices[0].message.content.trim().toLowerCase();
   console.log("🧠 Detected intent:", intent);
 
-
-
-
-  // Create session object
+  // Create session object that stores conversation state, symptom message, appointment slot info
   session[userId] = session[userId] || {
-    state: "idle",
+    state: "idle", // state includes idle, triage, awaiting_confirmation
     triageStage: null,
     messages: [],
     pendingSlot: null,
     pendingSlotData: null
   };
-  // Store current state, conversation history and pending appointment slot 
+
+  // Store session to s for easy access
   const s = session[userId];
 
   console.log("🆕 Incoming message:", userMessage);
   console.log("📦 Session state at start:", s);
 
-  // Triage starts here
-
   try {
+     // *************** STEP 2: TRIAGE INTENT *******************
 
-
-
-    // If intent = "triage", set state="triage" and triageState="initial query"
+    // IF USER WANTS TRIAGE AND NO MESSAGE SENT YET, set state to triage and triageStage to initial_query
     if (intent === "triage" && s.state === "idle") {
-      console.log("🧠 Detected triage intent based on natural language.");
-      s.state = "triage";
+      console.log("🧠 Detected intent=triage and state=idle, user want to triage and has sent no msgs yet");
+      s.state = "triage"; 
       s.triageStage = "initial_query";
       s.messages = [];
 
       console.log("🟢 Updated session (triage start):", s);
     }
 
-    // If state=triage and triageStage=initial query, send to openai to ask follow up questions, then set triageStage="clarification"
+    // IF IN TRIAGE STATE AND IN INITIAL QUERY STAGE
     if (s.state === "triage" && s.triageStage === "initial_query") {
       console.log("Detected state=triage and triageStage=initial query, clarifying stage now");
       s.messages.push({ role: "user", content: userMessage });
       console.log("📝 Current messages:", s.messages);
 
-      // Use openai to ask follow up questions
+      // Use openai to ask follow up questions, store reply into clarification
       const clarification = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
@@ -151,12 +147,14 @@ Respond with 1–3 concise, specific follow-up questions.`
       });
 
       const followUp = clarification.choices[0].message.content;
-      s.triageStage = "clarification"; // set triageStage="clarification"
+
+      // Set triageStage to clarification
+      s.triageStage = "clarification"; 
 
       return res.json({ reply: followUp }); // returns follow up question
     }
 
-    // If state=triage and triageStage=clarification, 
+    // IF IN TRIAGE STATE AND CLARIFICATION TRIAGE STAGE
     if (s.state === "triage" && s.triageStage === "clarification") {
       console.log("🔍 Handling clarification response...");
 
@@ -328,7 +326,6 @@ Do not show internal data to the patient.
         s.pendingSlot = slotDoc;
         s.pendingSlotData = slotData;
         s.cleanedDisplay = cleanedDisplay;
-
         const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
 
         return res.json({ reply: responseMessage });
@@ -2048,86 +2045,86 @@ app.post("/get-notifications", async (req, res) => {
       });
     }
 
-   // OPTIMIZATION 5: Process notifications in single loop
-  appointmentData.forEach(appointment => {
-    const patientName = patientMap[appointment.patientId] || appointment.patientId;
-    const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
-    
-    // Get formatted appointment time
-    const appointmentTime = appointment.scheduledTime.toLocaleTimeString("en-SG", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Singapore"
+    // OPTIMIZATION 5: Process notifications in single loop
+    appointmentData.forEach(appointment => {
+      const patientName = patientMap[appointment.patientId] || appointment.patientId;
+      const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
+
+      // Get formatted appointment time
+      const appointmentTime = appointment.scheduledTime.toLocaleTimeString("en-SG", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      });
+
+      // Urgent appointments (next 2 hours, urgency 1-2)
+      if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
+        notifications.push({
+          id: `urgent_${appointment.id}`,
+          type: "urgent",
+          title: "Urgent Appointment",
+          message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+          timestamp: now.toISOString(),
+          priority: 1,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // Upcoming appointments (next 30 minutes, urgency 3-4)
+      else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
+        notifications.push({
+          id: `upcoming_${appointment.id}`,
+          type: "upcoming",
+          title: "Upcoming Appointment",
+          message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+          timestamp: now.toISOString(),
+          priority: 2,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // NEW: Tomorrow's appointments (urgent cases only)
+      else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
+        notifications.push({
+          id: `tomorrow_urgent_${appointment.id}`,
+          type: "urgent",
+          title: "Urgent Appointment Tomorrow",
+          message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+          timestamp: now.toISOString(),
+          priority: 3,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // NEW: Day after tomorrow's appointments (urgent cases only)
+      else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
+        notifications.push({
+          id: `day_after_urgent_${appointment.id}`,
+          type: "reminder",
+          title: "Urgent Appointment in 2 Days",
+          message: `${patientName} - ${appointment.category} in 2 days at ${appointmentTime}`,
+          timestamp: now.toISOString(),
+          priority: 4,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
+      // NEW: Tomorrow's regular appointments (urgency 3-4)
+      else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
+        notifications.push({
+          id: `tomorrow_regular_${appointment.id}`,
+          type: "reminder",
+          title: "Appointment Tomorrow",
+          message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+          timestamp: now.toISOString(),
+          priority: 5,
+          appointmentId: appointment.id,
+          patientId: appointment.patientId
+        });
+      }
     });
 
-    // Urgent appointments (next 2 hours, urgency 1-2)
-    if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
-      notifications.push({
-        id: `urgent_${appointment.id}`,
-        type: "urgent",
-        title: "Urgent Appointment",
-        message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
-        timestamp: now.toISOString(),
-        priority: 1,
-        appointmentId: appointment.id,
-        patientId: appointment.patientId
-      });
-    }
-    // Upcoming appointments (next 30 minutes, urgency 3-4)
-    else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
-      notifications.push({
-        id: `upcoming_${appointment.id}`,
-        type: "upcoming",
-        title: "Upcoming Appointment",
-        message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
-        timestamp: now.toISOString(),
-        priority: 2,
-        appointmentId: appointment.id,
-        patientId: appointment.patientId
-      });
-    }
-    // NEW: Tomorrow's appointments (urgent cases only)
-    else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
-      notifications.push({
-        id: `tomorrow_urgent_${appointment.id}`,
-        type: "urgent",
-        title: "Urgent Appointment Tomorrow",
-        message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
-        timestamp: now.toISOString(),
-        priority: 3,
-        appointmentId: appointment.id,
-        patientId: appointment.patientId
-      });
-    }
-    // NEW: Day after tomorrow's appointments (urgent cases only)
-    else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
-      notifications.push({
-        id: `day_after_urgent_${appointment.id}`,
-        type: "reminder",
-        title: "Urgent Appointment in 2 Days",
-        message: `${patientName} - ${appointment.category} in 2 days at ${appointmentTime}`,
-        timestamp: now.toISOString(),
-        priority: 4,
-        appointmentId: appointment.id,
-        patientId: appointment.patientId
-      });
-    }
-    // NEW: Tomorrow's regular appointments (urgency 3-4)
-    else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
-      notifications.push({
-        id: `tomorrow_regular_${appointment.id}`,
-        type: "reminder",
-        title: "Appointment Tomorrow",
-        message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
-        timestamp: now.toISOString(),
-        priority: 5,
-        appointmentId: appointment.id,
-        patientId: appointment.patientId
-      });
-    }
-  });
-   
 
     // OPTIMIZATION 6: Fast JavaScript sorting
     notifications.sort((a, b) => a.priority - b.priority);
