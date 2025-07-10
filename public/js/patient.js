@@ -1,6 +1,10 @@
 window.onload = async () => {
-const patientId = sessionStorage.getItem("userId");
+    const loadingScreen = document.getElementById("loading-screen");
+      loadingScreen.style.display = "flex"; // show loading
 
+
+
+const patientId = sessionStorage.getItem("userId");
   const chatbox = document.getElementById("chatbox");
   
   try {
@@ -104,6 +108,8 @@ if (data.allAppointments && Array.isArray(data.allAppointments)) {
     `;
 
     chatbox.scrollTop = chatbox.scrollHeight;
+    loadingScreen.style.display = "none"; // hide loading screen
+
 
   } catch (err) {
     console.error("❌ Failed to fetch patient details:", err);

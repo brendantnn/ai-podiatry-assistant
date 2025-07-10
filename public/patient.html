@@ -11,6 +11,53 @@
 
   <script src="js/utils/pageProtection.js"></script>
 
+   <!-- Loading Screen -->
+<div id="loading-screen">
+  <div class="loader-container">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading...</div>
+  </div>
+</div>
+
+<style>
+  #loading-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: white;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 6px solid #e0e0e0;
+    border-top: 6px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #333;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+
   <div class="medical-container">
     <div class="medical-header">
       <h1>🏥 Patient Portal</h1>
@@ -34,7 +81,7 @@
             </p>
           </div>
           <div class="flex items-center">
-            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm" data-action="logout"> 🚪 Logout</button>
+<button class="medical-btn medical-btn-danger medical-btn-sm ml-sm" onclick="handleLogout()"> 🚪 Logout</button>
           </div>
         </div>
       </div>
@@ -126,7 +173,64 @@
     </div>
   </div>
 
+
+  <!-- Logout Confirmation Modal -->
+<div id="logoutModal" class="hidden" style="
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+">
+  <div style="
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  ">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">🚪</div>
+    <h3 style="color: #374151; margin-bottom: 1rem;">Confirm Logout</h3>
+    <p style="margin-bottom: 1.5rem; color: #6b7280;">
+      Are you sure you want to logout? Any unsaved work will be lost.
+    </p>
+    <div style="display: flex; gap: 1rem; justify-content: center;">
+      <button onclick="cancelLogout()" style="
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+      ">
+        Cancel
+      </button>
+      <button onclick="confirmLogout()" style="
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+      ">
+        Logout
+      </button>
+    </div>
+  </div>
+</div>
+
+
   <script src="js/patient.js"></script>
+  <script type="module" src="js/logout.js"></script>
+
 </body>
 
 </html>
