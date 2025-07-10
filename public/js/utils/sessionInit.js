@@ -121,7 +121,7 @@ class PageSessionInit {
     try {
       // Update user name displays
       const nameElements = document.querySelectorAll('[id*="name"], [class*="name"]');
-      const fullName = `${sessionInfo.firstName} ${sessionInfo.lastName}`.trim();
+      const fullName = `${sessionInfo.firstName}`.trim();
       
       nameElements.forEach(el => {
         if (el.id.includes('patient-name') || el.id.includes('podiatrist-name')) {

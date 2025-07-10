@@ -30,7 +30,6 @@ loadSessionData() {
     this.sessionData = {
       userId: sessionStorage.getItem('userId') || 'pod_1',
       firstName: sessionStorage.getItem('firstName') || 'Doctor',
-      lastName: sessionStorage.getItem('lastName') || '',
       role: sessionStorage.getItem('role') || 'podiatrist',
       email: sessionStorage.getItem('email') || ''
     };
@@ -42,7 +41,6 @@ loadSessionData() {
     this.sessionData = {
       userId: 'pod_1',
       firstName: 'Doctor',
-      lastName: '',
       role: 'podiatrist',
       email: ''
     };
@@ -119,17 +117,17 @@ init() {
   }
 
   // ADD COMPLETE WELCOME MESSAGE WITH APPOINTMENT EDITING
-  addWelcomeMessage(chatbox) {
-  // Get doctor name from session
-  const doctorName = this.sessionData ? 
-    `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
-    '[NAME]';
+addWelcomeMessage(chatbox) {
+  // Get doctor name from session - FIXED TO HANDLE UNDEFINED CASE
+  const doctorName = this.sessionData && this.sessionData.firstName ? 
+    `${this.sessionData.firstName}`.trim() : 
+    'Doctor';
     
   const welcomeDiv = document.createElement('div');
   welcomeDiv.className = 'message-bot';
   welcomeDiv.innerHTML = `
     <strong>🤖 Clinical Assistant:</strong> 
-    <p>Hello Dr. ${doctorName}! I'm your AI support assistant. I can help you with:</p>
+    <p>Hello ${doctorName}! I'm your AI support assistant. I can help you with:</p>
     
     <div style="margin: 16px 0; padding: 16px; background: #fefdf8; border-radius: 12px; border: 1px solid #e5e7eb;">
         <h4 style="color: #1d4ed8; margin: 0 0 12px 0; font-size: 1rem;">📋 Patient Management</h4>
@@ -175,7 +173,7 @@ init() {
     `;
     chatbox.appendChild(welcomeDiv);
     chatbox.scrollTop = chatbox.scrollHeight;
-  }
+}
 
   // ========================================
   // APPOINTMENT EDITING FUNCTIONALITY WITH MODAL
@@ -2137,23 +2135,28 @@ Please provide a clinical analysis covering current case load summary, priority 
     chatbox.scrollTop = chatbox.scrollHeight;
   }
 
-  // ADD MESSAGE TO CHAT
-  addMessageToChat(message, sender, chatbox) {
-    if (!chatbox) return;
+ // ADD MESSAGE TO CHAT - FIXED TO USE DYNAMIC DOCTOR NAME
+addMessageToChat(message, sender, chatbox) {
+  if (!chatbox) return;
+  
+  const messageDiv = document.createElement('div');
+  messageDiv.className = sender === 'user' ? 'message-user' : 'message-bot';
+  
+  if (sender === 'user') {
+    // GET DYNAMIC DOCTOR NAME FROM SESSION DATA
+    const doctorName = this.sessionData ? 
+      `${this.sessionData.firstName}`.trim() : 
+      '[NAME]';
     
-    const messageDiv = document.createElement('div');
-    messageDiv.className = sender === 'user' ? 'message-user' : 'message-bot';
-    
-    if (sender === 'user') {
-      messageDiv.innerHTML = `<strong>Dr. [NAME]:</strong> ${message}`;
-    } else {
-      const formattedMessage = this.formatAIResponse(message);
-      messageDiv.innerHTML = `<strong>Clinical Assistant:</strong><br>${formattedMessage}`;
-    }
-    
-    chatbox.appendChild(messageDiv);
-    chatbox.scrollTop = chatbox.scrollHeight;
+    messageDiv.innerHTML = `<strong>${doctorName}:</strong> ${message}`;
+  } else {
+    const formattedMessage = this.formatAIResponse(message);
+    messageDiv.innerHTML = `<strong>Clinical Assistant:</strong><br>${formattedMessage}`;
   }
+  
+  chatbox.appendChild(messageDiv);
+  chatbox.scrollTop = chatbox.scrollHeight;
+}
 
   // FORMAT AI RESPONSE FUNCTION
   formatAIResponse(message) {
