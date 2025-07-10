@@ -731,54 +731,17 @@ Based on this patient's clinical profile, please provide medical guidance.
       }
     }
 
-    // Enhanced system prompt with patient context
-    const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+    // Detect if this is an urgent cases summary request
+    const isUrgentCasesQuery = req.body.queryType && req.body.queryType.toLowerCase() === 'urgent cases';
 
-    CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
-
-
-  ${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n
-
-  MANDATORY FORMAT for patient case analysis:
-  **Workload Overview for [DATE]**
-  - **Total Appointments:** 1
-  - **[Category] Cases:** 1
-
-  **Priority Cases**
-  - **Patient_ID (Name)** 
-    - **Category:** [category with emoji]
-    - **Priority:** [urgency text] 
-    - **Initial Diagnosis:** [diagnosis]
-    - **Summary:** [clinical summary]
-
-  **Clinical Recommendations**
-  - **Assessment:** [points]
-  - **Treatment:** [points] 
-  - **Education:** [points]
-
-  **Workflow Recommendation**
-  - [workflow priorities]
-
-  ` : ''}
-
-  RESPONSE FORMATTING RULES:
-  - Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})
-  - Use clear, professional medical language
-  - Structure responses with headers and bullet points for readability
-  - Bold important medical terms and conditions
-  - Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
-  - Keep responses concise but comprehensive
-  - Always provide evidence-based recommendations
-
-  You help with:
-  1. **Patient-Specific Queries** - Detailed case analysis based on patient history
-  2. **Clinical Decision Support** - Evidence-based treatment recommendations
-  3. **Medical Knowledge** - Information about podiatry conditions and protocols  
-  4. **Case Management** - Guidance on patient prioritization and workflow
-  5. **Treatment Protocols** - Step-by-step treatment approaches
-  6. **Drug Information** - Interactions, dosages, and contraindications
-
-  Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
+    let systemPrompt = '';
+    if (isUrgentCasesQuery) {
+      // Minimal system prompt for urgent cases summary
+      systemPrompt = 'You are an AI assistant. The user will provide a list of urgent cases. Do not add a workload overview, clinical recommendations, or workflow analysis. Simply summarize or echo the list as a clear, readable summary. Do not add extra sections.';
+    } else {
+      // Default system prompt for all other queries
+      systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.\n\n    CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})\n\n  ${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n\n  MANDATORY FORMAT for patient case analysis:\n  **Workload Overview for [DATE]**\n  - **Total Appointments:** 1\n  - **[Category] Cases:** 1\n\n  **Priority Cases**\n  - **Patient_ID (Name)** \n    - **Category:** [category with emoji]\n    - **Priority:** [urgency text] \n    - **Initial Diagnosis:** [diagnosis]\n    - **Summary:** [clinical summary]\n\n  **Clinical Recommendations**\n  - **Assessment:** [points]\n  - **Treatment:** [points] \n  - **Education:** [points]\n\n  **Workflow Recommendation**\n  - [workflow priorities]\n\n  ` : ''}\n\n  RESPONSE FORMATTING RULES:\n  - Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})\n  - Use clear, professional medical language\n  - Structure responses with headers and bullet points for readability\n  - Bold important medical terms and conditions\n  - Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)\n  - Keep responses concise but comprehensive\n  - Always provide evidence-based recommendations\n\n  You help with:\n  1. **Patient-Specific Queries** - Detailed case analysis based on patient history\n  2. **Clinical Decision Support** - Evidence-based treatment recommendations\n  3. **Medical Knowledge** - Information about podiatry conditions and protocols  \n  4. **Case Management** - Guidance on patient prioritization and workflow\n  5. **Treatment Protocols** - Step-by-step treatment approaches\n  6. **Drug Information** - Interactions, dosages, and contraindications\n\n  Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
+    }
 
     const chatCompletion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -815,37 +778,43 @@ app.post("/get-urgent-cases", async (req, res) => {
 
   try {
     console.log('🚨 Fetching urgent cases...');
+    console.log('🔍 DEBUG: Current time:', new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }));
 
-    // Get today's date range
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    // Only show upcoming urgent cases (today and future)
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start from today 00:00
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const farFuture = new Date('2100-12-31T23:59:59Z');
 
-    // Query for urgent cases (urgency level 1 and 2)
+    console.log('🔍 DEBUG: Date range:', {
+      start: now.toISOString(),
+      end: farFuture.toISOString()
+    });
+
+    // Query for all scheduled appointments from today onwards
     const urgentQuery = await db.collection("Appointments")
-      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
-      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(now))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(farFuture))
       .where("status", "==", "scheduled")
       .get();
 
-    console.log('📊 Total appointments found:', urgentQuery.size);
+    console.log('📊 Total upcoming appointments found:', urgentQuery.size);
 
-    // Filter for urgent cases (level 1 and 2)
+    // Filter for urgent cases (level 1 and 2) and collect results
     const urgentAppointments = [];
 
     for (const appointmentDoc of urgentQuery.docs) {
       const appointment = appointmentDoc.data();
 
-      // Only include urgent cases (level 1 and 2)
+      console.log(`🔍 Checking appointment: PatientID=${appointment.patientId}, UrgencyLevel=${appointment.urgencyLevel}, Category=${appointment.category}`);
+
+      // CRITICAL: Only include urgency level 1 AND 2 as urgent cases
       if (appointment.urgencyLevel <= 2) {
+        console.log(`✅ URGENT CASE FOUND: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
 
         // Get patient details
         let patientInfo = {
-          name: appointment.patientId,
-          phone: "N/A",
-          email: "N/A"
+          name: appointment.patientId
         };
 
         try {
@@ -857,26 +826,32 @@ app.post("/get-urgent-cases", async (req, res) => {
           if (!patientQuery.empty) {
             const patientData = patientQuery.docs[0].data();
             patientInfo = {
-              name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
-              phone: patientData.phone || "N/A",
-              email: patientData.email || "N/A"
+              name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim()
             };
+            console.log(`✅ Found patient details: ${patientInfo.name}`);
+          } else {
+            console.log(`⚠️ No patient details found for: ${appointment.patientId}`);
           }
         } catch (patientError) {
           console.log('⚠️ Patient lookup failed:', patientError.message);
         }
 
         const scheduledDate = appointment.scheduledDate.toDate();
-        urgentAppointments.push({
+        const urgentCase = {
           appointmentId: appointmentDoc.id,
           patientId: appointment.patientId,
           patientName: patientInfo.name,
-          patientPhone: patientInfo.phone,
-          patientEmail: patientInfo.email,
           scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
+            timeZone: "Asia/Singapore"
+          }),
+          scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
             timeZone: "Asia/Singapore"
           }),
           category: appointment.category || "General",
@@ -885,26 +860,47 @@ app.post("/get-urgent-cases", async (req, res) => {
           initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
           summary: appointment.summary || "No additional notes",
           status: appointment.status
-        });
+        };
+
+        urgentAppointments.push(urgentCase);
+        console.log(`✅ Added urgent case: ${patientInfo.name} - ${urgentCase.urgencyText}`);
+      } else {
+        console.log(`⏭️ Non-urgent case skipped: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
       }
     }
 
-    // Sort by urgency level
+    // Sort by urgency level (most urgent first)
     urgentAppointments.sort((a, b) => a.urgencyLevel - b.urgencyLevel);
 
-    console.log('🚨 Returning', urgentAppointments.length, 'urgent cases');
+    console.log(`🚨 FINAL RESULT: Returning ${urgentAppointments.length} urgent cases out of ${urgentQuery.size} total appointments`);
+    
+    if (urgentAppointments.length > 0) {
+      console.log('📋 Urgent cases details:');
+      urgentAppointments.forEach((case_, index) => {
+        console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
+      });
+    }
 
     return res.json({
       success: true,
       urgentCases: urgentAppointments,
       totalCount: urgentAppointments.length,
+      totalAppointmentsUpcoming: urgentQuery.size,
       date: new Date().toLocaleDateString("en-SG", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
         timeZone: "Asia/Singapore"
-      })
+      }),
+      debugInfo: {
+        dateRange: {
+          start: now.toISOString(),
+          end: farFuture.toISOString()
+        },
+        urgentCasesFound: urgentAppointments.length,
+        totalAppointmentsUpcoming: urgentQuery.size
+      }
     });
 
   } catch (error) {
@@ -912,7 +908,9 @@ app.post("/get-urgent-cases", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to fetch urgent cases",
-      message: error.message
+      message: error.message,
+      urgentCases: [],
+      totalCount: 0
     });
   }
 });
@@ -994,7 +992,6 @@ app.post("/get-recent-summaries", async (req, res) => {
         appointmentId: appointmentDoc.id,
         patientId: appointment.patientId,
         patientName: realPatientInfo.name,
-        patientPhone: realPatientInfo.phone,
         patientEmail: realPatientInfo.email,
         triageDate: triageDate.toLocaleDateString("en-SG", {
           weekday: "short",

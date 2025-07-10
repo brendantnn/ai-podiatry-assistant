@@ -1661,57 +1661,57 @@ detectScheduleQuery(message) {
   // ========================================
   // ENHANCED QUICK QUERY
   // ========================================
-  async sendQuickQuery(query, specificDate = null) {
-    console.log('🔍 Quick query triggered:', query, 'for date:', specificDate);
+async sendQuickQuery(query, specificDate = null) {
+  console.log('🔍 Quick query triggered:', query, 'for date:', specificDate);
+  
+  const chatbox = document.getElementById('aiChatbox');
+  if (!chatbox) {
+    console.error('❌ Floating chatbox not available for quick query');
+    return;
+  }
+  
+  // Add user message
+  const displayMessage = specificDate ? 
+    `Quick query: ${query} for ${specificDate}` : 
+    `Quick query: ${query}`;
+  this.addMessageToChat(displayMessage, 'user', chatbox);
+  
+  // INSTANT FEEDBACK - Show loading immediately
+  const loadingDiv = this.addLoadingIndicator(chatbox);
+  
+  try {
+    let prompt = '';
+    let needsDatabase = false;
+    let scheduleData = null;
     
-    const chatbox = document.getElementById('aiChatbox');
-    if (!chatbox) {
-      console.error('❌ Floating chatbox not available for quick query');
-      return;
-    }
-    
-    // Add user message
-    const displayMessage = specificDate ? 
-      `Quick query: ${query} for ${specificDate}` : 
-      `Quick query: ${query}`;
-    this.addMessageToChat(displayMessage, 'user', chatbox);
-    
-    // INSTANT FEEDBACK - Show loading immediately
-    const loadingDiv = this.addLoadingIndicator(chatbox);
-    
-    try {
-      let prompt = '';
-      let needsDatabase = false;
-      let scheduleData = null;
-      
-      // Handle different query types
-      switch(query) {
-        case 'today schedule':
-        case 'schedule':
-          needsDatabase = true;
+    // Handle different query types
+    switch(query) {
+      case 'today schedule':
+      case 'schedule':
+        needsDatabase = true;
+        
+        try {
+          const scheduleResponse = await fetch("/get-schedule-by-date", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              podiatristId: "current_podiatrist",
+              targetDate: specificDate || 'today'
+            })
+          });
           
-          try {
-            const scheduleResponse = await fetch("/get-schedule-by-date", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                podiatristId: "current_podiatrist",
-                targetDate: specificDate || 'today'
-              })
-            });
-            
-            const scheduleResult = await scheduleResponse.json();
-            
-            if (scheduleResult.success && (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0)) {
-              this.removeLoadingIndicator(loadingDiv);
-              const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
-              this.addMessageToChat(directMessage, 'bot', chatbox);
-              return;
-            }
-            
-            if (scheduleResult.success && scheduleResult.appointments && scheduleResult.appointments.length > 0) {
-              scheduleData = scheduleResult;
-              prompt = `Based on the appointment schedule for ${scheduleResult.date}, provide a comprehensive overview. Here's the data:
+          const scheduleResult = await scheduleResponse.json();
+          
+          if (scheduleResult.success && (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0)) {
+            this.removeLoadingIndicator(loadingDiv);
+            const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
+            this.addMessageToChat(directMessage, 'bot', chatbox);
+            return;
+          }
+          
+          if (scheduleResult.success && scheduleResult.appointments && scheduleResult.appointments.length > 0) {
+            scheduleData = scheduleResult;
+            prompt = `Based on the appointment schedule for ${scheduleResult.date}, provide a comprehensive overview. Here's the data:
 
 **${scheduleResult.date}**
 **Total Appointments: ${scheduleResult.totalCount}**
@@ -1733,67 +1733,63 @@ Please provide:
 4. Patient preparation reminders for high-priority cases
 
 Focus on clinical priorities and workflow optimization.`;
-            }
-          } catch (fetchError) {
-            prompt = 'Unable to fetch the schedule from the system. Please provide general guidance for managing daily clinical workflow.';
           }
-          break;
+        } catch (fetchError) {
+          prompt = 'Unable to fetch the schedule from the system. Please provide general guidance for managing daily clinical workflow.';
+        }
+        break;
+        
+      case 'urgent cases':
+        needsDatabase = true;
+        
+        try {
+          console.log('🚨 Fetching urgent cases from database...');
+          const urgentResponse = await fetch("/get-urgent-cases", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              podiatristId: "current_podiatrist"
+            })
+          });
           
-        case 'urgent cases':
-          needsDatabase = true;
+          const urgentResult = await urgentResponse.json();
+          console.log('🚨 Urgent cases response:', urgentResult);
           
-          try {
-            const urgentResponse = await fetch("/get-urgent-cases", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                podiatristId: "current_podiatrist"
-              })
-            });
+          if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
+            scheduleData = { appointments: urgentResult.urgentCases };
+            prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**\n\n${urgentResult.urgentCases.map((apt, index) => `
+${index + 1}. **Patient:** ${apt.patientName} (${apt.patientId})\n   - **Scheduled:** ${apt.scheduledTime}\n   - **Urgency:** ${apt.urgencyText}\n   - **Category:** ${apt.category}\n   - **Diagnosis:** ${apt.initialDiagnosis}\n   - **Summary:** ${apt.summary}\n   - **Contact:** ${apt.patientPhone}
+`).join('\n')}\n\n---\nThis is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
             
-            const urgentResult = await urgentResponse.json();
-            
-            if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
-              scheduleData = { appointments: urgentResult.urgentCases };
-              
-              prompt = `Here are today's urgent cases requiring immediate attention:
-
-**URGENT CASES (${urgentResult.urgentCases.length} total):**
-${urgentResult.urgentCases.map((apt, index) => `
-${index + 1}. **${apt.scheduledTime}** - ${apt.patientName}
-   - Priority: ${apt.urgencyText}
-   - Diagnosis: ${apt.initialDiagnosis}
-   - Summary: ${apt.summary}
-   - Contact: ${apt.patientPhone}
-`).join('')}
-
-Please provide clinical assessment and immediate care protocols.`;
-            } else {
-              prompt = 'No urgent cases are scheduled for today. Provide guidance on maintaining clinical readiness.';
-            }
-          } catch (fetchError) {
-            prompt = 'Unable to access urgent case data. Please provide general protocols for urgent podiatric conditions.';
+            console.log('✅ Generated prompt with real urgent cases data');
+          } else {
+            console.log('✅ No urgent cases found in database');
+            prompt = `No upcoming urgent cases (urgency level 1 or 2) are currently scheduled.`;
           }
-          break;
+        } catch (fetchError) {
+          console.error('❌ Error fetching urgent cases:', fetchError);
+          prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
+        }
+        break;
+        
+      case 'patient summaries':
+        needsDatabase = true;
+        
+        try {
+          const summariesResponse = await fetch("/get-recent-summaries", {
+            method: "POST", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              podiatristId: "current_podiatrist"
+            })
+          });
           
-        case 'patient summaries':
-          needsDatabase = true;
+          const summariesResult = await summariesResponse.json();
           
-          try {
-            const summariesResponse = await fetch("/get-recent-summaries", {
-              method: "POST", 
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                podiatristId: "current_podiatrist"
-              })
-            });
+          if (summariesResult.success && summariesResult.summaries && summariesResult.summaries.length > 0) {
+            scheduleData = { appointments: summariesResult.summaries };
             
-            const summariesResult = await summariesResponse.json();
-            
-            if (summariesResult.success && summariesResult.summaries && summariesResult.summaries.length > 0) {
-              scheduleData = { appointments: summariesResult.summaries };
-              
-              prompt = `Based on the actual patient data from our database, provide a well-structured summary of recent patient interactions:
+            prompt = `Based on the actual patient data from our database, provide a well-structured summary of recent patient interactions:
 
 **REAL PATIENT DATA FROM DATABASE:**
 ${summariesResult.summaries.map((summary, index) => `
@@ -1807,77 +1803,76 @@ ${index + 1}. Patient ID: ${summary.patientId} - Name: ${summary.patientName}
 `).join('')}
 
 Please provide a clinical analysis covering current case load summary, priority assessment, follow-up requirements, and clinical recommendations.`;
-            } else {
-              prompt = 'No recent patient summaries available in the database.';
-            }
-          } catch (fetchError) {
-            prompt = 'Unable to access patient summary data from the database.';
+          } else {
+            prompt = 'No recent patient summaries available in the database.';
           }
-          break;
-          
-        case 'clinical guidelines':
-          prompt = 'What are the latest clinical guidelines for podiatry care, particularly for wound management and diabetic foot care?';
-          break;
-          
-        case 'drug interactions':
-          prompt = 'What are important drug interactions for treating foot conditions, especially for diabetic and elderly patients?';
-          break;
-          
-        case 'treatment protocols':
-          prompt = 'Provide current treatment protocols for common podiatric conditions.';
-          break;
-          
-        case 'reschedule help':
-          prompt = 'What factors should I consider when rescheduling patient appointments? Provide guidance on managing appointment changes effectively.';
-          break;
-          
-        default:
-          prompt = query;
-          break;
-      }
-      
-      // Update loading message to show AI is thinking
-      this.updateLoadingMessage(loadingDiv, 'AI is analyzing your request...');
-      
-      // Send the prompt to the AI
-      const response = await fetch("/podiatrist-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          message: prompt,
-          podiatristId: this.sessionData?.userId || "current_podiatrist",
-          // ADD THESE LINES
-          podiatristName: this.sessionData ? 
-            `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
-            'Unknown Doctor',
-          queryType: query
-        })
-      });
-      
-      const data = await response.json();
-      
-      // Remove loading indicator
-      this.removeLoadingIndicator(loadingDiv);
-      
-      // Display the AI response
-      this.addMessageToChat(data.reply, 'bot', chatbox);
-      
-      // Add schedule cards if we have appointment data
-      if (scheduleData && scheduleData.appointments && scheduleData.appointments.length > 0) {
-        this.addScheduleCards(scheduleData.appointments, chatbox);
-      }
-      
-      // Add follow-up actions
-      if (needsDatabase) {
-        this.addFollowUpActions(query, chatbox);
-      }
-
-    } catch (error) {
-      console.error("Quick query error:", error);
-      this.removeLoadingIndicator(loadingDiv);
-      this.addMessageToChat("Error processing your request. Please try again.", 'bot', chatbox);
+        } catch (fetchError) {
+          prompt = 'Unable to access patient summary data from the database.';
+        }
+        break;
+        
+      case 'clinical guidelines':
+        prompt = 'What are the latest clinical guidelines for podiatry care, particularly for wound management and diabetic foot care?';
+        break;
+        
+      case 'drug interactions':
+        prompt = 'What are important drug interactions for treating foot conditions, especially for diabetic and elderly patients?';
+        break;
+        
+      case 'treatment protocols':
+        prompt = 'Provide current treatment protocols for common podiatric conditions.';
+        break;
+        
+      case 'reschedule help':
+        prompt = 'What factors should I consider when rescheduling patient appointments? Provide guidance on managing appointment changes effectively.';
+        break;
+        
+      default:
+        prompt = query;
+        break;
     }
+    
+    // Update loading message to show AI is thinking
+    this.updateLoadingMessage(loadingDiv, 'AI is analyzing your request...');
+    
+    // Send the prompt to the AI
+    const response = await fetch("/podiatrist-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        message: prompt,
+        podiatristId: this.sessionData?.userId || "current_podiatrist",
+        podiatristName: this.sessionData ? 
+          `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
+          'Unknown Doctor',
+        queryType: query
+      })
+    });
+    
+    const data = await response.json();
+    
+    // Remove loading indicator
+    this.removeLoadingIndicator(loadingDiv);
+    
+    // Display the AI response
+    this.addMessageToChat(data.reply, 'bot', chatbox);
+    
+    // Add schedule cards if we have appointment data
+    if (scheduleData && scheduleData.appointments && scheduleData.appointments.length > 0) {
+      this.addScheduleCards(scheduleData.appointments, chatbox);
+    }
+    
+    // Add follow-up actions
+    if (needsDatabase) {
+      this.addFollowUpActions(query, chatbox);
+    }
+
+  } catch (error) {
+    console.error("Quick query error:", error);
+    this.removeLoadingIndicator(loadingDiv);
+    this.addMessageToChat("Error processing your request. Please try again.", 'bot', chatbox);
   }
+}
 
   // LOADING INDICATOR FUNCTIONS
   addLoadingIndicator(chatbox) {
