@@ -734,6 +734,9 @@ Based on this patient's clinical profile, please provide medical guidance.
     // Enhanced system prompt with patient context
     const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
 
+    CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
+
+
   ${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n
 
   MANDATORY FORMAT for patient case analysis:
@@ -759,6 +762,7 @@ Based on this patient's clinical profile, please provide medical guidance.
   ` : ''}
 
   RESPONSE FORMATTING RULES:
+  - Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})
   - Use clear, professional medical language
   - Structure responses with headers and bullet points for readability
   - Bold important medical terms and conditions

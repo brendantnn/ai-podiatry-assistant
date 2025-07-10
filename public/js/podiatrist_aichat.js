@@ -8,6 +8,7 @@ class PodiatristAIChat {
     this.patientCache = new Map();
     this.selectedAppointment = null;
     this.currentAppointmentData = null;
+     this.sessionData = null;
     
     this.init = this.init.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
@@ -23,25 +24,54 @@ class PodiatristAIChat {
     this.selectAppointmentFromModal = this.selectAppointmentFromModal.bind(this);
   }
 
-  // Initialize AI chat system
-  init() {
-    console.log('🤖 Initializing Podiatrist AI Chat (Floating Only)...');
+  // Load session data for personalization
+loadSessionData() {
+  try {
+    this.sessionData = {
+      userId: sessionStorage.getItem('userId') || 'pod_1',
+      firstName: sessionStorage.getItem('firstName') || 'Doctor',
+      lastName: sessionStorage.getItem('lastName') || '',
+      role: sessionStorage.getItem('role') || 'podiatrist',
+      email: sessionStorage.getItem('email') || ''
+    };
     
-    if (this.isInitialized) {
-      console.log('⚠️ AI Chat already initialized');
-      return;
-    }
-
-    try {
-      this.setupEventListeners();
-      this.initializeWelcomeMessage();
-      
-      this.isInitialized = true;
-      console.log('✅ AI Chat initialization completed');
-    } catch (error) {
-      console.error('❌ AI Chat initialization failed:', error);
-    }
+    console.log('✅ AI Chat session data loaded:', this.sessionData);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to load session data:', error);
+    this.sessionData = {
+      userId: 'pod_1',
+      firstName: 'Doctor',
+      lastName: '',
+      role: 'podiatrist',
+      email: ''
+    };
+    return false;
   }
+}
+
+  // Initialize AI chat system
+init() {
+  console.log('🤖 Initializing Podiatrist AI Chat (Floating Only)...');
+  
+  if (this.isInitialized) {
+    console.log('⚠️ AI Chat already initialized');
+    return;
+  }
+
+  try {
+    // ADD THIS LINE - Load session data first
+    this.loadSessionData();
+    
+    this.setupEventListeners();
+    this.initializeWelcomeMessage();
+    
+    this.isInitialized = true;
+    console.log('✅ AI Chat initialization completed');
+  } catch (error) {
+    console.error('❌ AI Chat initialization failed:', error);
+  }
+}
 
   // Initialize welcome message ONLY in floating chatbox
   initializeWelcomeMessage() {
@@ -90,13 +120,18 @@ class PodiatristAIChat {
 
   // ADD COMPLETE WELCOME MESSAGE WITH APPOINTMENT EDITING
   addWelcomeMessage(chatbox) {
-    const welcomeDiv = document.createElement('div');
-    welcomeDiv.className = 'message-bot';
-    welcomeDiv.innerHTML = `
-      <strong>🤖 Clinical Assistant:</strong> 
-      <p>Hello Dr. [NAME]! I'm your AI support assistant. I can help you with:</p>
-      
-      <div style="margin: 16px 0; padding: 16px; background: #fefdf8; border-radius: 12px; border: 1px solid #e5e7eb;">
+  // Get doctor name from session
+  const doctorName = this.sessionData ? 
+    `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
+    '[NAME]';
+    
+  const welcomeDiv = document.createElement('div');
+  welcomeDiv.className = 'message-bot';
+  welcomeDiv.innerHTML = `
+    <strong>🤖 Clinical Assistant:</strong> 
+    <p>Hello Dr. ${doctorName}! I'm your AI support assistant. I can help you with:</p>
+    
+    <div style="margin: 16px 0; padding: 16px; background: #fefdf8; border-radius: 12px; border: 1px solid #e5e7eb;">
         <h4 style="color: #1d4ed8; margin: 0 0 12px 0; font-size: 1rem;">📋 Patient Management</h4>
         <div style="display: grid; gap: 8px; margin-bottom: 16px;">
           <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('today schedule')" style="text-align: left; padding: 8px 12px;">
@@ -1489,7 +1524,15 @@ Please provide a comprehensive overview including workload analysis, priority ca
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           message: processedMessage,
-          podiatristId: "current_podiatrist"
+          podiatristId: this.sessionData?.userId || "current_podiatrist",
+          // ADD THESE LINES - Include session context
+          podiatristName: this.sessionData ? 
+            `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
+            'Unknown Doctor',
+          sessionContext: {
+            role: this.sessionData?.role || 'podiatrist',
+            email: this.sessionData?.email || ''
+          }
         })
       });
 
@@ -1804,7 +1847,11 @@ Please provide a clinical analysis covering current case load summary, priority 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           message: prompt,
-          podiatristId: "current_podiatrist",
+          podiatristId: this.sessionData?.userId || "current_podiatrist",
+          // ADD THESE LINES
+          podiatristName: this.sessionData ? 
+            `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
+            'Unknown Doctor',
           queryType: query
         })
       });
