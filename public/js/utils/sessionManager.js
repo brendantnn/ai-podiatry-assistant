@@ -89,7 +89,6 @@ class SessionManager {
             role: sessionStorage.getItem('role'),
             userId: sessionStorage.getItem('userId'),
             firstName: sessionStorage.getItem('firstName'),
-            lastName: sessionStorage.getItem('lastName'),
             lastActivity: parseInt(sessionStorage.getItem('lastActivity')) || 0,
             sessionStart: parseInt(sessionStorage.getItem('sessionStart')) || 0,
             isActive: sessionStorage.getItem('isActive') === 'true'
