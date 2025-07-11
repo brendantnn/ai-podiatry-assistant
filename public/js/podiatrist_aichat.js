@@ -1741,7 +1741,6 @@ Focus on clinical priorities and workflow optimization.`;
         
       case 'urgent cases':
         needsDatabase = true;
-        
         try {
           console.log('🚨 Fetching urgent cases from database...');
           const urgentResponse = await fetch("/get-urgent-cases", {
@@ -1751,17 +1750,16 @@ Focus on clinical priorities and workflow optimization.`;
               podiatristId: "current_podiatrist"
             })
           });
-          
           const urgentResult = await urgentResponse.json();
           console.log('🚨 Urgent cases response:', urgentResult);
-          
           if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
             scheduleData = { appointments: urgentResult.urgentCases };
-            prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**\n\n${urgentResult.urgentCases.map((apt, index) => `
-${index + 1}. **Patient:** ${apt.patientName} (${apt.patientId})\n   - **Scheduled:** ${apt.scheduledTime}\n   - **Urgency:** ${apt.urgencyText}\n   - **Category:** ${apt.category}\n   - **Diagnosis:** ${apt.initialDiagnosis}\n   - **Summary:** ${apt.summary}\n   - **Contact:** ${apt.patientPhone}
-`).join('\n')}\n\n---\nThis is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
-            
-            console.log('✅ Generated prompt with real urgent cases data');
+            prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**\n\nFor each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.\n\n${urgentResult.urgentCases.map((apt, index) => {
+              let dateTime = apt.scheduledDate || apt.scheduledTime || 'N/A';
+              let caseSummary = (typeof apt.summary === 'string' && apt.summary.trim() !== '') ? apt.summary : 'N/A';
+              return `${index + 1}. **Patient:** ${apt.patientName || 'N/A'} (${apt.patientId || 'N/A'})\n   - **Scheduled:** ${dateTime}\n   - **Urgency:** ${apt.urgencyText || apt.urgencyLevel || 'N/A'}\n   - **Category:** ${apt.category || 'N/A'}\n   - **Diagnosis:** ${apt.initialDiagnosis || 'N/A'}\n   - **Case Summary:** ${caseSummary}`;
+            }).join('\n')}\n\n---\nThis is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
+            console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
           } else {
             console.log('✅ No urgent cases found in database');
             prompt = `No upcoming urgent cases (urgency level 1 or 2) are currently scheduled.`;
@@ -1799,7 +1797,7 @@ ${index + 1}. Patient ID: ${summary.patientId} - Name: ${summary.patientName}
    - Initial Diagnosis: ${summary.initialDiagnosis}
    - Clinical Summary: ${summary.summary}
    - Current Status: ${summary.status}
-   - Contact: ${summary.patientPhone}
+
 `).join('')}
 
 Please provide a clinical analysis covering current case load summary, priority assessment, follow-up requirements, and clinical recommendations.`;
