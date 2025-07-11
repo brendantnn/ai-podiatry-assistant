@@ -4,14 +4,20 @@ const patientId = sessionStorage.getItem("userId");
   const chatbox = document.getElementById("chatbox");
   
   try {
-    const res = await fetch("/chat-patient-details", {
+    const res = await fetch("/patient/chat-patient-details", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ patientId })
     });
+
+      console.log("✅ Raw response:", res);
+
   
     // Get patient name, appointment from database and assgin to variables
     const data = await res.json();
+      console.log("✅ JSON data received:", data);
+
+      
     const name = data.name; 
     const appointment = data.appointment;
 

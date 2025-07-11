@@ -2,19 +2,19 @@ const express = require("express");
 const cors = require("cors");
 const { OpenAI } = require("openai");
 const path = require("path");
-
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-// FIREBASE SETUP
-const admin = require("firebase-admin");
-const serviceAccount = require("./config/serviceAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-const db = admin.firestore();
+// Load patient route
+const patientRoutes = require("./patientRoutes");
+app.use("/patient", patientRoutes);
+
+
+
+
 
 // Declare openai api key here
 const openai = new OpenAI({
@@ -38,6 +38,7 @@ const session = {};
 
 // ************************************************* PATIENT LOGIC **************************************************************************
 
+<<<<<<< Updated upstream
 app.post("/chat", async (req, res) => {
   console.log("/chat route");
 
@@ -595,6 +596,8 @@ app.post('/chat-patient-details', async (req, res) => {
   }
 });
 
+=======
+>>>>>>> Stashed changes
 // ******************************** PODIATRIST LOGIC *****************************************
 
 // FIXED PODIATRIST CHAT ROUTE
