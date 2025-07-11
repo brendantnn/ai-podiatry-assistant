@@ -152,7 +152,7 @@ async function sendMessage() {
 
   try {
     // Send user text via HTTP POST request to /chat route, which is read in server.js
-    const response = await fetch("/chat", {
+    const response = await fetch("/patient/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: userText, patientId }) //user text sent in JSON so server can read
@@ -169,6 +169,8 @@ async function sendMessage() {
   } 
   // Catch any errors 
   catch (err) {
+      console.error("❌ Chat request failed:", err);
+
     chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b> <br>Error talking to server.</div>`;
   }
 }

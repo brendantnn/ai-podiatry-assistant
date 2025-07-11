@@ -15,9 +15,6 @@ const patientRoutes = require("./patientRoutes");
 app.use("/patient", patientRoutes);
 
 
-
-
-
 // Declare openai api key here
 const openai = new OpenAI({
   apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
@@ -38,7 +35,6 @@ function isValidCache(cacheEntry) {
 // key = fake session ID (for now, assume 1 user)
 const session = {};
 
-// ************************************************* PATIENT LOGIC **************************************************************************
 
 // ******************************** PODIATRIST LOGIC *****************************************
 

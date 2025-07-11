@@ -3,7 +3,12 @@ const cors = require("cors");
 const { OpenAI } = require("openai");
 const path = require("path");
 const router = express.Router();
-const { db } = require("./firebase");
+const { db, admin} = require("./firebase");
+
+// Declare openai api key here
+const openai = new OpenAI({
+  apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
+});
 
 
 
@@ -446,8 +451,6 @@ Do not show internal data to the patient.
         });
       }
     }
-
-
 
     // Fallback
     return res.json({
