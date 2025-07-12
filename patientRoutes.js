@@ -213,7 +213,7 @@ Do not show internal data to the patient.
       const summary = summaryMatch?.[1]?.trim() || "No summary available.";
 
       // Clean display message (remove tag and trim)
-      const cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
+      let cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
 
       // Extract internal info
       const categoryMatch = lastInternal.match(/Category:\s*(.*)/i);
@@ -240,8 +240,90 @@ Do not show internal data to the patient.
 
       // Set appointemnt urgency
       const now = new Date();
+<<<<<<< Updated upstream
       const minDate = new Date();
       const maxDate = new Date();
+=======
+      let minDate = new Date();
+      let maxDate = new Date();
+
+      let hasExistingAppt = !existingSnap.empty;
+      let existingAppt = null;
+
+      console.log(`📋 Checking existing appointments for user ${userId}`);
+      console.log(`📋 Found ${existingSnap.size} existing appointment(s)`);
+
+      // IF THERE ARE EXISTING APPOINTMENTS
+      if (hasExistingAppt) {
+        existingAppt = existingSnap.docs[0].data();
+        const existingUrgency = existingAppt?.urgencyLevel ?? 4;
+
+        // IF THERE ARE 2 OR MORE EXISTING APPOINTMENTS
+        if (existingSnap.size > 1) {
+          console.log("⚠️ Patient has multiple appointments. Adding warning to chatbot reply.");
+          cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+            `Please ensure this new issue is necessary to book.<br><br>` +
+            cleanedDisplay;
+        }
+
+        console.log(`📊 Existing urgency: ${existingUrgency}, New urgency: ${urgencyLevel}`);
+
+        // IF NEW ISSUE IS NOT MORE URENT, BOOK APPOINTMENT RIGHT AFTER EXISTING ONE
+        if (urgencyLevel >= existingUrgency) {
+          console.log("🔁 New issue is not more urgent. Attempting to book 30 minutes after existing appointment.");
+
+          const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
+          console.log(`🔎 Looking for slot at: ${nextHalfHour.toLocaleString("en-SG")}`);
+
+
+          // Query for available slot 30mins after existing slot
+          const followUpSnap = await db.collection("Availability")
+            .where("status", "==", "available")
+            .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
+            .where("podId", "==", existingAppt.podId)
+            .limit(1)
+            .get();
+
+          // If there is an available slot 30 mins after existing slot
+          if (!followUpSnap.empty) {
+            const slotDoc = followUpSnap.docs[0]; // retrieve the slot
+            const slotData = slotDoc.data(); // extract podId and date into slotData
+
+            // Convert firestone's timestamp into a readable string
+            const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: "Asia/Singapore"
+            });
+
+            // Store new slot into session
+            s.state = "awaiting_confirmation";
+            s.pendingSlot = slotDoc;
+            s.pendingSlotData = slotData;
+
+            return res.json({
+              reply: `${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`
+            });
+          }
+
+          // No follow-up slot → set minDate to after current appointment
+          const existingDate = existingAppt.scheduledDate.toDate();
+          minDate = new Date(existingDate);
+        } else {
+          // New issue is more urgent → allow earlier booking
+          console.log("✅ More urgent issue, allow earlier slots.");
+        }
+      }
+
+      // IF BOOK SLOT BASED ON NEW APPOINTMENT
+      console.log(`🕒 Setting min/max booking range based on urgency level ${urgencyLevel}`);
+
+>>>>>>> Stashed changes
 
       //Level 1: Book immediately, Level 2: Book starting tomorrow, Level 3: Book from 3 days later,Level 4: Book from 5 days later
 
@@ -325,7 +407,13 @@ Do not show internal data to the patient.
         const slotDoc = s.pendingSlot;
         const slotData = s.pendingSlotData;
 
-        await db.collection("Appointments").add({
+        // Count current scheduled appointments
+        const existingAppts = await db.collection("Appointments")
+          .where("patientId", "==", userId)
+          .where("status", "==", "scheduled")
+          .get();
+
+        const appointmentData = {
           patientId: userId,
           podId: slotData.podId,
           scheduledDate: slotData.availableDate,
@@ -335,7 +423,16 @@ Do not show internal data to the patient.
           initialDiagnosis: s.diagnosis,
           summary: s.summary,
           triageDateTime: admin.firestore.Timestamp.now()
-        });
+        };
+
+        // If user has 2 or more appointments, mark this as highlighted
+        if (existingAppts.size >= 2) {
+          appointmentData.highlighted = true;
+          console.log("🌟 Marking this appointment as highlighted because patient has 2 or more.");
+        }
+
+        await db.collection("Appointments").add(appointmentData);
+
 
 
         await slotDoc.ref.update({ status: "booked" });
