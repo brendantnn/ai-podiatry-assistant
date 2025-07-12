@@ -240,10 +240,6 @@ Do not show internal data to the patient.
 
       // Set appointemnt urgency
       const now = new Date();
-<<<<<<< Updated upstream
-      const minDate = new Date();
-      const maxDate = new Date();
-=======
       let minDate = new Date();
       let maxDate = new Date();
 
@@ -323,7 +319,6 @@ Do not show internal data to the patient.
       // IF BOOK SLOT BASED ON NEW APPOINTMENT
       console.log(`🕒 Setting min/max booking range based on urgency level ${urgencyLevel}`);
 
->>>>>>> Stashed changes
 
       //Level 1: Book immediately, Level 2: Book starting tomorrow, Level 3: Book from 3 days later,Level 4: Book from 5 days later
 
