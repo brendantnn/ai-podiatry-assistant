@@ -572,8 +572,22 @@ async submitAppointmentEditFixed(patientId, appointmentId, patientName) {
         try {
           console.log('🔄 Starting enhanced real-time updates after appointment edit...');
           
+          // CLEAR ALL SCHEDULE CACHES
           if (typeof scheduleCache !== 'undefined') {
             scheduleCache.clear();
+            console.log('✅ Cleared main schedule cache');
+          }
+          
+          if (typeof scheduleCache2 !== 'undefined') {
+            scheduleCache2.data = null;
+            scheduleCache2.timestamp = null;
+            console.log('✅ Cleared scheduleCache2');
+          }
+          
+          // CLEAR AI CHATBOT INTERNAL CACHE (if any)
+          if (window.podiatristAI && window.podiatristAI.scheduleCache) {
+            window.podiatristAI.scheduleCache.clear();
+            console.log('✅ Cleared AI chatbot schedule cache');
           }
           
           if (typeof window.refreshPatientQueue === 'function') {
@@ -611,27 +625,27 @@ async submitAppointmentEditFixed(patientId, appointmentId, patientName) {
               background: #6b7280;
               color: white;
               border: none;
-              padding: 10px 20px;
-              border-radius: 6px;
-              cursor: pointer;
-            ">Try Again</button>
-            <button onclick="podiatristAI.closeAppointmentModal()" style="
-              background: #3b82f6;
-              color: white;
-              border: none;
-              padding: 10px 20px;
-              border-radius: 6px;
-              cursor: pointer;
-            ">Close</button>
-          </div>
-        </div>
-      `;
-    }
-    
-  } catch (error) {
-    console.error("Edit appointment error:", error);
-    alert('Error updating appointment. Please try again.');
-  }
+             padding: 10px 20px;
+             border-radius: 6px;
+             cursor: pointer;
+           ">Try Again</button>
+           <button onclick="podiatristAI.closeAppointmentModal()" style="
+             background: #3b82f6;
+             color: white;
+             border: none;
+             padding: 10px 20px;
+             border-radius: 6px;
+             cursor: pointer;
+           ">Close</button>
+         </div>
+       </div>
+     `;
+   }
+   
+ } catch (error) {
+   console.error("Edit appointment error:", error);
+   alert('Error updating appointment. Please try again.');
+ }
 }
 
   // SHOW APPOINTMENT SELECTION MODAL
@@ -1385,9 +1399,9 @@ parseEditRequest(message) {
   }
 
   // ========================================
-  // ENHANCED sendMessage function with APPOINTMENT EDITING
-  // ========================================
-  async sendMessage(message) {
+// ENHANCED sendMessage function with APPOINTMENT EDITING
+// ========================================
+async sendMessage(message) {
   const chatbox = document.getElementById('aiChatbox');
   
   if (!chatbox) {
@@ -1440,43 +1454,57 @@ parseEditRequest(message) {
         return;
       }
     }
-      // CHECK FOR DATE-SPECIFIC SCHEDULE QUERIES
-      const scheduleQuery = this.detectScheduleQuery(processedMessage);
+
+    // CHECK FOR DATE-SPECIFIC SCHEDULE QUERIES
+    const scheduleQuery = this.detectScheduleQuery(processedMessage);
+    
+    if (scheduleQuery.isScheduleQuery) {
+      console.log('📅 Detected schedule query for date:', scheduleQuery.targetDate);
       
-      if (scheduleQuery.isScheduleQuery) {
-        console.log('📅 Detected schedule query for date:', scheduleQuery.targetDate);
+      // FORCE CLEAR ALL CACHES BEFORE FETCHING
+      console.log('🧹 FORCE: Clearing all caches before schedule fetch...');
+      
+      if (typeof scheduleCache !== 'undefined') {
+        scheduleCache.clear();
+      }
+      
+      if (typeof scheduleCache2 !== 'undefined') {
+        scheduleCache2.data = null;
+        scheduleCache2.timestamp = null;
+      }
+      
+      // Update loading message
+      this.updateLoadingMessage(thinkingDiv, 'Fetching fresh schedule data...');
+      
+      // Fetch schedule for specific date
+      const scheduleResponse = await fetch("/get-schedule-by-date", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          podiatristId: "current_podiatrist",
+          targetDate: scheduleQuery.targetDate,
+          cacheBuster: Date.now() // Force fresh data
+        })
+      });
+      
+      const scheduleResult = await scheduleResponse.json();
+      
+      // Remove loading indicator
+      this.removeLoadingIndicator(thinkingDiv);
+      
+      if (scheduleResult.success) {
+        // DIRECT HANDLING OF EMPTY SCHEDULE - NO AI PROCESSING
+        if (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0) {
+          console.log('📅 Empty schedule detected - sending direct response');
+          const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
+          this.addMessageToChat(directMessage, 'bot', chatbox);
+          return;
+        }
         
-        // Update loading message
-        this.updateLoadingMessage(thinkingDiv, 'Fetching schedule data...');
-        
-        // Fetch schedule for specific date
-        const scheduleResponse = await fetch("/get-schedule-by-date", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            podiatristId: "current_podiatrist",
-            targetDate: scheduleQuery.targetDate
-          })
-        });
-        
-        const scheduleResult = await scheduleResponse.json();
-        
-        // Remove loading indicator
-        this.removeLoadingIndicator(thinkingDiv);
-        
-        if (scheduleResult.success) {
-          // DIRECT HANDLING OF EMPTY SCHEDULE - NO AI PROCESSING
-          if (scheduleResult.isEmpty || !scheduleResult.appointments || scheduleResult.appointments.length === 0) {
-            console.log('📅 Empty schedule detected - sending direct response');
-            const directMessage = `📅 **${scheduleResult.date}**: No appointments scheduled for this date.`;
-            this.addMessageToChat(directMessage, 'bot', chatbox);
-            return;
-          }
-          
-          // If there ARE appointments, process normally with AI
-          if (scheduleResult.appointments && scheduleResult.appointments.length > 0) {
-            // Create AI prompt with schedule data
-            const schedulePrompt = `Here's the appointment schedule for ${scheduleResult.date}:
+        // If there ARE appointments, process normally with AI
+        if (scheduleResult.appointments && scheduleResult.appointments.length > 0) {
+          // Create AI prompt with schedule data
+          const schedulePrompt = `Here's the appointment schedule for ${scheduleResult.date}:
 
 **${scheduleResult.date}**
 **Total Appointments: ${scheduleResult.totalCount}**
@@ -1493,70 +1521,90 @@ ${index + 1}. **${apt.scheduledTime}** - ${apt.patientName} (${apt.patientId})
 
 Please provide a comprehensive overview including workload analysis, priority cases, and clinical recommendations.`;
 
-            // Get AI analysis
-            const aiResponse = await fetch("/podiatrist-chat", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                message: schedulePrompt,
-                podiatristId: "current_podiatrist"
-              })
-            });
+          // Get AI analysis
+          const aiResponse = await fetch("/podiatrist-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              message: schedulePrompt,
+              podiatristId: "current_podiatrist"
+            })
+          });
 
-            const aiData = await aiResponse.json();
-            this.addMessageToChat(aiData.reply, 'bot', chatbox);
-            
-            // Add schedule cards
-            this.addScheduleCards(scheduleResult.appointments, chatbox);
-          }
-        } else {
-          this.addMessageToChat("❌ Unable to fetch schedule for the requested date. Please try again.", 'bot', chatbox);
+          const aiData = await aiResponse.json();
+          this.addMessageToChat(aiData.reply, 'bot', chatbox);
+          
+          // Add schedule cards
+          this.addScheduleCards(scheduleResult.appointments, chatbox);
         }
-        
-        return;
+      } else {
+        this.addMessageToChat("❌ Unable to fetch schedule for the requested date. Please try again.", 'bot', chatbox);
       }
-
-      // REGULAR AI CHAT (no schedule query detected)
-      const response = await fetch("/podiatrist-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          message: processedMessage,
-          podiatristId: this.sessionData?.userId || "current_podiatrist",
-          // ADD THESE LINES - Include session context
-          podiatristName: this.sessionData ? 
-            `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
-            'Unknown Doctor',
-          sessionContext: {
-            role: this.sessionData?.role || 'podiatrist',
-            email: this.sessionData?.email || ''
-          }
-        })
-      });
-
-      const data = await response.json();
       
-      // Remove thinking indicator
-      this.removeLoadingIndicator(thinkingDiv);
-      
-      // Add AI response
-      this.addMessageToChat(data.reply, 'bot', chatbox);
-      
-      // If patient data found, show quick actions
-      if (data.patientData) {
-        this.addPatientQuickActions(data.patientData.name || 'Unknown', chatbox);
-      }
-
-    } catch (error) {
-      console.error("AI chat error:", error);
-      this.removeLoadingIndicator(thinkingDiv);
-      this.addMessageToChat("I'm currently unable to connect. Please try again.", 'bot', chatbox);
+      return;
     }
+
+    // REGULAR AI CHAT (no schedule query detected)
+    const response = await fetch("/podiatrist-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        message: processedMessage,
+        podiatristId: this.sessionData?.userId || "current_podiatrist",
+        // ADD THESE LINES - Include session context
+        podiatristName: this.sessionData ? 
+          `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
+          'Unknown Doctor',
+        sessionContext: {
+          role: this.sessionData?.role || 'podiatrist',
+          email: this.sessionData?.email || ''
+        }
+      })
+    });
+
+    const data = await response.json();
+    
+    // Remove thinking indicator
+    this.removeLoadingIndicator(thinkingDiv);
+    
+    // Add AI response
+    this.addMessageToChat(data.reply, 'bot', chatbox);
+    
+    // If patient data found, show quick actions
+    if (data.patientData) {
+      this.addPatientQuickActions(data.patientData.name || 'Unknown', chatbox);
+    }
+
+  } catch (error) {
+    console.error("AI chat error:", error);
+    this.removeLoadingIndicator(thinkingDiv);
+    this.addMessageToChat("I'm currently unable to connect. Please try again.", 'bot', chatbox);
   }
+}
 
 // FIXED detectScheduleQuery function
 detectScheduleQuery(message) {
   console.log('🔍 TIMEZONE-FIXED detectScheduleQuery called with:', message);
+  
+  // IMMEDIATE CACHE CLEARING FOR ANY SCHEDULE QUERY
+  console.log('🧹 Pre-emptively clearing ALL schedule caches...');
+  
+  if (typeof scheduleCache !== 'undefined') {
+    scheduleCache.clear();
+    console.log('✅ Cleared main scheduleCache');
+  }
+  
+  if (typeof scheduleCache2 !== 'undefined') {
+    scheduleCache2.data = null;
+    scheduleCache2.timestamp = null;
+    console.log('✅ Cleared scheduleCache2');
+  }
+  
+  // Clear any global window caches
+  if (window.scheduleCache) {
+    window.scheduleCache.clear();
+    console.log('✅ Cleared window.scheduleCache');
+  }
   
   const lowerMessage = message.toLowerCase();
   
@@ -1658,11 +1706,27 @@ detectScheduleQuery(message) {
   return { isScheduleQuery: true, targetDate: 'today' };
 }
 
-  // ========================================
-  // ENHANCED QUICK QUERY
-  // ========================================
+// ========================================
+// ENHANCED QUICK QUERY
+// ========================================
 async sendQuickQuery(query, specificDate = null) {
   console.log('🔍 Quick query triggered:', query, 'for date:', specificDate);
+  
+  // IMMEDIATE CACHE CLEARING FOR SCHEDULE QUERIES
+  if (query === 'today schedule' || query === 'schedule') {
+    console.log('🧹 Clearing all schedule caches for fresh data...');
+    
+    if (typeof scheduleCache !== 'undefined') {
+      scheduleCache.clear();
+    }
+    
+    if (typeof scheduleCache2 !== 'undefined') {
+      scheduleCache2.data = null;
+      scheduleCache2.timestamp = null;
+    }
+    
+    console.log('✅ Schedule caches cleared for fresh query');
+  }
   
   const chatbox = document.getElementById('aiChatbox');
   if (!chatbox) {
@@ -1696,7 +1760,8 @@ async sendQuickQuery(query, specificDate = null) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
               podiatristId: "current_podiatrist",
-              targetDate: specificDate || 'today'
+              targetDate: specificDate || 'today',
+              cacheBuster: Date.now() // Force fresh data
             })
           });
           

@@ -678,21 +678,23 @@ function getUrgencyText(urgencyLevel) {
   }
 }
 
-// OPTIMIZED SCHEDULE BY DATE ROUTE - FASTER DATABASE QUERIES
 app.post("/get-schedule-by-date", async (req, res) => {
-  const { podiatristId, targetDate } = req.body;
-
+  const { podiatristId, targetDate, cacheBuster } = req.body; // Add cacheBuster parameter
+  
   try {
-    // CACHE CHECK FIRST
+    // CACHE CHECK FIRST - Skip cache if cacheBuster is present
     const cacheKey = getCacheKey(targetDate, podiatristId);
     const cachedResult = scheduleCache.get(cacheKey);
 
-    if (isValidCache(cachedResult)) {
+    if (isValidCache(cachedResult) && !cacheBuster) { // Skip cache if cacheBuster exists
       console.log('⚡ CACHE HIT: Returning cached schedule');
       return res.json(cachedResult.data);
     }
 
     console.log('📅 CACHE MISS: Fetching fresh schedule for date:', targetDate);
+    if (cacheBuster) {
+      console.log('🧹 CACHE BUSTER: Forced fresh data request');
+    }
 
     // OPTIMIZATION 1: Create date range more efficiently
     let scheduleDate;
@@ -1061,7 +1063,8 @@ app.post('/calendar-update-appointment', async (req, res) => {
           hour12: true,
           timeZone: "Asia/Singapore"
         })
-      }
+      },
+       clearCache: true
     });
   } catch (error) {
     console.error("Error updating appointment:", error);
