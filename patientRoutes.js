@@ -555,14 +555,52 @@ router.post('/chat-patient-details', async (req, res) => {
 
 
     res.json({
-      name: `${userData.firstName} ${userData.lastName}`.trim(),
-      appointment,
-      allAppointments
-    });
+    name: `${userData.firstName} ${userData.lastName}`.trim(),
+    appointment,
+    allAppointments,
+    language: userData.language || "en" // Include language preference
+  });
 
   } catch (error) {
     console.error("❌ Error in /chat-patient-details:", error);
     res.status(500).json({ error: "Failed to fetch patient details" });
+  }
+});
+
+// Update patient language preference
+router.post('/update-language', async (req, res) => {
+  const { patientId, language } = req.body;
+  console.log("🇸🇬 Updating language preference for patient:", patientId, "to:", language);
+
+  // Validate Singapore languages
+  const validLanguages = ['en', 'zh', 'ms', 'ta'];
+  if (!validLanguages.includes(language)) {
+    console.log("❌ Invalid language code");
+    return res.json({ success: false, error: "Invalid language for Singapore" });
+  }
+
+  try {
+    // Find the user document by userId
+    const userSnapshot = await db.collection("Users")
+      .where("userId", "==", patientId)
+      .limit(1)
+      .get();
+
+    if (userSnapshot.empty) {
+      console.log("❌ No matching user found");
+      return res.json({ success: false, error: "User not found" });
+    }
+
+    // Update the language field
+    const userDoc = userSnapshot.docs[0];
+    await userDoc.ref.update({ language: language });
+
+    console.log("✅ Language preference updated successfully");
+    res.json({ success: true, language: language });
+
+  } catch (error) {
+    console.error("❌ Error updating language preference:", error);
+    res.status(500).json({ success: false, error: "Failed to update language preference" });
   }
 });
 
