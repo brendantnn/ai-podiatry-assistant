@@ -81,7 +81,16 @@
             </p>
           </div>
           <div class="flex items-center">
-<button class="medical-btn medical-btn-danger medical-btn-sm ml-sm" onclick="handleLogout()"> 🚪 Logout</button>
+            <div style="margin-right: 1rem;">
+              <label for="language-select" style="font-size: 0.875rem; color: #6b7280; margin-right: 0.5rem;">Language Preference:</label>
+              <select id="language-select" class="medical-select" style="min-width: 140px; padding: 0.5rem;">
+                <option value="en">English</option>
+                <option value="zh">中文 (Mandarin)</option>
+                <option value="ms">Bahasa Melayu</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+              </select>
+            </div>
+            <button class="medical-btn medical-btn-danger medical-btn-sm ml-sm" onclick="handleLogout()"> 🚪 Logout</button>
           </div>
         </div>
       </div>

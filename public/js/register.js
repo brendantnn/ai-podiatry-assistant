@@ -115,9 +115,10 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   const dob = document.getElementById("dob").value;
   const phoneRaw = document.getElementById("phone").value.trim();
   const gender = document.getElementById("gender").value;
+  const language = document.getElementById("language").value;
 
   // Check if all fields are filled
-  if (!role || !email || !password || !confirmPassword || !firstNameRaw || !lastNameRaw || !dob || !phoneRaw || !gender) {
+  if (!role || !email || !password || !confirmPassword || !firstNameRaw || !lastNameRaw || !dob || !phoneRaw || !gender || !language) {
     alert("❌ Please fill in all fields.");
     return;
   }
@@ -243,6 +244,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       dob,
       phone,
       gender,
+      language,
       authId: uid,
       userId
     });
