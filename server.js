@@ -46,14 +46,14 @@ app.post("/podiatrist-chat", async (req, res) => {
   try {
     console.log('🤖 Podiatrist chat message:', userMessage);
 
-    // REPLACE the entire patient ID detection section in server.js /podiatrist-chat route
-    // Find this section around line 400 and replace it completely
-
     // FIXED patient ID detection patterns
     const patientIdPatterns = [
       /\b(patient_\d+)\b/gi,                    // ONLY "patient_1", "patient_2", etc.
       /\bpatient\s+(\d+)\b/gi,                  // ONLY "patient 1", "patient 2", etc.
       /tell me about (patient_\d+)/gi,          // "tell me about patient_1"
+      /information.*?(patient_\d+)/gi,          // "give me information patient_1"
+      /name.*?(patient_\d+)/gi,                 // "name patient_1"
+      /(patient_\d+).*?(information|name|details)/gi, // "patient_1 information"
       /\b(p\d+)\b/gi,                           // "p1", "p2", etc.
       /\b(pt\d+)\b/gi                           // "pt1", "pt2", etc.
     ];
@@ -73,8 +73,8 @@ app.post("/podiatrist-chat", async (req, res) => {
         const match = matches[0]; // Get first match
         console.log(`🎯 Pattern ${i + 1} matched:`, match);
 
-        if (i === 0 || i === 2) {
-          // For "patient_1" or "tell me about patient_1" patterns
+        if (i === 0 || i === 2 || i === 3 || i === 4 || i === 5) {
+          // For "patient_1" or direct capture patterns
           patientId = match[1];
         } else if (i === 1) {
           // For "patient 1" pattern - construct "patient_1"
@@ -157,12 +157,15 @@ app.post("/podiatrist-chat", async (req, res) => {
           // Create FILTERED context for AI (remove sensitive data)
           patientContext = `
 PATIENT CLINICAL INFORMATION FOR ${patientId.toUpperCase()}:
+- Patient ID: ${patientId}
 - Name: ${patientData.name}
 - Gender: ${patientData.gender}
 - Risk Level: ${patientData.riskLevel}
 - Medical Alerts: ${patientData.medicalAlerts.join(', ') || 'None recorded'}
 
-Based on this patient's clinical profile, please provide medical guidance.
+USER QUERY: "${userMessage}"
+
+Based on this patient's clinical profile, please provide the requested information.
 `;
 
           console.log(`✅ Generated context for patient: ${patientId}`);
@@ -183,9 +186,52 @@ Based on this patient's clinical profile, please provide medical guidance.
     if (isUrgentCasesQuery) {
       // Minimal system prompt for urgent cases summary
       systemPrompt = 'You are an AI assistant. The user will provide a list of urgent cases. Do not add a workload overview, clinical recommendations, or workflow analysis. Simply summarize or echo the list as a clear, readable summary. Do not add extra sections.';
+    } else if (patientContext) {
+      // Patient-specific system prompt
+      systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+
+CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
+
+${patientContext}
+
+INSTRUCTIONS:
+- Provide specific information about this patient based on the user's query
+- If asked for "information" generally, provide: Patient ID, Name, Gender, Risk Level, and Medical Alerts
+- If asked for specific details (name, gender, etc.), provide just that information clearly
+- If asked for "name", respond with: "Patient ${patientId}: [Full Name]"
+- Keep responses concise and clinical
+- Always mention the patient ID for clarity
+
+RESPONSE FORMATTING:
+- Use clear, professional medical language
+- Structure responses with bullet points for readability when appropriate
+- Bold important information using **text**
+- Always confirm which patient you're discussing
+- For single-word queries like "name", give a direct answer`;
     } else {
-      // Default system prompt for all other queries
-      systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.\n\n    CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})\n\n  ${patientContext ? `PATIENT-SPECIFIC QUERY:\n${patientContext}\n\n  MANDATORY FORMAT for patient case analysis:\n  **Workload Overview for [DATE]**\n  - **Total Appointments:** 1\n  - **[Category] Cases:** 1\n\n  **Priority Cases**\n  - **Patient_ID (Name)** \n    - **Category:** [category with emoji]\n    - **Priority:** [urgency text] \n    - **Initial Diagnosis:** [diagnosis]\n    - **Summary:** [clinical summary]\n\n  **Clinical Recommendations**\n  - **Assessment:** [points]\n  - **Treatment:** [points] \n  - **Education:** [points]\n\n  **Workflow Recommendation**\n  - [workflow priorities]\n\n  ` : ''}\n\n  RESPONSE FORMATTING RULES:\n  - Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})\n  - Use clear, professional medical language\n  - Structure responses with headers and bullet points for readability\n  - Bold important medical terms and conditions\n  - Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)\n  - Keep responses concise but comprehensive\n  - Always provide evidence-based recommendations\n\n  You help with:\n  1. **Patient-Specific Queries** - Detailed case analysis based on patient history\n  2. **Clinical Decision Support** - Evidence-based treatment recommendations\n  3. **Medical Knowledge** - Information about podiatry conditions and protocols  \n  4. **Case Management** - Guidance on patient prioritization and workflow\n  5. **Treatment Protocols** - Step-by-step treatment approaches\n  6. **Drug Information** - Interactions, dosages, and contraindications\n\n  Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
+      // Default system prompt for general queries
+      systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+
+CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
+
+You help with:
+1. **Patient-Specific Queries** - Detailed case analysis based on patient history
+2. **Clinical Decision Support** - Evidence-based treatment recommendations
+3. **Medical Knowledge** - Information about podiatry conditions and protocols  
+4. **Case Management** - Guidance on patient prioritization and workflow
+5. **Treatment Protocols** - Step-by-step treatment approaches
+6. **Drug Information** - Interactions, dosages, and contraindications
+
+RESPONSE FORMATTING RULES:
+- Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})
+- Use clear, professional medical language
+- Structure responses with headers and bullet points for readability
+- Bold important medical terms and conditions
+- Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
+- Keep responses concise but comprehensive
+- Always provide evidence-based recommendations
+
+Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
     }
 
     const chatCompletion = await openai.chat.completions.create({

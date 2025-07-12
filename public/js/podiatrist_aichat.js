@@ -1642,7 +1642,33 @@ detectScheduleQuery(message) {
     return dateString;
   }
   
-  // 1. "1st July 2025", "2nd August 2025" with YEAR - HIGHEST PRIORITY
+  // 1. "today", "tomorrow", "yesterday" - HIGHEST PRIORITY
+  if (lowerMessage.includes('today')) {
+    targetDate = 'today';
+    console.log('✅ Detected "today"');
+    return { isScheduleQuery: true, targetDate };
+  } else if (lowerMessage.includes('tomorrow') || lowerMessage.includes('tmr')) {
+    // FIXED: Use Singapore timezone
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = tomorrow.getMonth();
+    const day = tomorrow.getDate();
+    targetDate = createTimezoneSafeDate(year, month, day);
+    console.log('✅ Detected "tomorrow", calculated date:', targetDate);
+    return { isScheduleQuery: true, targetDate };
+  } else if (lowerMessage.includes('yesterday')) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const year = yesterday.getFullYear();
+    const month = yesterday.getMonth();
+    const day = yesterday.getDate();
+    targetDate = createTimezoneSafeDate(year, month, day);
+    console.log('✅ Detected "yesterday", calculated date:', targetDate);
+    return { isScheduleQuery: true, targetDate };
+  }
+  
+  // 2. "1st July 2025", "2nd August 2025" with YEAR
   const dayMonthYearPattern = /(\d{1,2})(st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i;
   const dayMonthYearMatch = message.match(dayMonthYearPattern);
   
@@ -1657,11 +1683,12 @@ detectScheduleQuery(message) {
     
     if (monthIndex !== -1) {
       targetDate = createTimezoneSafeDate(year, monthIndex, day);
+      console.log('✅ Detected specific date with year:', targetDate);
       return { isScheduleQuery: true, targetDate };
     }
   }
   
-  // 2. "July 1st 2025", "August 2nd 2025" with YEAR
+  // 3. "July 1st 2025", "August 2nd 2025" with YEAR
   const monthDayYearPattern = /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(st|nd|rd|th)?\s+(\d{4})/i;
   const monthDayYearMatch = message.match(monthDayYearPattern);
   
@@ -1676,33 +1703,13 @@ detectScheduleQuery(message) {
     
     if (monthIndex !== -1) {
       targetDate = createTimezoneSafeDate(year, monthIndex, day);
+      console.log('✅ Detected specific date with year (month first):', targetDate);
       return { isScheduleQuery: true, targetDate };
     }
   }
   
-  // 3. "today", "tomorrow", "yesterday"
-  if (lowerMessage.includes('today')) {
-    targetDate = 'today';
-    return { isScheduleQuery: true, targetDate };
-  } else if (lowerMessage.includes('tomorrow')) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const year = tomorrow.getFullYear();
-    const month = tomorrow.getMonth();
-    const day = tomorrow.getDate();
-    targetDate = createTimezoneSafeDate(year, month, day);
-    return { isScheduleQuery: true, targetDate };
-  } else if (lowerMessage.includes('yesterday')) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const year = yesterday.getFullYear();
-    const month = yesterday.getMonth();
-    const day = yesterday.getDate();
-    targetDate = createTimezoneSafeDate(year, month, day);
-    return { isScheduleQuery: true, targetDate };
-  }
-  
-  // Fallback
+  // Fallback for general schedule queries
+  console.log('✅ General schedule query, using today as default');
   return { isScheduleQuery: true, targetDate: 'today' };
 }
 
