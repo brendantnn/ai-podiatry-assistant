@@ -4,6 +4,7 @@ const { OpenAI } = require("openai");
 const path = require("path");
 const router = express.Router();
 const { db, admin} = require("./firebase");
+const translate = require('translate-google');
 
 // Declare openai api key here
 const openai = new OpenAI({
@@ -695,5 +696,274 @@ router.post('/update-language', async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to update language preference" });
   }
 });
+
+// // Translation endpoint with correct Google Translate language codes
+//working2
+// router.post('/translate', async (req, res) => {
+//   const { text, targetLanguage } = req.body;
+  
+//   try {
+//     // Skip translation if target is English or text is empty
+//     if (targetLanguage === 'en' || !text || text.trim() === '') {
+//       return res.json({ translatedText: text });
+//     }
+    
+//     // Map our language codes to Google Translate language codes
+//     const languageMap = {
+//       'en': 'en',     // English
+//       'zh': 'zh-cn',  // Chinese Simplified (Google Translate uses zh-cn)
+//       'ms': 'ms',     // Malay
+//       'ta': 'ta'      // Tamil
+//     };
+    
+//     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
+    
+//     console.log(`🌐 Translating to: ${targetLanguage} (Google code: ${googleLangCode})`);
+    
+//     // Translate the text
+//     const translatedText = await translate(text, { to: googleLangCode });
+    
+//     console.log(`✅ Translation successful: "${text}" -> "${translatedText}"`);
+//     res.json({ translatedText });
+    
+//   } catch (error) {
+//     console.error('Translation error:', error);
+//     // Return original text if translation fails
+//     res.json({ translatedText: text });
+//   }
+// });
+
+// // Optimized batch translation endpoint
+// router.post('/translate-batch', async (req, res) => {
+//   const { texts, targetLanguage } = req.body;
+  
+//   try {
+//     // Skip translation if target is English
+//     if (targetLanguage === 'en') {
+//       return res.json({ translations: texts });
+//     }
+    
+//     // Map language codes
+//     const languageMap = {
+//       'en': 'en',
+//       'zh': 'zh-cn',
+//       'ms': 'ms',
+//       'ta': 'ta'
+//     };
+    
+//     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
+    
+//     console.log(`🌐 Batch translating ${texts.length} texts to: ${targetLanguage}`);
+    
+//     // Join all texts with a separator for batch translation
+//     const separator = ' ||| ';
+//     const combinedText = texts.join(separator);
+    
+//     // Single API call for all texts
+//     const translatedCombined = await translate(combinedText, { to: googleLangCode });
+    
+//     // Split the result back
+//     const translations = translatedCombined.split(separator);
+    
+//     // Ensure we have the same number of translations as inputs
+//     if (translations.length !== texts.length) {
+//       console.warn('Translation count mismatch, falling back to originals');
+//       return res.json({ translations: texts });
+//     }
+    
+//     console.log(`✅ Batch translation successful`);
+//     res.json({ translations });
+    
+//   } catch (error) {
+//     console.error('Batch translation error:', error);
+//     // Return original texts if translation fails
+//     res.json({ translations: texts });
+//   }
+// });
+
+// Optimized batch translation endpoint
+// router.post('/translate-batch', async (req, res) => {
+//   const { texts, targetLanguage } = req.body;
+  
+//   try {
+//     // Skip translation if target is English
+//     if (targetLanguage === 'en') {
+//       return res.json({ translations: texts });
+//     }
+    
+//     // Map language codes
+//     const languageMap = {
+//       'en': 'en',
+//       'zh': 'zh-cn',
+//       'ms': 'ms',
+//       'ta': 'ta'
+//     };
+    
+//     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
+    
+//     console.log(`🌐 Batch translating ${texts.length} texts to: ${targetLanguage}`);
+    
+//     // Join all texts with a separator for batch translation
+//     const separator = ' ||| ';
+//     const combinedText = texts.join(separator);
+    
+//     // Single API call for all texts
+//     const translatedCombined = await translate(combinedText, { to: googleLangCode });
+    
+//     // Split the result back
+//     const translations = translatedCombined.split(separator);
+    
+//     // Ensure we have the same number of translations as inputs
+//     if (translations.length !== texts.length) {
+//       console.warn('Translation count mismatch, falling back to originals');
+//       return res.json({ translations: texts });
+//     }
+    
+//     console.log(`✅ Batch translation successful`);
+//     res.json({ translations });
+    
+//   } catch (error) {
+//     console.error('Batch translation error:', error);
+//     // Return original texts if translation fails
+//     res.json({ translations: texts });
+//   }
+// });
+
+// // Keep the single translation route for backwards compatibility
+// router.post('/translate', async (req, res) => {
+//   const { text, targetLanguage } = req.body;
+  
+//   try {
+//     if (targetLanguage === 'en' || !text || text.trim() === '') {
+//       return res.json({ translatedText: text });
+//     }
+    
+//     const languageMap = {
+//       'en': 'en',
+//       'zh': 'zh-cn',
+//       'ms': 'ms',
+//       'ta': 'ta'
+//     };
+    
+//     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
+//     const translatedText = await translate(text, { to: googleLangCode });
+    
+//     res.json({ translatedText });
+    
+//   } catch (error) {
+//     console.error('Translation error:', error);
+//     res.json({ translatedText: text });
+//   }
+// });
+
+// Smooth batch translation endpoint
+router.post('/translate-batch', async (req, res) => {
+  const { texts, targetLanguage } = req.body;
+  
+  try {
+    // Skip translation if target is English
+    if (targetLanguage === 'en') {
+      return res.json({ translations: texts });
+    }
+    
+    // Map language codes
+    const languageMap = {
+      'en': 'en',
+      'zh': 'zh-cn',
+      'ms': 'ms',
+      'ta': 'ta'
+    };
+    
+    const googleLangCode = languageMap[targetLanguage] || targetLanguage;
+    
+    console.log(`🌐 Batch translating ${texts.length} texts to: ${targetLanguage}`);
+    
+    // Filter out empty texts and store mapping
+    const textMapping = [];
+    const nonEmptyTexts = [];
+    
+    texts.forEach((text, index) => {
+      if (text && text.trim()) {
+        textMapping.push({ originalIndex: index, textIndex: nonEmptyTexts.length });
+        nonEmptyTexts.push(text.trim());
+      } else {
+        textMapping.push({ originalIndex: index, textIndex: -1, isEmpty: true });
+      }
+    });
+    
+    if (nonEmptyTexts.length === 0) {
+      return res.json({ translations: texts });
+    }
+    
+    // Always use individual translations for maximum reliability
+    // This avoids all separator/marker extraction issues
+    console.log('📝 Using individual translations for maximum reliability');
+    
+    const translatedTexts = await Promise.all(
+      nonEmptyTexts.map(async (text, index) => {
+        try {
+          // Add small delay between requests to avoid rate limiting
+          if (index > 0) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+          
+          const result = await translate(text, { to: googleLangCode });
+          console.log(`✓ Translated ${index + 1}/${nonEmptyTexts.length}: "${text}" -> "${result}"`);
+          return result;
+        } catch (err) {
+          console.error(`✗ Translation failed for "${text}":`, err);
+          return text; // Return original if translation fails
+        }
+      })
+    );
+    
+    // Reconstruct the full translations array
+    const fullTranslations = new Array(texts.length);
+    
+    textMapping.forEach(({ originalIndex, textIndex, isEmpty }) => {
+      if (isEmpty) {
+        fullTranslations[originalIndex] = texts[originalIndex]; // Keep empty as is
+      } else {
+        fullTranslations[originalIndex] = translatedTexts[textIndex] || texts[originalIndex];
+      }
+    });
+    
+    console.log(`✅ All individual translations completed successfully`);
+    res.json({ translations: fullTranslations });
+    
+  } catch (error) {
+    console.error('Translation error:', error);
+    // Return original texts if everything fails
+    res.json({ translations: texts });
+  }
+});
+
+// Keep the single translation route
+router.post('/translate', async (req, res) => {
+  const { text, targetLanguage } = req.body;
+  
+  try {
+    if (targetLanguage === 'en' || !text || text.trim() === '') {
+      return res.json({ translatedText: text });
+    }
+    
+    const languageMap = {
+      'en': 'en',
+      'zh': 'zh-cn',
+      'ms': 'ms',
+      'ta': 'ta'
+    };
+    
+    const googleLangCode = languageMap[targetLanguage] || targetLanguage;
+    const translatedText = await translate(text, { to: googleLangCode });
+    
+    res.json({ translatedText });
+    
+  } catch (error) {
+    console.error('Translation error:', error);
+    res.json({ translatedText: text });
+  }
+});
+
 
 module.exports = router;
