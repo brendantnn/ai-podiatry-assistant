@@ -3,7 +3,7 @@ const cors = require("cors");
 const { OpenAI } = require("openai");
 const path = require("path");
 const router = express.Router();
-const { db, admin} = require("./firebase");
+const { db, admin } = require("./firebase");
 const translate = require('translate-google');
 
 // Declare openai api key here
@@ -11,20 +11,42 @@ const openai = new OpenAI({
   apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
 });
 
-
-
 // key = fake session ID (for now, assume 1 user)
 const session = {};
+
+// Translate helper function
+async function translateReply(text, lang) {
+  if (!text || lang === 'en') return text;
+
+  // Normalize language code
+  const normalizedLang = lang === 'zh' ? 'zh-CN' : lang;
+
+  try {
+    const translated = await translate(text, { to: normalizedLang });
+    return translated;
+  } catch (err) {
+    console.error("❌ Translation error:", err);
+    return text;
+  }
+}
+
+
+
+
 
 // ************************************************* PATIENT LOGIC **************************************************************************
 
 router.post("/chat", async (req, res) => {
   console.log("/chat route");
 
-  // Store user message and user id
-  const userMessage = req.body.message;
-  const userId = req.body.patientId;
-  const messageText = userMessage.toLowerCase();
+  const { message, patientId, language } = req.body;
+
+  const userId = patientId;
+  const messageText = message.toLowerCase(); // same result as before
+  const userLanguage = language || 'en'; // fallback to 'en' if not provided
+  console.log("🌐 Language for translation:", userLanguage);
+
+
 
 
   // *************** STEP 1: CLASSIFY USER'S INTENT *******************
@@ -65,16 +87,16 @@ Just return one word: "appointment", "triage", or "other".`
   // Store session to s for easy access
   const s = session[userId];
 
-  console.log("🆕 Incoming message:", userMessage);
+  console.log("🆕 Incoming message:", message);
   console.log("📦 Session state at start:", s);
 
   try {
-     // *************** STEP 2: TRIAGE INTENT *******************
+    // *************** STEP 2: TRIAGE INTENT *******************
 
     // IF USER WANTS TRIAGE AND NO MESSAGE SENT YET, set state to triage and triageStage to initial_query
     if (intent === "triage" && s.state === "idle") {
       console.log("🧠 Detected intent=triage and state=idle, user want to triage and has sent no msgs yet");
-      s.state = "triage"; 
+      s.state = "triage";
       s.triageStage = "initial_query";
       s.messages = []; // clear convo history
 
@@ -84,7 +106,7 @@ Just return one word: "appointment", "triage", or "other".`
     // IF IN TRIAGE STATE AND IN INITIAL QUERY STAGE
     if (s.state === "triage" && s.triageStage === "initial_query") {
       console.log("Detected state=triage and triageStage=initial query, clarifying stage now");
-      s.messages.push({ role: "user", content: userMessage });
+      s.messages.push({ role: "user", content: message });
       console.log("📝 Current messages:", s.messages);
 
       // Use openai to ask follow up questions, store reply into clarification
@@ -122,23 +144,24 @@ If the patient already answered clearly, you can still confirm:
 
 Respond with 1–3 concise, specific follow-up questions.`
           },
-          { role: "user", content: userMessage }
+          { role: "user", content: message }
         ]
       });
 
       const followUp = clarification.choices[0].message.content;
 
       // Set triageStage to clarification
-      s.triageStage = "clarification"; 
+      s.triageStage = "clarification";
 
-      return res.json({ reply: followUp }); // returns follow up question
+      // Return translated follow up question
+      return res.json({ reply: await translateReply(followUp, userLanguage) });
     }
 
     // IF IN TRIAGE STATE AND CLARIFICATION TRIAGE STAGE
     if (s.state === "triage" && s.triageStage === "clarification") {
       console.log("🔍 Handling clarification response...");
 
-      s.messages.push({ role: "user", content: userMessage }); // update user message to session message history
+      s.messages.push({ role: "user", content: message }); // update user message to session message history
       console.log("📝 Updated userMessage history:", s.messages);
 
       // Combines all user messages into single string so openAI knows full context
@@ -245,12 +268,12 @@ Do not show internal data to the patient.
       let maxDate = new Date();
 
       const existingSnap = await db.collection("Appointments")
-  .where("patientId", "==", userId)
-  .where("status", "==", "scheduled")
-  .orderBy("scheduledDate")
-  .get();
+        .where("patientId", "==", userId)
+        .where("status", "==", "scheduled")
+        .orderBy("scheduledDate")
+        .get();
 
-  
+
       let hasExistingAppt = !existingSnap.empty;
       let existingAppt = null;
 
@@ -313,7 +336,7 @@ Do not show internal data to the patient.
             s.pendingSlotData = slotData;
 
             return res.json({
-              reply: `${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`
+              reply: await translateReply(`${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`, userLanguage)
             });
           }
 
@@ -367,9 +390,8 @@ Do not show internal data to the patient.
         if (slotQuery.empty) {
           s.state = "idle";
           s.triageStage = null;
-          return res.json({
-            reply: `${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`
-          });
+          return res.json({ reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage) });
+
         }
 
         const slotDoc = slotQuery.docs[0];
@@ -394,7 +416,8 @@ Do not show internal data to the patient.
         s.cleanedDisplay = cleanedDisplay;
         const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
 
-        return res.json({ reply: responseMessage });
+        return res.json({ reply: await translateReply(responseMessage, userLanguage) });
+
 
       } catch (err) {
         console.error("❌ Error finding available slot:", err);
@@ -406,7 +429,7 @@ Do not show internal data to the patient.
 
     // Step 3: User confirms appointment
     if (s.state === "awaiting_confirmation") {
-      const answer = userMessage.toLowerCase();
+      const answer = message.toLowerCase();
 
       if (answer.includes("yes")) {
         const slotDoc = s.pendingSlot;
@@ -459,18 +482,19 @@ Do not show internal data to the patient.
         s.pendingSlotData = null;
 
         return res.json({
-          reply: `✅ Appointment confirmed for <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.`
+          reply: await translateReply(`✅ Appointment confirmed for <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.`, userLanguage)
         });
+
       }
 
       if (answer.includes("no")) {
         s.state = "idle";
         s.pendingSlot = null;
         s.pendingSlotData = null;
-        return res.json({ reply: "❌ No worries. Let me know if you'd like me to check another slot or start over." });
+        return res.json({ reply: await translateReply("❌ No worries. Let me know if you'd like me to check another slot or start over.", userLanguage) });
       }
 
-      return res.json({ reply: "❓ Please reply with 'yes' or 'no' to confirm your appointment." });
+      return res.json({ reply: await translateReply("❓ Please reply with 'yes' or 'no' to confirm your appointment.", userLanguage) });
     }
 
     // ****** Appointment query patient *******
@@ -490,8 +514,9 @@ Do not show internal data to the patient.
 
         if (apptSnapshot.empty) {
           return res.json({
-            reply: "📅 You don't have any upcoming appointments at the moment."
+            reply: await translateReply("📅 You don't have any upcoming appointments at the moment.", userLanguage)
           });
+
         }
 
         const allAppts = apptSnapshot.docs.map(doc => doc.data());
@@ -508,7 +533,7 @@ Do not show internal data to the patient.
         if (allAppts.length === 1) {
           const appt = allAppts[0];
           const podiatristName = await getPodiatristName(appt.podId);
-          const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
+          const formattedDate = appt.scheduledDate.toDate().toLocaleString(userLanguage, {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -519,13 +544,15 @@ Do not show internal data to the patient.
             timeZone: "Asia/Singapore"
           });
 
-          return res.json({
-            reply: `📅 You have an appointment on <b>${formattedDate}</b> with <b>Dr. ${podiatristName}</b>.`
-          });
+          const template = await translateReply("📅 You have an appointment on <b>{date}</b> - <b>{name}</b>.", userLanguage);
+          const reply = template.replace("{date}", formattedDate).replace("{name}", podiatristName);
+
+          return res.json({ reply });
+
         } else {
           const replies = await Promise.all(allAppts.map(async appt => {
             const podiatristName = await getPodiatristName(appt.podId);
-            const formattedDate = appt.scheduledDate.toDate().toLocaleString("en-SG", {
+            const formattedDate = appt.scheduledDate.toDate().toLocaleString(userLanguage, {
               weekday: "long",
               year: "numeric",
               month: "long",
@@ -535,14 +562,18 @@ Do not show internal data to the patient.
               hour12: true,
               timeZone: "Asia/Singapore"
             });
-            return `📅 ${formattedDate} with Dr. ${podiatristName}`;
+            return `📅 ${formattedDate} - ${podiatristName}`;
           }));
 
-          return res.json({
-            reply: "📋 Here are your upcoming appointments:<br><br>" +
-              replies.join("<br>") +
-              "<br><br>Let me know if you have a foot symptom and want to make another appointment!"
-          });
+          const template = await translateReply(
+            "📋 Here are your upcoming appointments:<br><br>{list}<br><br>Let me know if you have a foot symptom and want to make another appointment!",
+            userLanguage
+          );
+          const reply = template.replace("{list}", replies.join("<br>"));
+
+          return res.json({ reply });
+
+
         }
 
 
@@ -556,12 +587,16 @@ Do not show internal data to the patient.
 
     // Fallback
     return res.json({
-      reply: "I'm not sure what you mean. You can type 'triage' or 'appointment'."
+      reply: await translateReply("I'm not sure what you mean. You can type 'triage' or 'appointment'.", userLanguage)
     });
+
 
   } catch (err) {
     console.error("Chat error (patient):", err);
-    return res.status(500).json({ reply: "⚠️ Something went wrong on the server." });
+    return res.status(500).json({
+      reply: await translateReply("⚠️ Something went wrong on the server.", userLanguage)
+    });
+
   }
 });
 
@@ -657,11 +692,11 @@ router.post('/chat-patient-details', async (req, res) => {
 
 
     res.json({
-    name: `${userData.firstName} ${userData.lastName}`.trim(),
-    appointment,
-    allAppointments,
-    language: userData.language || "en" // Include language preference
-  });
+      name: `${userData.firstName} ${userData.lastName}`.trim(),
+      appointment,
+      allAppointments,
+      language: userData.language || "en" // Include language preference
+    });
 
   } catch (error) {
     console.error("❌ Error in /chat-patient-details:", error);
@@ -710,13 +745,13 @@ router.post('/update-language', async (req, res) => {
 // Smooth batch translation endpoint
 router.post('/translate-batch', async (req, res) => {
   const { texts, targetLanguage } = req.body;
-  
+
   try {
     // Skip translation if target is English
     if (targetLanguage === 'en') {
       return res.json({ translations: texts });
     }
-    
+
     // Map language codes
     const languageMap = {
       'en': 'en',
@@ -724,15 +759,15 @@ router.post('/translate-batch', async (req, res) => {
       'ms': 'ms',
       'ta': 'ta'
     };
-    
+
     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
-    
+
     console.log(`🌐 Batch translating ${texts.length} texts to: ${targetLanguage}`);
-    
+
     // Filter out empty texts and store mapping
     const textMapping = [];
     const nonEmptyTexts = [];
-    
+
     texts.forEach((text, index) => {
       if (text && text.trim()) {
         textMapping.push({ originalIndex: index, textIndex: nonEmptyTexts.length });
@@ -741,15 +776,15 @@ router.post('/translate-batch', async (req, res) => {
         textMapping.push({ originalIndex: index, textIndex: -1, isEmpty: true });
       }
     });
-    
+
     if (nonEmptyTexts.length === 0) {
       return res.json({ translations: texts });
     }
-    
+
     // Always use individual translations for maximum reliability
     // This avoids all separator/marker extraction issues
     console.log('📝 Using individual translations for maximum reliability');
-    
+
     const translatedTexts = await Promise.all(
       nonEmptyTexts.map(async (text, index) => {
         try {
@@ -757,7 +792,7 @@ router.post('/translate-batch', async (req, res) => {
           if (index > 0) {
             await new Promise(resolve => setTimeout(resolve, 50));
           }
-          
+
           const result = await translate(text, { to: googleLangCode });
           console.log(`✓ Translated ${index + 1}/${nonEmptyTexts.length}: "${text}" -> "${result}"`);
           return result;
@@ -767,10 +802,10 @@ router.post('/translate-batch', async (req, res) => {
         }
       })
     );
-    
+
     // Reconstruct the full translations array
     const fullTranslations = new Array(texts.length);
-    
+
     textMapping.forEach(({ originalIndex, textIndex, isEmpty }) => {
       if (isEmpty) {
         fullTranslations[originalIndex] = texts[originalIndex]; // Keep empty as is
@@ -778,10 +813,10 @@ router.post('/translate-batch', async (req, res) => {
         fullTranslations[originalIndex] = translatedTexts[textIndex] || texts[originalIndex];
       }
     });
-    
+
     console.log(`✅ All individual translations completed successfully`);
     res.json({ translations: fullTranslations });
-    
+
   } catch (error) {
     console.error('Translation error:', error);
     // Return original texts if everything fails
@@ -792,24 +827,24 @@ router.post('/translate-batch', async (req, res) => {
 // Keep the single translation route
 router.post('/translate', async (req, res) => {
   const { text, targetLanguage } = req.body;
-  
+
   try {
     if (targetLanguage === 'en' || !text || text.trim() === '') {
       return res.json({ translatedText: text });
     }
-    
+
     const languageMap = {
       'en': 'en',
       'zh': 'zh-cn',
       'ms': 'ms',
       'ta': 'ta'
     };
-    
+
     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
     const translatedText = await translate(text, { to: googleLangCode });
-    
+
     res.json({ translatedText });
-    
+
   } catch (error) {
     console.error('Translation error:', error);
     res.json({ translatedText: text });

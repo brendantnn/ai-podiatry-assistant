@@ -91,22 +91,32 @@ window.onload = async () => {
             });
 
             const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
-            appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b>${doctor}</b>.`;
-            appointmentTextTwo = `📅 Next appointment: ${formattedDate} with ${doctor}`;
+appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
+
+appointmentTextTwo = `📅 Next appointment: ${formattedDate} with <span class="notranslate">${doctor}</span>`;
       
-            document.getElementById("appointment").textContent = appointmentTextTwo;
         }
 
         // Show chatbot welcome message
-        chatbox.innerHTML += `
-            <div class="bot">
-                <b>🤖 Digital Nurse Assistant:</b> <br>Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.
-                <br><br>
-                ${appointmentText}
-                <br><br>
-                Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?
-            </div>
-        `;
+        const introTemplate = [
+    `Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.`,
+    appointmentText,
+    `Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?`
+];
+
+const translatedIntro = await translateBatchFast(introTemplate, userLanguage);
+document.getElementById("appointment").innerHTML = translatedIntro[1];
+
+chatbox.innerHTML += `
+    <div class="bot">
+        <b>🤖 Digital Nurse Assistant:</b> <br>${translatedIntro[0]}
+        <br><br>
+        ${translatedIntro[1]}
+        <br><br>
+        ${translatedIntro[2]}
+    </div>
+`;
+
 
         chatbox.scrollTop = chatbox.scrollHeight;
         
@@ -148,12 +158,16 @@ async function sendMessage() {
 
     const patientId = sessionStorage.getItem("userId");
 
+ const selectedLanguage = document.getElementById("language-select")?.value || "en";
+
+
+
     try {
         // Send user text via HTTP POST request to /chat route, which is read in server.js
         const response = await fetch("/patient/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: userText, patientId }) //user text sent in JSON so server can read
+            body: JSON.stringify({ message: userText, patientId,  language: selectedLanguage }) //user text sent in JSON so server can read
         });
 
         // Wait for server reply, and convert it from JSON to javascript object
@@ -584,21 +598,12 @@ async function handleLanguageChange() {
             body: JSON.stringify({ patientId, language: newLanguage })
         });
         
-        await translationPromise;
-        
-        // Handle DB response
-        dbPromise.then(async response => {
-            const data = await response.json();
-            if (data.success) {
-                const messages = {
-                    'en': 'Language updated ✓',
-                    'zh': '语言已更新 ✓',
-                    'ms': 'Bahasa dikemas kini ✓',
-                    'ta': 'மொழி மாற்றப்பட்டது ✓'
-                };
-                showLanguageUpdateNotification(messages[newLanguage] || messages['en'], 'success');
-            }
-        }).catch(console.error);
+       await translationPromise;
+await dbPromise;
+
+// Force page reload to apply all translations cleanly
+location.reload();
+
         
     } catch (err) {
         console.error("❌ Error:", err);
@@ -613,7 +618,7 @@ async function handleLanguageChange() {
 document.addEventListener('DOMContentLoaded', function() {
     // Small delay to ensure all elements are rendered
     setTimeout(() => {
-        mapTranslatableElements();
+        //mapTranslatableElements();
         console.log('🗺️ Element mapping initialized');
     }, 500);
 });
