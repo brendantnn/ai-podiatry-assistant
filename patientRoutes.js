@@ -244,8 +244,17 @@ Do not show internal data to the patient.
       let minDate = new Date();
       let maxDate = new Date();
 
+      const existingSnap = await db.collection("Appointments")
+  .where("patientId", "==", userId)
+  .where("status", "==", "scheduled")
+  .orderBy("scheduledDate")
+  .get();
+
+  
       let hasExistingAppt = !existingSnap.empty;
       let existingAppt = null;
+
+
 
       console.log(`📋 Checking existing appointments for user ${userId}`);
       console.log(`📋 Found ${existingSnap.size} existing appointment(s)`);
