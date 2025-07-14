@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGH Podiatry Support Assistant</title>
+    <link rel="stylesheet" href="template.css">
+    <link rel="stylesheet" href="support.css">
+    <script src="js/support.js" defer></script>
+</head>
+<body>
+    <div class="support-container">
+        <div class="support-modal">
+            <div class="support-header">
+                <button class="support-close-btn" onclick="closeSupport()" title="Close">&times;</button>
+                <div class="support-title">🤖 SGH Support Assistant</div>
+                <div class="support-subtitle">Podiatry Department Help Desk</div>
+            </div>
+
+            <div class="support-quick-actions">
+                <h3>Quick Help Topics</h3>
+                <div class="support-action-buttons">
+                    <div class="support-action-btn" onclick="askQuestion('How do I reset my password?')">
+                        🔐 Password Reset
+                    </div>
+                    <div class="support-action-btn" onclick="askQuestion('How do I register a new account?')">
+                        👤 Account Setup
+                    </div>
+                    <div class="support-action-btn" onclick="askQuestion('I forgot my email address')">
+                        📧 Email Recovery
+                    </div>
+                    <div class="support-action-btn" onclick="askQuestion('Login page is not working')">
+                        🚫 Login Issues
+                    </div>
+                    <div class="support-action-btn" onclick="askQuestion('How do I change user type?')">
+                        🔄 User Type
+                    </div>
+                    <div class="support-action-btn" onclick="askQuestion('Browser compatibility issues')">
+                        🌐 Browser Help
+                    </div>
+                </div>
+            </div>
+
+            <div class="support-help-message">
+                💡 Ask me anything about login issues, account problems, or system help. For complex technical issues, I'll connect you with live support.
+            </div>
+
+            <div class="support-chat-container">
+                <div class="support-chat-messages" id="supportChatMessages">
+                    <div class="support-message bot">
+                        👋 Hi! I'm your SGH Podiatry support assistant. I can help you with:
+                        <br><br>
+                        • Login and password issues
+                        <br>• Account registration problems  
+                        <br>• System navigation help
+                        <br>• Browser compatibility
+                        <br>• General technical questions
+                        <br><br>
+                        What can I help you with today?
+                    </div>
+                </div>
+                
+                <div class="support-typing-indicator" id="supportTypingIndicator">
+                    <div class="support-typing-dots">
+                        <div class="support-typing-dot"></div>
+                        <div class="support-typing-dot"></div>
+                        <div class="support-typing-dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="support-chat-input">
+                <div class="support-input-container">
+                    <textarea 
+                        class="support-message-input" 
+                        id="supportMessageInput" 
+                        placeholder="Type your question here..."
+                        rows="1"
+                        onkeydown="handleKeyPress(event)"
+                    ></textarea>
+                    <button class="support-send-btn" id="supportSendBtn" onclick="sendMessage()">
+                        ➤
+                    </button>
+                </div>
+            </div>
+
+            <div class="support-contact-info">
+                📞 Need immediate help? Call SGH Podiatry Support:
+                <a href="tel:+6563214377" class="support-phone-link">+65 6321 4377</a>
+            </div>
+
+            <div class="support-footer">
+                <button class="support-back-btn" onclick="goBackToLogin()">
+                    ← Back to Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- <script src="support.js"></script> -->
+</body>
+</html>

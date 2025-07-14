@@ -160,18 +160,17 @@
             style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-color: #ffcc02;">
             <div class="flex items-center justify-between">
               <div class="flex items-center" style="gap: var(--space-3);">
-                <span style="font-size: 1.5rem;">📞</span>
+                <span style="font-size: 1.5rem;">🤖</span>
                 <div>
                   <h4 class="medical-card-title" style="margin-bottom: var(--space-1); color: var(--warning-color);">
                     Need Help?</h4>
-                  <p class="text-muted" style="margin: 0; font-size: 0.875rem;">Contact our reception team for
-                    assistance</p>
+                  <p class="text-muted" style="margin: 0; font-size: 0.875rem;">Get instant help with our AI assistant
+                    or contact support</p>
                 </div>
               </div>
-              <!-- TODO: Connect to reception contact system -->
-              <button class="medical-btn medical-btn-warning medical-btn-sm">
-                <span style="margin-right: var(--space-1);">📞</span>
-                Contact Support
+              <button class="medical-btn medical-btn-warning medical-btn-sm" onclick="contactSupport()">
+                <span style="margin-right: var(--space-1);">💬</span>
+                Get Help
               </button>
             </div>
           </div>
@@ -215,9 +214,16 @@
 
     // Contact support function
     function contactSupport() {
-      const phone = '+6563214377';
-      if (confirm(`Call SGH Podiatry support at ${phone}?`)) {
-        window.open(`tel:${phone}`);
+      // Try to open support chat
+      try {
+        window.location.href = 'support.html';
+      } catch (error) {
+        // Fallback to phone call if chat fails
+        console.error('Support chat failed to load:', error);
+        const phone = '+6563214377';
+        if (confirm(`Unable to load support chat. Would you like to call SGH Podiatry support at ${phone}?`)) {
+          window.open(`tel:${phone}`);
+        }
       }
     }
 
