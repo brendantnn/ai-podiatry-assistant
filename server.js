@@ -1074,15 +1074,13 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
   }
 });
 
-//Update info in calendar
+//Update appointment details + update affected availabilities 
 app.post('/calendar-update-appointment', async (req, res) => {
-  const { apptId, updateData } = req.body;
+  const { apptId, updateData, originalSlot } = req.body;
   console.log("🔍 Updating appt info for:", apptId);
 
   try {
     const docRef = db.collection("Appointments").doc(apptId);
-    console.log("apptId=" + apptId)
-    console.log("updateData=" + updateData)
 
     const updates = {
       scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)),
@@ -1090,6 +1088,41 @@ app.post('/calendar-update-appointment', async (req, res) => {
     };
 
     await docRef.update(updates);
+
+    // Set status of original availability to 'available', and status of new availability to 'unavailable' (Move out of /calendar-update-appointment and put in its own route if needed)
+    
+    //First find original slot
+    const OldSlotQuery = await db.collection("Availability")
+      .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(originalSlot)))
+      .get();
+
+    if (OldSlotQuery.empty) {
+      return res.json({
+        success: false,
+        message: "Failed to find original slot"
+      });
+    }
+    // Update the slot to be available
+    await OldSlotQuery.docs[0].ref.update({
+      status: "available"
+    });
+
+    // Next find new slot
+    const newSlotQuery = await db.collection("Availability")
+      .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(updateData)))
+      .get();
+
+    if (newSlotQuery.empty) {
+      return res.json({
+        success: false,
+        message: "Failed to find new slot"
+      });
+    }
+    // Update the slot to be unavailable
+    await newSlotQuery.docs[0].ref.update({
+      status: "unavailable"
+    });
+    //Availability section end
 
     // ENHANCED: Return more detailed response for frontend
     return res.json({
@@ -1119,6 +1152,109 @@ app.post('/calendar-update-appointment', async (req, res) => {
       error: "Failed to update appointment.",
       message: error.message
     });
+  }
+});
+
+app.post('/podiatrist-get-all-patients', async (req, res) => {
+  console.log("🔍 Fetching all patients");
+  try {
+    // Get appointment
+    const apptSnapshot = await db.collection("Appointments")//Get appointments for this pod
+      .where("status", "==", "scheduled")
+      .get();
+
+    let appointments = [];// Make data list
+    if (!apptSnapshot.empty) {
+      const patientIds = [];
+
+      apptSnapshot.docs.forEach(doc => { //Loop and get data from each entry retreived
+        const appt = doc.data();
+        patientIds.push(appt.patientId);
+
+        //Add data to data object
+        const appointment = {
+          patientId: appt.patientId,
+          date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
+          time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          urgencyLevel: appt.urgencyLevel,
+          category: appt.category,
+          initialDiagnosis: appt.initialDiagnosis,
+          summary: appt.summary
+        };
+        appointments.push(appointment); //Put data object into appointments list
+      });
+
+      //Get list of users that match appointments
+      const userSnapshots = await db.collection("Users")
+        .where("userId", "in", patientIds)
+        .get();
+
+      const userMap = {};
+      userSnapshots.docs.forEach(userDoc => {
+        const userData = userDoc.data();
+        userMap[userData.userId] = userData.firstName + " " + userData.lastName;
+      });
+
+      // Add patient names to appointments
+      appointments = appointments.map(appt => ({
+        ...appt,
+        name: userMap[appt.patientId] || "Unknown"
+      }));
+
+      //Return result in json
+      return res.json({
+        appointments
+      });
+
+    } else {
+      console.log("❌ No Appointments found");
+      return res.json({
+        response: "No Appointments Found",
+        appointments: null
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error in /podiatrist-get-queue:", error);
+    res.status(500).json({ error: "Failed to fetch queue" });
+  }
+});
+
+//Get availability for podiatrist
+app.post('/podiatrist-get-availability', async (req, res) => {
+  const { podId } = req.body;
+  console.log("🔍 Fetching availabilities info for:", podId);
+
+  try {
+    // Get availabilities
+    const availSnapshot = await db.collection("Availability")//Get availabilities for this pod
+      .where("podId", "==", podId)
+      .where("status", "==", "available")
+      .orderBy("availableDate")
+      .get();
+
+    let availabilities = [];// Make data list
+    if (!availSnapshot.empty) {
+      availSnapshot.docs.forEach(doc => { //Loop and get data from each entry retreived
+        const avail = doc.data();
+
+        availabilities.push(avail.availableDate.toDate()); //Put data object into availabilities list
+      });
+
+      //Return result in json
+      return res.json({
+        availabilities
+      });
+
+    } else {
+      console.log("❌ No available slots found");
+      return res.json({
+        response: "No Available Slots Found",
+        availabilities: null
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error in /podiatrist-get-availability:", error);
+    res.status(500).json({ error: "Failed to fetch availability" });
   }
 });
 

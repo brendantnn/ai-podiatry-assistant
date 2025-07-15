@@ -8,6 +8,7 @@ class PodiatristCalendar {
     this.currentDate = new Date();
     this.currentView = 'month';
     this.appointments = [];
+    this.availabilities = [];
     this.isInitialized = false;
     
     // Bind methods to preserve 'this' context
@@ -30,6 +31,7 @@ class PodiatristCalendar {
 
     try {
       await this.loadAppointments();
+      // await this.loadAvailabilities();
       this.setupEventListeners();
       this.setInitialState();
       this.isInitialized = true;
@@ -55,8 +57,27 @@ class PodiatristCalendar {
     } catch (err) {
       console.error("❌ Failed to fetch patient details:", err);
     }
-  console.log(`📅 Loaded ${this.appointments.length} sample appointments across multiple months`);
-}
+    console.log(`📅 Loaded ${this.appointments.length} sample appointments across multiple months`);
+  }
+
+  async loadAvailabilities() {//If need can add the pre edit datetime as argument to put in list as a default
+    const podId = "pod_1";//TODO: Make Id not fixed
+    try {
+      const res = await fetch("/podiatrist-get-availability", { // Get patient queue
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ podId }) // Ensure podId is defined
+      });
+
+      // Get queue from database and assign to variable
+      const data = await res.json();
+      this.availabilities = data.availabilities || [];
+
+    } catch (err) {
+      console.error("❌ Failed to fetch patient details:", err);
+    }
+    console.log(`📅 Loaded ${this.availabilities.length} sample appointments across multiple months`);
+  }
 
   // Setup all event listeners (SIMPLIFIED - removed unnecessary view controls)
   setupEventListeners() {
@@ -758,14 +779,25 @@ getUrgencyText(urgencyLevel) {
 // Add this to calendar.js inside PodiatristCalendar class
 // ========================================
 
-// Show appointment edit modal
-showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
+// Show appointment edit modal //WORKING ZONE
+async showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
   console.log('📝 Opening edit modal for:', appointmentId);
+
+    await this.loadAvailabilities();
+
+  // Create option for original slot
+  const original = `<option value="original">${appointmentDate} at ${appointmentTime} (Original)</option>`;
   
-  // Extract appointment details if it's from a calendar event
-  let patientName = appointmentPatient;
-  let currentDate = formatDate(appointmentDate);
-  let currentTime = formatTime(appointmentTime);
+  //TODO: Create tmp value for original slot, pass on to save functions, use that to reopen slot etc in firebase
+  //Reformat original date to proper form if neede [done]
+
+  // Create the time slots dropdown
+  const timeSlotsHTML = this.availabilities.map(slot => `
+    <option value="${slot}">${new Date(slot).toLocaleString('en-SG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</option>
+  `).join('');
+  //NEED TO use new DATE() here, now just need to do saving to db logic, ensure value is a valid format to be updated with
+
+  const originalSlot = formatDate(appointmentDate) + "T" + formatTime(appointmentTime); // Use T for datetime format
 
   function formatDate(dateString) { //Convert Date to HTML Readable 
     const [day, month, year] = dateString.split(' ');
@@ -789,7 +821,6 @@ showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, p
     
   }
   
-  // Create modal HTML
   const modalHTML = `
     <div id="editAppointmentModal" class="edit-modal-overlay">
       <div class="edit-modal-content">
@@ -799,33 +830,37 @@ showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, p
         </div>
         <div class="edit-modal-body">
           <div class="form-group">
-            <label class="medical-label">📅 New Date:</label>
-            <input type="date" id="editAppointmentDate" class="medical-input" value="${currentDate}" required>
+            <label class="medical-label">📅 New Slot:</label>
+            <select id="editAppointmentSlot" class"medical-input" required>
+              ${original}
+              ${timeSlotsHTML}
+            </select>
           </div>
-          
-          <div class="form-group">
-            <label class="medical-label">⏰ New Time:</label>
-            <input type="time" id="editAppointmentTime" class="medical-input" value="${currentTime}" required>
+          <div class="edit-modal-footer">
+            <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
+            <button class="medical-btn medical-btn-primary" id="saveChangesButton" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}', '${originalSlot || 'unknown'}')" disabled>💾 Save Changes</button>
           </div>
-
-        <div class="edit-modal-footer">
-          <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
-          <button class="medical-btn medical-btn-primary" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}')">💾 Save Changes</button>
         </div>
       </div>
     </div>
   `;
   
-  // Add modal to page
   document.body.insertAdjacentHTML('beforeend', modalHTML);
-  
-  // Set default date to today
-  // const today = new Date().toISOString().split('T')[0];
-  // document.getElementById('editAppointmentDate').value = today;
+
+  const saveButton = document.getElementById('saveChangesButton');
+  const timeSelect = document.getElementById('editAppointmentSlot');
+
+  timeSelect.addEventListener('change', () => {
+    if (timeSelect.value === 'original') {
+      saveButton.disabled = true;
+    } else {
+      saveButton.disabled = false;
+    }
+  });
   
   // Focus on date field
   setTimeout(() => {
-    document.getElementById('editAppointmentDate').focus();
+    document.getElementById('editAppointmentSlot').focus();
   }, 100);
 }
 
@@ -838,20 +873,14 @@ closeEditAppointmentModal() {
 }
 
 // Save appointment changes
-async saveAppointmentChanges(appointmentId) {
+async saveAppointmentChanges(appointmentId, originalSlot) {
 
   //Retreive Date and Time and put in proper format for updating
-  const newDateTime = document.getElementById('editAppointmentDate').value + "T" +  document.getElementById('editAppointmentTime').value;
-  
-  //Ensure fields are filled up
-  if (!document.getElementById('editAppointmentDate').value || !document.getElementById('editAppointmentTime').value) {
-    alert('⚠️ Please fill in all required fields (date and time)');
-    return;
-  }
+  const newSlot = document.getElementById('editAppointmentSlot').value;
   
   console.log('💾 Saving appointment changes:', {
     appointmentId,
-    newDateTime,
+    newSlot,
   });
   
   // Show loading state
@@ -863,12 +892,12 @@ async saveAppointmentChanges(appointmentId) {
   try {
     // Here you would call your backend API to update the appointment
     // For now, we'll simulate the API call
-    await this.updateAppointmentInDatabase(appointmentId, newDateTime);
+    await this.updateAppointmentInDatabase(appointmentId, newSlot, originalSlot);
 
     // Close modal
     this.closeEditAppointmentModal();
     
-    // Refresh calendar to show changes //TODO Ensure it refresehs preoperly 
+    // Refresh calendar to show changes
     this.generateCalendarForMonth(this.currentDate.getMonth(), this.currentDate.getFullYear());
     
   } catch (error) {
@@ -882,16 +911,16 @@ async saveAppointmentChanges(appointmentId) {
 }
 
 // Update in DB
-async updateAppointmentInDatabase(appointmentId, updateData) {
-  console.log('🔄 Simulating database update...');
-
+async updateAppointmentInDatabase(appointmentId, updateData, originalSlot) {
   //Send update request to server
   try {
     const res = await fetch("/calendar-update-appointment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData })
+      body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData, "originalSlot": originalSlot })
     });
+    //TODO: Free old slot
+    //TODO: Set new slot status as occupied or whatever
 
     const result = await res.json();
     
@@ -1235,9 +1264,9 @@ window.closeEditAppointmentModal = function() {
   }
 };
 
-window.saveAppointmentChanges = function(appointmentId) {
+window.saveAppointmentChanges = function(appointmentId, originalSlot) {
   if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
-    podiatristCalendar.saveAppointmentChanges(appointmentId);
+    podiatristCalendar.saveAppointmentChanges(appointmentId, originalSlot);
   }
 };
 

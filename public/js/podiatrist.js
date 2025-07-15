@@ -5,6 +5,7 @@
 
 //Declare needed variables
 let patientQueue = []; // Patient Queue
+let allPatients = []; // All Patient
 
 // NOTIFICATION CACHE FOR INSTANT RESPONSES
 let notificationCache = {
@@ -36,6 +37,22 @@ window.onload = async () => {
     
     // ✅ IMPORTANT: populateTable will now auto-sort by urgency
     populateTable(patientQueue);
+    
+    console.log('✅ Patient queue loaded and sorted by urgency level');
+
+    //load all patients
+    const resAll = await fetch("/podiatrist-get-all-patients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  
+    const allData = await resAll.json();
+    allPatients = allData.appointments;
+
+    //READ ME BEFORE YOU CONT: Finished getting all list of patients from db, still need check for bugs and over laps, ability to accept appointments, search.
+    
+    // ✅ IMPORTANT: populateTable will now auto-sort by urgency [Remove comment]
+    populateAllTab(allPatients);
     
     console.log('✅ Patient queue loaded and sorted by urgency level');
     
@@ -498,6 +515,43 @@ function filterPatients() {
   showFilterStatus(filteredData.length, patientQueue.length, searchValue, selectedCategory);
 }
 
+
+function filterAllPatients() {
+  const searchValue = document.getElementById("searchNameAll").value.toLowerCase();
+  const selectedCategory = document.getElementById("filterCategoryAll").value;
+
+  console.log('🔍 Filtering patients:', { searchValue, selectedCategory });
+  console.log('📊 Original patient queue:', allPatients);
+
+  // Filter the patient queue based on search and category
+  const filteredData = allPatients.filter(patient => {
+    // Check name match (search in both patient ID and name)
+    const matchesName = searchValue === "" || 
+                       patient.patientId.toLowerCase().includes(searchValue) ||
+                       (patient.name && patient.name.toLowerCase().includes(searchValue));
+    
+    // Check category match
+    const matchesCategory = selectedCategory === "" || 
+                           patient.category.toLowerCase() === selectedCategory.toLowerCase();
+    
+    const shouldInclude = matchesName && matchesCategory;
+    
+    if (searchValue || selectedCategory) {
+      console.log(`Patient ${patient.name}: name match=${matchesName}, category match=${matchesCategory}, included=${shouldInclude}`);
+    }
+    
+    return shouldInclude;
+  });
+
+  console.log('✅ Filtered results:', filteredData);
+
+  // Update the table with filtered data
+  populateAllTab(filteredData);
+  
+  // Show filter status
+  showFilterStatusAll(filteredData.length, allPatients.length, searchValue, selectedCategory);
+}
+
 // ========================================
 // REAL-TIME SEARCH ENHANCEMENT
 // ========================================
@@ -505,6 +559,8 @@ function filterPatients() {
 function setupRealTimeSearch() {
   const searchInput = document.getElementById("searchName");
   const categorySelect = document.getElementById("filterCategory");
+  const searchInputAll = document.getElementById("searchNameAll");
+  const categorySelectAll = document.getElementById("filterCategoryAll");
   
   if (searchInput) {
     // Add real-time search with debouncing
@@ -527,6 +583,29 @@ function setupRealTimeSearch() {
   
   if (categorySelect) {
     categorySelect.addEventListener('change', filterPatients);
+  }
+
+  if (searchInputAll) {
+    // Add real-time search with debouncing
+    let searchTimeout;
+    searchInputAll.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        filterAllPatients();
+      }, 300); // 300ms delay to avoid too many calls
+    });
+    
+    // Also trigger on Enter key
+    searchInputAll.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        clearTimeout(searchTimeout);
+        filterAllPatients();
+      }
+    });
+  }
+  
+  if (categorySelectAll) {
+    categorySelectAll.addEventListener('change', filterAllPatients);
   }
 }
 
@@ -571,7 +650,48 @@ function showFilterStatus(filteredCount, totalCount, searchValue, selectedCatego
     statusDiv.innerHTML = statusText;
     
     // Insert before the table wrapper
-    const tableWrapper = document.querySelector('.medical-table-wrapper');
+    const tableWrapper = document.getElementById('patient-queue-table');
+    tableWrapper.parentNode.insertBefore(statusDiv, tableWrapper);
+  }
+}
+
+function showFilterStatusAll(filteredCount, totalCount, searchValue, selectedCategory) {
+  // Remove any existing filter status
+  const existingStatus = document.getElementById('filter-status-all');
+  if (existingStatus) {
+    existingStatus.remove();
+  }
+  
+  // Only show status if filters are active
+  if (searchValue || selectedCategory) {
+    const statusDiv = document.createElement('div');
+    statusDiv.id = 'filter-status-all';
+    statusDiv.style.cssText = `
+      background: var(--blue-50);
+      border: 1px solid var(--blue-200);
+      border-radius: var(--radius-lg);
+      padding: var(--space-3) var(--space-4);
+      margin: var(--space-4) 0;
+      font-size: 0.875rem;
+      color: var(--blue-700);
+    `;
+    
+    let statusText = `📊 Showing ${filteredCount} of ${totalCount} patients`;
+    
+    if (searchValue && selectedCategory) {
+      statusText += ` (filtered by name: "${searchValue}" and category: "${selectedCategory}")`;
+    } else if (searchValue) {
+      statusText += ` (filtered by name: "${searchValue}")`;
+    } else if (selectedCategory) {
+      statusText += ` (filtered by category: "${selectedCategory}")`;
+    }
+    
+    statusText += ' • <button onclick="clearFiltersAll()" style="color: var(--blue-600); text-decoration: underline; background: none; border: none; cursor: pointer;">Clear filters</button>';
+    
+    statusDiv.innerHTML = statusText;
+    
+    // Insert before the table wrapper
+    const tableWrapper = document.getElementById('patient-all-table');
     tableWrapper.parentNode.insertBefore(statusDiv, tableWrapper);
   }
 }
@@ -589,6 +709,23 @@ function clearFilters() {
   
   // Show all patients
   populateTable(patientQueue);
+  
+  console.log('🧹 Filters cleared, showing all patients');
+}
+
+function clearFiltersAll() {
+  // Clear the input values
+  document.getElementById("searchNameAll").value = "";
+  document.getElementById("filterCategoryAll").value = "";
+  
+  // Remove filter status
+  const existingStatus = document.getElementById('filter-status-all');
+  if (existingStatus) {
+    existingStatus.remove();
+  }
+  
+  // Show all patients
+  populateAllTab(allPatients);
   
   console.log('🧹 Filters cleared, showing all patients');
 }
@@ -703,6 +840,81 @@ function debugPatientQueue() {
 
 // Call debug function when queue is refreshed
 window.debugQueue = debugPatientQueue;
+
+//Function to populate All Patients tab
+function populateAllTab(data = allPatients) {
+  const tableBody = document.getElementById("patientAll");
+  tableBody.innerHTML = "";
+
+  // ✅ CRITICAL FIX: Sort by urgency level BEFORE displaying
+  const sortedData = [...data].sort((a, b) => {
+    // Sort by urgency level: 1 (most urgent) to 4 (least urgent)
+    if (a.urgencyLevel !== b.urgencyLevel) {
+      return a.urgencyLevel - b.urgencyLevel; // 1, 2, 3, 4
+    }
+    
+    // If same urgency, sort by appointment date (earliest first)
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    return dateA - dateB;
+  });
+
+  console.log('📊 Patient queue sorted by urgency:', sortedData.map(p => ({
+    name: p.name,
+    urgency: p.urgencyLevel,
+    category: p.category
+  })));
+
+  sortedData.forEach((patient, index) => {
+    const row = document.createElement("tr");
+    
+    // Store patient data as data attributes for easy access
+    row.setAttribute('data-patient-id', patient.patientId);
+    row.setAttribute('data-patient-name', patient.name || 'Unknown');
+    row.setAttribute('data-patient-category', patient.category || 'General');
+    row.setAttribute('data-patient-diagnosis', patient.initialDiagnosis || 'Assessment pending');
+    row.setAttribute('data-patient-date', patient.date || 'TBD');
+    row.setAttribute('data-patient-time', patient.time || 'TBD');
+    row.setAttribute('data-patient-summary', patient.summary || 'No summary available');
+    row.setAttribute('data-patient-urgency', patient.urgencyLevel || 4);
+
+    // ✅ VISUAL PRIORITY INDICATOR: Add background color based on urgency
+    let rowBgColor = '';
+    switch(patient.urgencyLevel) {
+      case 1:
+        rowBgColor = 'background-color: #fef2f2; border-left: 4px solid #ef4444;'; // Red
+        break;
+      case 2:
+        rowBgColor = 'background-color: #fffbeb; border-left: 4px solid #f59e0b;'; // Orange
+        break;
+      case 3:
+        rowBgColor = 'background-color: #eff6ff; border-left: 4px solid #3b82f6;'; // Blue
+        break;
+      case 4:
+        rowBgColor = 'background-color: #f9fafb; border-left: 4px solid #6b7280;'; // Gray
+        break;
+    }
+    
+    row.style.cssText = rowBgColor;
+
+    row.innerHTML = `
+    <td><span class="medical-badge badge-${getUrgencyBadgeClass(patient.urgencyLevel)}">${getUrgencyText(patient.urgencyLevel)}</span></td>
+    <td>${patient.patientId}</td>
+    <td>${patient.name}</td>
+    <td>${patient.category}</td>
+    <td>${patient.initialDiagnosis}</td>
+    <td>${patient.date}</td>
+    <td>
+      <button class="medical-btn medical-btn-primary medical-btn-sm"
+      onclick="openModal('${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.time} on ${patient.date}', '${patient.summary}')"
+      >👁️ View</button>
+      <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
+    </td>
+  `;
+    
+    tableBody.appendChild(row);
+  });
+}
 
 function openModal(id, name, category, symptoms, waitTime, summary) {
   document.getElementById('modalPatientId').innerText = id;
@@ -1031,8 +1243,10 @@ window.refreshPatientQueue = refreshPatientQueue;
 window.refreshCalendarView = refreshCalendarView;
 window.showUpdateNotification = showUpdateNotification;
 window.filterPatients = filterPatients;
+window.filterAllPatients = filterAllPatients;
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.clearFilters = clearFilters;
+window.clearFiltersAll = clearFiltersAll;
 window.showFilterStatus = showFilterStatus;
 window.setupRealTimeSearch = setupRealTimeSearch;
