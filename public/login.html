@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
   <title>SGH Podiatry - Login</title>
@@ -9,9 +9,9 @@
   <!-- Preload critical resources -->
   <link rel="preconnect" href="https://www.gstatic.com">
 
-  <!-- Security headers -->
+  <!-- Fixed Security headers - Added Google Analytics domain -->
   <meta http-equiv="Content-Security-Policy"
-    content="script-src 'self' 'unsafe-inline' https://www.gstatic.com https://api.ipify.org; object-src 'none';">
+    content="script-src 'self' 'unsafe-inline' https://www.gstatic.com https://api.ipify.org https://www.googletagmanager.com; object-src 'none';">
 
 </head>
 
@@ -26,27 +26,81 @@
       <div class="medical-form" style="max-width: 500px; margin: 0 auto;">
         <div class="medical-card-header text-center mb-xl">
           <h2 class="medical-card-title">Welcome Back</h2>
-          <p class="medical-card-subtitle">Enter your credentials to access the system</p>
+          <p class="medical-card-subtitle">Choose your preferred login method</p>
         </div>
 
         <!-- 
         ========================================
-        LOGIN FORM - LOGIC NEEDED BY JUNJIE -> YE started on it
+        SINGPASS LOGIN SECTION - DUAL BUTTONS
         ========================================
-        TODO: Implement authentication logic in login.js
-        - Form validation for userType, userId, password
-        - Authentication with backend/Firebase
-        - Role-based redirect (patient.html or podiatrist.html)
-        - Error handling for invalid credentials
-        - Session management
-        ======================================== 
         -->
+
+        <!-- SingPass Login Option -->
+        <div class="mt-lg">
+          <div class="medical-card"
+            style="background: linear-gradient(135deg, #ee3124 0%, #ff4d42 100%); border-color: #ee3124; color: white;">
+            <div style="text-align: center; margin-bottom: 1rem;">
+              <span style="font-size: 2rem;">🇸🇬</span>
+              <h3 class="medical-card-title" style="margin: 0.5rem 0; color: white;">
+                Login with SingPass</h3>
+              <p style="margin: 0; font-size: 0.875rem; opacity: 0.9;">
+                Secure authentication with your national digital identity</p>
+            </div>
+            
+            <!-- Demo User Type Selection -->
+            <div style="display: flex; gap: 1rem; margin: 1rem 0;">
+              <button class="medical-btn" 
+                style="flex: 1; background: white; color: #059669; border: none; padding: 0.75rem 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                onclick="loginWithSingPassAs('patient')">
+                <span>🩹</span>
+                <div style="text-align: left; font-size: 0.875rem;">
+                  <div>Patient Demo</div>
+                  <!--<small style="opacity: 0.7;">S***A</small>-->
+                </div>
+              </button>
+              
+              <button class="medical-btn" 
+                style="flex: 1; background: white; color: #3b82f6; border: none; padding: 0.75rem 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                onclick="loginWithSingPassAs('podiatrist')">
+                <span>👨‍⚕️</span>
+                <div style="text-align: left; font-size: 0.875rem;">
+                  <div>Podiatrist Demo</div>
+                  <!--<small style="opacity: 0.7;">S***B</small>-->
+                </div>
+              </button>
+            </div>
+            
+            <div style="text-align: center; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
+              <p style="margin: 0; font-size: 0.75rem; opacity: 0.8;">
+                ✓ No password required • ✓ Instant access • ✓ Government verified
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="mt-lg mb-lg text-center">
+          <div style="position: relative;">
+            <hr style="border: none; height: 1px; background: #e5e7eb; margin: 2rem 0;">
+            <span
+              style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 0 1rem; color: #6b7280; font-size: 0.875rem;">
+              or continue with email
+            </span>
+          </div>
+        </div>
+
+        <!-- 
+        ========================================
+        TRADITIONAL LOGIN FORM - FIXED LABELS
+        ========================================
+        -->
+
+        <!-- Traditional Login Form -->
         <form id="loginForm">
           <div class="form-group">
             <label class="medical-label" for="userType">
               <span>👤</span> User Type
             </label>
-            <!-- TODO: Connect to role detection logic -->
             <select id="userType" class="medical-select">
               <option value="">Select your role...</option>
               <option value="patient">🩹 Patient</option>
@@ -55,10 +109,9 @@
           </div>
 
           <div class="form-group">
-            <label class="medical-label" for="userId">
+            <label class="medical-label" for="email">
               <span>🆔</span> Email Address
             </label>
-            <!-- TODO: Add validation for email format -->
             <input type="email" id="email" class="medical-input" placeholder="Enter your email address"
               autocomplete="email" required />
           </div>
@@ -67,10 +120,9 @@
             <label class="medical-label" for="password">
               <span>🔒</span> Password
             </label>
-            <!-- TODO: Add password strength validation -->
             <input type="password" id="password" class="medical-input" placeholder="Enter your secure password"
               autocomplete="current-password" required />
-            <!-- Password visibility toggle (optional) -->
+            <!-- Password visibility toggle -->
             <div style="position: relative;">
               <button type="button" id="togglePassword"
                 style="position: absolute; right: 12px; top: -40px; background: none; border: none; cursor: pointer; color: var(--gray-500);"
@@ -81,14 +133,12 @@
           </div>
 
           <div class="form-group">
-            <!-- TODO: Connect to authentication function in login.js -->
             <button type="submit" class="medical-btn medical-btn-primary medical-btn-lg" style="width: 100%;">
               ✨ Login to System
             </button>
           </div>
 
           <div class="form-group text-center">
-            <!-- TODO: Implement forgot password functionality -->
             <a href="#" onclick="openModal()" class="text-primary" style="text-decoration: none; font-weight: 500;">
               🔑 Forgot your password?
             </a>
@@ -112,19 +162,12 @@
           </div>
         </div>
 
+        <!-- 
+        ========================================
+        NEW ACCOUNT CREATION
+        ========================================
+        -->
         <div class="mt-xl">
-          <!-- 
-          ========================================
-          NEW ACCOUNT CREATION - LOGIC NEEDED BY JUNJIE -> YE started on it
-          ========================================
-          TODO: Implement new account creation functionality
-          - Account registration form
-          - NRIC verification
-          - Email/phone verification
-          - Integration with patient management system
-          - Role-based account setup
-          ======================================== 
-          -->
           <div class="medical-card"
             style="background: linear-gradient(135deg, #f0fdff 0%, #e0f7fa 100%); border-color: #b3e5fc;">
             <div class="flex items-center mb-md">
@@ -132,13 +175,13 @@
                 <span style="font-size: 1.5rem;">✨</span>
                 <div>
                   <h3 class="medical-card-title text-primary" style="margin-bottom: var(--space-1);">New User?</h3>
-                  <p class="text-muted" style="margin: 0; line-height: 1.4;">Create your account to access our digital
+                  <p class="text-muted" style="margin: 0; line-height: 1.4;">Create your account to access our
+                    digital
                     healthcare services and book appointments.</p>
                 </div>
               </div>
             </div>
             <div class="flex" style="gap: var(--space-3); align-items: center;">
-              <!-- TODO: Connect to account creation function in login.js -->
               <button class="medical-btn medical-btn-success" onclick="window.location.href='register.html'">
                 <span style="margin-right: var(--space-2);">👤</span>
                 Create New Account
@@ -150,21 +193,23 @@
           </div>
         </div>
 
+        <!-- 
+        ========================================
+        ADDITIONAL SUPPORT OPTIONS
+        ========================================
+        -->
         <div class="mt-lg">
-          <!-- 
-          ========================================
-          ADDITIONAL SUPPORT OPTIONS
-          ========================================
-          -->
           <div class="medical-card"
             style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-color: #ffcc02;">
             <div class="flex items-center justify-between">
               <div class="flex items-center" style="gap: var(--space-3);">
                 <span style="font-size: 1.5rem;">🤖</span>
                 <div>
-                  <h4 class="medical-card-title" style="margin-bottom: var(--space-1); color: var(--warning-color);">
+                  <h4 class="medical-card-title"
+                    style="margin-bottom: var(--space-1); color: var(--warning-color);">
                     Need Help?</h4>
-                  <p class="text-muted" style="margin: 0; font-size: 0.875rem;">Get instant help with our AI assistant
+                  <p class="text-muted" style="margin: 0; font-size: 0.875rem;">Get instant help with our AI
+                    assistant
                     or contact support</p>
                 </div>
               </div>
@@ -186,7 +231,7 @@
     </div>
   </div>
 
-  <!-- Loading Overlay (for better UX) -->
+  <!-- Loading Overlay -->
   <div id="loadingOverlay"
     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
     <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center;">
@@ -198,6 +243,10 @@
   </div>
 
   <script>
+    // ========================================
+    // ENHANCED LOGIN PAGE JAVASCRIPT
+    // ========================================
+
     // Password visibility toggle
     function togglePasswordVisibility() {
       const passwordInput = document.getElementById('password');
@@ -212,13 +261,38 @@
       }
     }
 
+    // Enhanced SingPass login function with user type
+    function loginWithSingPassAs(userType) {
+      console.log(`🇸🇬 Initiating SingPass login as: ${userType}`);
+      
+      // Show loading state
+      const button = event.target.closest('button');
+      const originalHtml = button.innerHTML;
+      
+      button.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+          <span>Loading...</span>
+        </div>
+      `;
+      
+      // Redirect after brief delay
+      setTimeout(() => {
+        window.location.href = `singpass.html?type=${userType}`;
+      }, 1000);
+    }
+
+    // Legacy SingPass login function (for general access)
+    function loginWithSingPass() {
+      console.log('🇸🇬 Initiating SingPass login...');
+      window.location.href = 'singpass.html';
+    }
+
     // Contact support function
     function contactSupport() {
-      // Try to open support chat
       try {
         window.location.href = 'support.html';
       } catch (error) {
-        // Fallback to phone call if chat fails
         console.error('Support chat failed to load:', error);
         const phone = '+6563214377';
         if (confirm(`Unable to load support chat. Would you like to call SGH Podiatry support at ${phone}?`)) {
@@ -291,6 +365,89 @@
       }
     });
 
+    // ========================================
+    // MODAL FUNCTIONS
+    // ========================================
+
+    window.openModal = () => {
+      const modal = document.getElementById("forgotModal");
+      modal.classList.remove("hidden");
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        animation: fadeIn 0.3s ease-out;
+      `;
+
+      // Focus on email input
+      setTimeout(() => {
+        document.getElementById("resetEmail").focus();
+      }, 100);
+    };
+
+    window.closeModal = () => {
+      const modal = document.getElementById("forgotModal");
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+
+      // Clear the reset email field
+      document.getElementById("resetEmail").value = "";
+    };
+
+    window.sendReset = async () => {
+      const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+
+      if (!email) {
+        alert("Please enter your email address.");
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alert("Please enter a valid email address.");
+        return;
+      }
+
+      try {
+        // Import Firebase functions when needed
+        const { auth } = await import("./config/firebase-config.js");
+        const { sendPasswordResetEmail } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js");
+
+        await sendPasswordResetEmail(auth, email);
+        alert("📨 Password reset link sent to your email. Please check your inbox and spam folder.");
+        closeModal();
+      } catch (err) {
+        console.error("Password reset error:", err);
+
+        let errorMessage = "Failed to send password reset email.";
+        switch (err.code) {
+          case 'auth/user-not-found':
+            errorMessage = "No account found with this email address.";
+            break;
+          case 'auth/invalid-email':
+            errorMessage = "Invalid email address format.";
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = "Too many reset attempts. Please try again later.";
+            break;
+        }
+
+        alert(`❌ ${errorMessage}`);
+      }
+    };
+
+    // ========================================
+    // STYLES AND ANIMATIONS
+    // ========================================
+
     // Add styles for animations
     const styles = `
       @keyframes spin {
@@ -324,13 +481,68 @@
         border-color: #ef4444 !important;
         box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
       }
+
+      /* SingPass card hover effects */
+      .medical-card:hover {
+        box-shadow: 0 8px 25px rgba(238, 49, 36, 0.3);
+      }
     `;
 
     const styleSheet = document.createElement('style');
     styleSheet.textContent = styles;
     document.head.appendChild(styleSheet);
+
+    // ========================================
+    // SESSION CHECK ON PAGE LOAD
+    // ========================================
+
+    // Check for existing session when page loads
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('🔐 Login page loaded, checking for existing session...');
+
+      const uid = sessionStorage.getItem('uid');
+      const role = sessionStorage.getItem('role');
+      const lastActivity = parseInt(sessionStorage.getItem('lastActivity')) || 0;
+
+      if (uid && role) {
+        const timeSinceActivity = Date.now() - lastActivity;
+        const sessionTimeout = 30 * 60 * 1000; // 30 minutes
+
+        if (timeSinceActivity < sessionTimeout) {
+          console.log("🔍 Valid existing session found, redirecting...");
+
+          // Show message and redirect
+          const message = document.createElement('div');
+          message.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            z-index: 10000;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-out;
+          `;
+          message.innerHTML = '✅ Welcome back! Redirecting...';
+          document.body.appendChild(message);
+
+          setTimeout(() => {
+            const redirectUrl = role === "patient" ? "patient.html" : "podiatrist.html";
+            window.location.href = redirectUrl;
+          }, 1000);
+        } else {
+          console.log("🕐 Existing session expired, clearing...");
+          sessionStorage.clear();
+        }
+      }
+    });
+
+    console.log('✅ Enhanced login page scripts loaded');
   </script>
 
+  <!-- Load the traditional login functionality -->
   <script type="module" src="js/login.js"></script>
 </body>
 

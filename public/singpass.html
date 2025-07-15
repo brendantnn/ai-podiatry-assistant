@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SingPass Login - SGH Podiatry</title>
+    <link rel="stylesheet" href="template.css">
+    <link rel="stylesheet" href="singpass.css">
+</head>
+<body>
+    <div class="singpass-container">
+        <!-- Header -->
+        <div class="singpass-header">
+            <div class="back-button" onclick="goBackToLogin()">
+                <span>←</span> Back to Login
+            </div>
+            <div class="singpass-logo">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjQwIiB2aWV3Qm94PSIwIDAgMTIwIDQwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRUUzMTI0Ii8+Cjx0ZXh0IHg9IjYwIiB5PSIyNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNpbmdQYXNzPC90ZXh0Pgo8L3N2Zz4K" alt="SingPass" />
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="singpass-content">
+            <!-- Step 1: QR Code Display -->
+            <div id="qrStep" class="step active">
+                <div class="step-content">
+                    <h1>Login with SingPass</h1>
+                    <p class="subtitle">Scan the QR code with your SingPass app to authenticate securely</p>
+                    
+                    <div class="service-info">
+                        <div class="service-icon">🏥</div>
+                        <div class="service-details">
+                            <h3>Singapore General Hospital</h3>
+                            <p>Podiatry Department Portal</p>
+                            <small style="color: #666; font-size: 0.8rem;">Secure access via national digital identity</small>
+                        </div>
+                    </div>
+
+                    <div class="qr-container">
+                        <div class="qr-code" id="qrCode">
+                            <!-- QR Code will be generated here -->
+                        </div>
+                        <div class="qr-timer">
+                            <div class="timer-text">Code expires in: <span id="countdown">02:00</span></div>
+                            <div class="timer-bar">
+                                <div class="timer-progress" id="timerProgress"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="scan-instructions">
+                        <h3>How to scan:</h3>
+                        <ol>
+                            <li>Open your <strong>SingPass app</strong> on your mobile device</li>
+                            <li>Tap <strong>"Scan QR"</strong> in the app</li>
+                            <li>Point your camera at the QR code above</li>
+                            <li>Authenticate with your <strong>biometrics or PIN</strong></li>
+                            <li>You'll be automatically logged in to SGH Podiatry</li>
+                        </ol>
+                    </div>
+
+                    <div class="qr-status" id="qrStatus">
+                        <div class="status-icon">📱</div>
+                        <p>Waiting for you to scan the QR code...</p>
+                    </div>
+
+                    <button class="refresh-btn" onclick="refreshQR()" id="refreshBtn" style="display: none;">
+                        🔄 Generate New Code
+                    </button>
+
+                    <!-- Demo Helper -->
+                    <div style="margin-top: 2rem; padding: 1rem; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; text-align: center;">
+                        <p style="margin: 0; color: #0c4a6e; font-size: 0.875rem;">
+                            <strong>Demo Mode:</strong> Click the button below to simulate scanning
+                        </p>
+                        <button onclick="triggerScanSimulation()" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #0ea5e9; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📱 Open Mobile Scanner
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Processing -->
+            <div id="processingStep" class="step">
+                <div class="step-content">
+                    <div class="processing-animation">
+                        <div class="spinner"></div>
+                        <h1>Authenticating with SingPass</h1>
+                        <p class="subtitle">Please wait while we verify your identity and retrieve your profile...</p>
+                        
+                        <div class="processing-steps">
+                            <div class="process-step completed" id="step1">
+                                <span class="check">✓</span> QR Code scanned successfully
+                            </div>
+                            <div class="process-step" id="step2">
+                                <span class="dot"></span> Verifying with SingPass servers
+                            </div>
+                            <div class="process-step" id="step3">
+                                <span class="dot"></span> Retrieving user profile from Firebase
+                            </div>
+                            <div class="process-step" id="step4">
+                                <span class="dot"></span> Determining access level
+                            </div>
+                            <div class="process-step" id="step5">
+                                <span class="dot"></span> Setting up secure session
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 2rem; padding: 1rem; background: #f9fafb; border-radius: 8px;">
+                            <p style="margin: 0; color: #6b7280; font-size: 0.875rem; text-align: center;">
+                                <strong>Security Notice:</strong> Your NRIC and personal data are securely verified through SingPass servers. We only access necessary information for authentication.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Success -->
+            <div id="successStep" class="step">
+                <div class="step-content">
+                    <div class="success-animation">
+                        <div class="success-icon">✅</div>
+                        <h1>Login Successful!</h1>
+                        <p class="subtitle">Welcome to SGH Podiatry Portal</p>
+                        
+                        <div class="user-info" id="userInfo">
+                            <!-- User details will be populated here -->
+                        </div>
+
+                        <div class="redirect-message">
+                            <p>You will be redirected to your dashboard in <span id="redirectCountdown">3</span> seconds...</p>
+                            <p style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;">
+                                Or click the button below to continue immediately
+                            </p>
+                        </div>
+
+                        <button class="singpass-btn" onclick="redirectToDashboard()">
+                            Continue to Dashboard
+                        </button>
+
+                        <div style="margin-top: 1.5rem; padding: 1rem; background: #f0fdf4; border: 1px solid #16a34a; border-radius: 8px;">
+                            <p style="margin: 0; color: #15803d; font-size: 0.875rem; text-align: center;">
+                                <strong>✓ Secure Session Established</strong><br>
+                                Your identity has been verified through SingPass and your session is protected with enterprise-grade security.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="singpass-footer">
+            <p>© 2025 Government Technology Agency | 
+               <a href="#" onclick="showHelp()">Need Help?</a> | 
+               <a href="#" onclick="showPrivacy()">Privacy Policy</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Mobile Scanner Simulation -->
+    <div class="mobile-scanner" id="mobileScanner" style="display: none;">
+        <div class="scanner-overlay">
+            <div class="scanner-content">
+                <h2>SingPass Mobile App</h2>
+                <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f0f9ff; border-radius: 6px; text-align: center;">
+                    <p style="margin: 0; color: #0c4a6e; font-size: 0.875rem;">
+                        <strong>Demo Mode:</strong> Simulating SingPass app authentication
+                    </p>
+                </div>
+                
+                <div class="scanner-camera">
+                    <div class="camera-frame">
+                        <div class="scan-line"></div>
+                        <div class="scan-corners"></div>
+                    </div>
+                </div>
+                
+                <p style="margin: 1rem 0; color: #333;">Position the QR code within the frame</p>
+                
+                <!-- Simulated user selection for demo -->
+                <div style="margin: 1rem 0; padding: 1rem; background: #f9fafb; border-radius: 6px;">
+                    <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #374151; font-size: 0.875rem;">Demo Authentication:</p>
+                    <div style="font-size: 0.75rem; color: #6b7280; line-height: 1.4;">
+                        This will authenticate as the selected user type:<br>
+                        <strong id="selectedUserInfo">Loading...</strong><br>
+                        <small style="color: #9ca3af;">Make sure this NRIC exists in your Firebase Users collection</small>
+                    </div>
+                </div>
+                
+                <div class="scanner-buttons">
+                    <button onclick="simulateSuccessfulScan()" style="background: #16a34a; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                        ✓ Authenticate with SingPass
+                    </button>
+                    <button onclick="closeMobileScanner()" style="background: #6b7280; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                        Cancel
+                    </button>
+                </div>
+                
+                <div style="margin-top: 1rem; padding: 0.75rem; background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px;">
+                    <p style="margin: 0; color: #92400e; font-size: 0.75rem; text-align: center;">
+                        <strong>Security Notice:</strong> In production, this would require biometric authentication or your SingPass PIN
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Firebase and SingPass integration -->
+    <script type="module" src="js/singpass.js"></script>
+    
+    <script>
+        // Add some demo helper functions
+        console.log('🔐 SingPass Demo Page Loaded');
+        console.log('Available demo functions:');
+        console.log('- demoPatientLogin(): Quick patient demo');
+        console.log('- demoPodiatristLogin(): Quick podiatrist demo');
+        console.log('- setDemoUserType("patient" or "podiatrist"): Set user type');
+        console.log('- getDemoUsers(): See available demo users');
+        console.log('- getSingPassSession(): Get current session info');
+        
+        // Update selected user info in mobile scanner
+        setTimeout(() => {
+            const userInfoElement = document.getElementById('selectedUserInfo');
+            if (userInfoElement) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userType = urlParams.get('type');
+                if (userType) {
+                    const demoUsers = {
+                        patient: { nric: "S1234567A", email: "patient1@gmail.com" },
+                        podiatrist: { nric: "S1112222B", email: "podiatrist1@gmail.com" }
+                    };
+                    const user = demoUsers[userType];
+                    if (user) {
+                        userInfoElement.innerHTML = `${user.nric} (${userType}) → ${user.email}`;
+                    }
+                }
+            }
+        }, 500);
+        
+        // Auto-show scanner after 5 seconds for better demo experience
+        setTimeout(() => {
+            const demoNotice = document.createElement('div');
+            demoNotice.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: #3b82f6;
+                color: white;
+                padding: 1rem;
+                border-radius: 8px;
+                z-index: 1000;
+                max-width: 320px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: fadeIn 0.3s ease-out;
+            `;
+            demoNotice.innerHTML = `
+                <p style="margin: 0; font-size: 0.875rem;">
+                    <strong>Demo Tip:</strong> Click "Open Mobile Scanner" to authenticate with the selected user type!<br>
+                    <small style="opacity: 0.8;">Quick demo: demoPatientLogin() or demoPodiatristLogin()</small>
+                </p>
+            `;
+            document.body.appendChild(demoNotice);
+            
+            // Remove after 10 seconds
+            setTimeout(() => {
+                demoNotice.remove();
+            }, 10000);
+        }, 5000);
+    </script>
+</body>
+</html>
