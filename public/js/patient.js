@@ -8,7 +8,7 @@ window.onload = async () => {
 
     const patientId = sessionStorage.getItem("userId");
     const chatbox = document.getElementById("chatbox");
-  
+
     try {
         const res = await fetch("/patient/chat-patient-details", {
             method: "POST",
@@ -17,19 +17,23 @@ window.onload = async () => {
         });
 
         const data = await res.json();
-        const name = data.name; 
+        const name = data.name;
         const appointment = data.appointment;
 
         // Set patient name at top bar
         document.getElementById("patient-name").textContent = name || "no patient name";
 
+        let recognition = null;
+
         // Set user's language preference from database
         const userLanguage = data.language || "en";
+        if (recognition) updateRecognitionLanguage(userLanguage);
+
         const languageSelect = document.getElementById("language-select");
         if (languageSelect) {
             languageSelect.value = userLanguage;
         }
-          
+
         let appointmentText = "You have no upcoming confirmed appointments.";
         let appointmentTextTwo = "You have no upcoming confirmed appointments.";
 
@@ -91,23 +95,23 @@ window.onload = async () => {
             });
 
             const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
-appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
+            appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
 
-appointmentTextTwo = `📅 Next appointment: ${formattedDate} with <span class="notranslate">${doctor}</span>`;
-      
+            appointmentTextTwo = `📅 Next appointment: ${formattedDate} with <span class="notranslate">${doctor}</span>`;
+
         }
 
         // Show chatbot welcome message
         const introTemplate = [
-    `Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.`,
-    appointmentText,
-    `Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?`
-];
+            `Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.`,
+            appointmentText,
+            `Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?`
+        ];
 
-const translatedIntro = await translateBatchFast(introTemplate, userLanguage);
-document.getElementById("appointment").innerHTML = translatedIntro[1];
+        const translatedIntro = await translateBatchFast(introTemplate, userLanguage);
+        document.getElementById("appointment").innerHTML = translatedIntro[1];
 
-chatbox.innerHTML += `
+        chatbox.innerHTML += `
     <div class="bot">
         <b>🤖 Digital Nurse Assistant:</b> <br>${translatedIntro[0]}
         <br><br>
@@ -119,10 +123,10 @@ chatbox.innerHTML += `
 
 
         chatbox.scrollTop = chatbox.scrollHeight;
-        
+
         // IMPORTANT: Hide loading screen FIRST, then translate in background
         loadingScreen.style.display = "none";
-        
+
         // Apply translation in background if needed (much faster now!)
         if (userLanguage !== 'en') {
             console.log('🌐 Applying fast translation for:', userLanguage);
@@ -146,9 +150,9 @@ chatbox.innerHTML += `
 async function sendMessage() {
     // store input and chatbox values
     const input = document.getElementById("message");
-    const userText = input.value.trim(); 
+    const userText = input.value.trim();
     const chatbox = document.getElementById("chatbox");
- 
+
     // if user input is empty, stop function 
     if (!userText) return;
 
@@ -158,7 +162,7 @@ async function sendMessage() {
 
     const patientId = sessionStorage.getItem("userId");
 
- const selectedLanguage = document.getElementById("language-select")?.value || "en";
+    const selectedLanguage = document.getElementById("language-select")?.value || "en";
 
 
 
@@ -167,7 +171,7 @@ async function sendMessage() {
         const response = await fetch("/patient/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: userText, patientId,  language: selectedLanguage }) //user text sent in JSON so server can read
+            body: JSON.stringify({ message: userText, patientId, language: selectedLanguage }) //user text sent in JSON so server can read
         });
 
         // Wait for server reply, and convert it from JSON to javascript object
@@ -177,7 +181,7 @@ async function sendMessage() {
         chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br> ${data.reply}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
 
-    } 
+    }
     // Catch any errors 
     catch (err) {
         console.error("❌ Chat request failed:", err);
@@ -191,11 +195,11 @@ async function sendMessage() {
 function showLanguageUpdateNotification(message, type = 'success') {
     // Create notification element
     const notification = document.createElement('div');
-    
+
     // Set styles based on type
     const backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
     const icon = type === 'success' ? '✅' : '❌';
-    
+
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -212,7 +216,7 @@ function showLanguageUpdateNotification(message, type = 'success') {
         animation: slideInRight 0.3s ease-out;
     `;
     notification.innerHTML = `${icon} ${message}`;
-    
+
     // Add animation styles to document if not already present
     if (!document.getElementById('notification-styles')) {
         const style = document.createElement('style');
@@ -229,10 +233,10 @@ function showLanguageUpdateNotification(message, type = 'success') {
         `;
         document.head.appendChild(style);
     }
-    
+
     // Add to page
     document.body.appendChild(notification);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideOutRight 0.3s ease-in';
@@ -252,19 +256,19 @@ async function translateBatchFast(texts, targetLanguage) {
     if (targetLanguage === 'en' || !texts || texts.length === 0) {
         return texts;
     }
-    
+
     try {
         const response = await fetch("/patient/translate-batch", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ texts, targetLanguage })
         });
-        
+
         const data = await response.json();
         return data.translations || texts;
     } catch (error) {
         console.error('Batch translation failed, using individual fallback:', error);
-        
+
         const individualResults = await Promise.all(
             texts.map(async (text) => {
                 if (!text || !text.trim()) return text;
@@ -291,7 +295,7 @@ let isTranslating = false;
 
 function storeOriginalContent() {
     if (Object.keys(originalContent).length > 0) return;
-    
+
     originalContent = {
         header: 'Patient Portal',
         subtitle: 'Singapore General Hospital - Podiatry Digital Assistant',
@@ -318,18 +322,18 @@ function storeOriginalContent() {
 // Main translation function
 async function translatePageElements(targetLanguage) {
     if (isTranslating) return;
-    
+
     if (targetLanguage === 'en') {
         resetToEnglish();
         return;
     }
-    
+
     isTranslating = true;
     console.log('🧹 Clean translation to:', targetLanguage);
     storeOriginalContent();
-    
+
     showTranslationLoading(true);
-    
+
     try {
         // Get patient name safely
         const welcomeElement = document.querySelector('.medical-card .medical-card-title');
@@ -341,7 +345,7 @@ async function translatePageElements(targetLanguage) {
                 patientName = nameMatch[1].trim();
             }
         }
-        
+
         // Collect texts for translation
         const textsToTranslate = [
             originalContent.header,                    // 0
@@ -364,15 +368,15 @@ async function translatePageElements(targetLanguage) {
             originalContent.urgentConcernsText,        // 17
             originalContent.noAppointments            // 18
         ];
-        
+
         console.log('🚀 Batch translating...');
         const translations = await translateBatchFast(textsToTranslate, targetLanguage);
-        
+
         // Apply translations cleanly
         applyCleanTranslations(translations, patientName);
-        
+
         console.log('✅ Clean translation completed');
-        
+
     } catch (error) {
         console.error('Translation error:', error);
     } finally {
@@ -389,23 +393,23 @@ function applyCleanTranslations(translations, patientName) {
         emergencyTitle, hospitalContactsTitle, importantNotesTitle,
         sghMainLine, podiatryClinic, emergency, severePainText, urgentConcernsText, noAppointments
     ] = translations;
-    
+
     requestAnimationFrame(() => {
         console.log('🎯 Applying clean translations...');
-        
+
         // 1. Header section - very specific
         const headerEl = document.querySelector('.medical-header h1');
         if (headerEl) {
             headerEl.textContent = `🏥 ${header}`;
             console.log('✓ Header updated');
         }
-        
+
         const subtitleEl = document.querySelector('.medical-header .subtitle');
         if (subtitleEl) {
             subtitleEl.textContent = subtitle;
             console.log('✓ Subtitle updated');
         }
-        
+
         // 2. Welcome section - target ONLY the first card's title
         const allCards = document.querySelectorAll('.medical-card');
         if (allCards.length > 0) {
@@ -415,85 +419,85 @@ function applyCleanTranslations(translations, patientName) {
                 console.log('✓ Welcome message updated');
             }
         }
-        
+
         // 3. Language preference - exact selector
         const languageLabelEl = document.querySelector('label[for="language-select"]');
         if (languageLabelEl) {
             languageLabelEl.textContent = languageLabel;
             console.log('✓ Language label updated');
         }
-        
+
         // 4. Logout button - exact selector
         const logoutBtnEl = document.querySelector('button[onclick="handleLogout()"]');
         if (logoutBtnEl) {
             logoutBtnEl.textContent = `🚪 ${logoutBtn}`;
             console.log('✓ Logout button updated');
         }
-        
+
         // 5. Chat section - find the SPECIFIC chat card
         const chatCard = Array.from(document.querySelectorAll('.medical-card')).find(card => {
             const title = card.querySelector('.medical-card-header .medical-card-title');
             return title && (
-                title.textContent.includes('Digital Nurse') || 
-                title.textContent.includes('数字护士') || 
+                title.textContent.includes('Digital Nurse') ||
+                title.textContent.includes('数字护士') ||
                 title.textContent.includes('டிஜிட்டல்') ||
                 title.textContent.includes('Jururawat')
             );
         });
-        
+
         if (chatCard) {
             const chatTitleEl = chatCard.querySelector('.medical-card-header .medical-card-title');
             if (chatTitleEl) {
                 chatTitleEl.textContent = `🤖 ${chatTitle}`;
                 console.log('✓ Chat title updated');
             }
-            
+
             const chatSubtitleEl = chatCard.querySelector('.medical-card-subtitle');
             if (chatSubtitleEl) {
                 chatSubtitleEl.textContent = chatSubtitle;
                 console.log('✓ Chat subtitle updated');
             }
         }
-        
+
         // 6. Message input placeholder
         const messageInput = document.getElementById('message');
         if (messageInput) {
             messageInput.placeholder = messagePlaceholder;
             console.log('✓ Message placeholder updated');
         }
-        
+
         // 7. Send button
         const sendBtnEl = document.querySelector('button[onclick="sendMessage()"]');
         if (sendBtnEl) {
             sendBtnEl.textContent = `📤 ${sendBtn}`;
             console.log('✓ Send button updated');
         }
-        
+
         // 8. Appointments section - target the widget specifically
         const appointmentsWidget = document.querySelector('.dashboard-widget .widget-title');
         if (appointmentsWidget) {
             appointmentsWidget.textContent = `📅 ${appointmentsTitle}`;
             console.log('✓ Appointments title updated');
         }
-        
+
         // 9. Emergency section - target the main emergency header
         const emergencyCard = Array.from(document.querySelectorAll('.medical-card')).find(card => {
             const h3 = card.querySelector('h3');
             return h3 && (
-                h3.textContent.includes('Emergency') || 
-                h3.textContent.includes('紧急') || 
+                h3.textContent.includes('Emergency') ||
+                h3.textContent.includes('紧急') ||
                 h3.textContent.includes('அவசர') ||
                 h3.textContent.includes('Kecemasan')
             );
         });
-        
+
         if (emergencyCard) {
             const emergencyH3 = emergencyCard.querySelector('h3');
             if (emergencyH3) {
                 emergencyH3.textContent = `🚨 ${emergencyTitle}`;
                 console.log('✓ Emergency title updated');
             }
-            
+
             // Update ONLY the dashboard widgets inside this emergency card
             const widgets = emergencyCard.querySelectorAll('.dashboard-widget .widget-title');
             if (widgets.length >= 2) {
@@ -501,7 +505,7 @@ function applyCleanTranslations(translations, patientName) {
                 widgets[1].textContent = `ℹ️ ${importantNotesTitle}`;
                 console.log('✓ Widget titles updated');
             }
-            
+
             // Update contact info - be VERY specific to avoid duplicates
             const contactItems = emergencyCard.querySelectorAll('.flex.items-center');
             contactItems.forEach((item, index) => {
@@ -520,7 +524,7 @@ function applyCleanTranslations(translations, patientName) {
                     }
                 }
             });
-            
+
             // Update emergency instruction paragraphs
             const paras = emergencyCard.querySelectorAll('.dashboard-widget .text-muted');
             if (paras.length >= 2) {
@@ -529,14 +533,14 @@ function applyCleanTranslations(translations, patientName) {
                 console.log('✓ Emergency instructions updated');
             }
         }
-        
+
         // 10. No appointments text - if it exists
         const noApptEl = document.querySelector('#appointment-list .text-muted');
         if (noApptEl && noApptEl.textContent.includes('No upcoming')) {
             noApptEl.textContent = noAppointments;
             console.log('✓ No appointments text updated');
         }
-        
+
         console.log('🎯 All clean translations applied successfully');
     });
 }
@@ -564,7 +568,7 @@ function showTranslationLoading(show) {
 // Reset to English cleanly
 function resetToEnglish() {
     if (Object.keys(originalContent).length === 0) storeOriginalContent();
-    
+
     const welcomeEl = document.querySelector('.medical-card .medical-card-title');
     let patientName = '';
     if (welcomeEl) {
@@ -572,7 +576,7 @@ function resetToEnglish() {
         const match = text.match(/(?:Welcome|欢迎|வரவேற்கிறோம்|Selamat Datang)[,\s]*(.+)/i);
         if (match) patientName = match[1].trim();
     }
-    
+
     const englishTexts = Object.values(originalContent);
     applyCleanTranslations(englishTexts, patientName);
 }
@@ -581,30 +585,32 @@ function resetToEnglish() {
 async function handleLanguageChange() {
     const languageSelect = document.getElementById("language-select");
     const newLanguage = languageSelect.value;
+    if (recognition) updateRecognitionLanguage(newLanguage);
+
     const patientId = sessionStorage.getItem("userId");
-  
+
     console.log("🧹 Clean language change to:", newLanguage);
-    
+
     languageSelect.disabled = true;
-    
+
     try {
         // Clean translation
         const translationPromise = translatePageElements(newLanguage);
-        
+
         // DB update in parallel
         const dbPromise = fetch("/patient/update-language", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ patientId, language: newLanguage })
         });
-        
-       await translationPromise;
-await dbPromise;
 
-// Force page reload to apply all translations cleanly
-location.reload();
+        await translationPromise;
+        await dbPromise;
 
-        
+        // Force page reload to apply all translations cleanly
+        location.reload();
+
+
     } catch (err) {
         console.error("❌ Error:", err);
         showLanguageUpdateNotification('Translation failed', 'error');
@@ -615,7 +621,7 @@ location.reload();
 
 
 // Initialize element mapping when page loads
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Small delay to ensure all elements are rendered
     setTimeout(() => {
         //mapTranslatableElements();
@@ -624,13 +630,76 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Add event listener for language dropdown changes
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const languageSelect = document.getElementById("language-select");
     if (languageSelect) {
         languageSelect.addEventListener('change', handleLanguageChange);
         console.log("🇸🇬 Language change listener added");
     }
 });
+
+// ************** VOICE RECOGNITION *****************************
+
+// Check for browser support
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+
+ function updateRecognitionLanguage(langCode) {
+        const langMap = {
+            en: 'en-SG',
+            zh: 'zh-CN',
+            ms: 'ms-MY',
+            ta: 'ta-IN'
+        };
+        recognition.lang = langMap[langCode] || 'en-SG';
+        console.log("🎙️ Voice recognition language set to:", recognition.lang);
+    }
+
+
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-SG';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const micBtn = document.getElementById('mic-btn');
+        const messageInput = document.getElementById('message');
+
+        if (!micBtn || !messageInput) {
+            console.warn("🎤 mic-btn or message input not found.");
+            return;
+        }
+
+        micBtn.addEventListener('click', () => {
+            recognition.start();
+            micBtn.textContent = '🎙️ Listening...';
+            micBtn.disabled = true;
+        });
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            messageInput.value = transcript;
+            sendMessage();  // automatically send message after recognition
+        };
+
+        recognition.onend = () => {
+            micBtn.textContent = '🎤';
+            micBtn.disabled = false;
+        };
+
+        recognition.onerror = (event) => {
+            console.error("🎤 Voice error:", event.error);
+            micBtn.textContent = '🎤';
+            micBtn.disabled = false;
+        };
+    });
+} else {
+    document.addEventListener("DOMContentLoaded", () => {
+        const micBtn = document.getElementById('mic-btn');
+        if (micBtn) micBtn.style.display = 'none';
+    });
+}
 
 
 
