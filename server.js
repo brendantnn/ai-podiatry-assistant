@@ -951,7 +951,7 @@ app.post("/get-schedule-by-date", async (req, res) => {
 });
 
 // Fetch list of podiatrists appointments for queue
-app.post('/podiatrist-get-queue', async (req, res) => {
+app.post('/podiatrist-get-appointments-all', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching queue info for:", podId);
 
@@ -971,6 +971,7 @@ app.post('/podiatrist-get-queue', async (req, res) => {
 
         //Add data to data object
         const appointment = {
+          apptId: doc.id,
           patientId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
@@ -1012,13 +1013,13 @@ app.post('/podiatrist-get-queue', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("❌ Error in /podiatrist-get-queue:", error);
-    res.status(500).json({ error: "Failed to fetch queue" });
+    console.error("❌ Error in /podiatrist-get-appointments-all:", error);
+    res.status(500).json({ error: "Failed to fetch all appointments" });
   }
 });
 
 // Fetch appointments for calendar
-app.post('/podiatrist-get-calendar', async (req, res) => {
+app.post('/podiatrist-get-appointments-scheduled', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching calendar info for:", podId);
 
@@ -1027,12 +1028,12 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
     const apptSnapshot = await db.collection("Appointments") //Get appointments for this pod
       .where("podId", "==", podId)
       .where("status", "==", "scheduled")
-      // .orderBy("scheduledDate")
       .get();
 
     let appointments = [];// Make data list
     if (!apptSnapshot.empty) {
       const patientIds = [];
+
       apptSnapshot.docs.forEach(doc => { //Loop and get data from each entry retrieved
         const appt = doc.data();
         patientIds.push(appt.patientId);
@@ -1040,11 +1041,9 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
         //Add data to data object - NOW WITH CASE SUMMARY
         const appointment = {
           apptId: doc.id, // ID of document for this appointment (for updating)
-          patId: appt.patientId,
+          patientId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }), // Convert Firestore timestamp to JavaScript Date
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }), // Convert Firestore timestamp to JavaScript Date
-          type: appt.category,
-          // ADD THESE FIELDS FOR CASE SUMMARY
           urgencyLevel: appt.urgencyLevel || 3,
           category: appt.category || 'General',
           initialDiagnosis: appt.initialDiagnosis || 'Assessment pending',
@@ -1067,7 +1066,7 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
       // Add patient names to appointments as "patient"
       appointments = appointments.map(appt => ({
         ...appt,
-        patient: userMap[appt.patId] || "Unknown"
+        patient: userMap[appt.patientId] || "Unknown"
       }));
 
       //Return result in json
@@ -1083,13 +1082,13 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("❌ Error in /podiatrist-get-calendar:", error);
-    res.status(500).json({ error: "Failed to fetch calendar" });
+    console.error("❌ Error in /podiatrist-get-appointments-scheduled:", error);
+    res.status(500).json({ error: "Failed to fetch scheduled appointments" });
   }
 });
 
 //Update appointment details + update affected availabilities + SMS notification
-app.post('/calendar-update-appointment', async (req, res) => {
+app.post('/podiatrist-update-appointment', async (req, res) => {
   const { apptId, updateData, originalSlot } = req.body;
   console.log("🔍 Updating appointment with SMS notification:", apptId);
 
@@ -1221,12 +1220,12 @@ app.post('/calendar-update-appointment', async (req, res) => {
   }
 });
 
-app.post('/podiatrist-get-all-patients', async (req, res) => {
-  console.log("🔍 Fetching all patients");
+// Get appointments of ALL patients
+app.post('/get-all-appointments', async (req, res) => {
+  console.log("🔍 Fetching all appointments");
   try {
     // Get appointment
-    const apptSnapshot = await db.collection("Appointments")//Get appointments for this pod
-      .where("status", "==", "scheduled")
+    const apptSnapshot = await db.collection("Appointments")//Get all appointments
       .get();
 
     let appointments = [];// Make data list
@@ -1242,6 +1241,7 @@ app.post('/podiatrist-get-all-patients', async (req, res) => {
           patientId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          status: appt.status,
           urgencyLevel: appt.urgencyLevel,
           category: appt.category,
           initialDiagnosis: appt.initialDiagnosis,
@@ -1280,7 +1280,7 @@ app.post('/podiatrist-get-all-patients', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("❌ Error in /podiatrist-get-queue:", error);
+    console.error("❌ Error in /podiatrist-get-appointments-all:", error);
     res.status(500).json({ error: "Failed to fetch queue" });
   }
 });
@@ -1323,6 +1323,14 @@ app.post('/podiatrist-get-availability', async (req, res) => {
     res.status(500).json({ error: "Failed to fetch availability" });
   }
 });
+
+//Get full patient list with appointments
+// Get all patients from users collection (where role = patient)
+// loop through patient list and query appointmetn collection for relevant appointments (patient_Id = id and status = not over)
+// put appointments in a nexted list, if no appointments are found, remove patient from list
+
+
+
 
 // ========================================
 // ENHANCED DATE PARSING HELPER FUNCTIONS

@@ -511,7 +511,7 @@ async submitAppointmentEditFixed(patientId, appointmentId, patientName) {
     `;
     
     // Send edit request to server with CORRECT appointment ID
-    const response = await fetch("/calendar-update-appointment", {
+    const response = await fetch("/podiatrist-update-appointment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

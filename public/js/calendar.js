@@ -44,7 +44,7 @@ class PodiatristCalendar {
   async loadAppointments() {
     const podId = "pod_1";//TODO: Make Id not fixed
     try {
-      const res = await fetch("/podiatrist-get-calendar", { // Get patient queue
+      const res = await fetch("/podiatrist-get-appointments-scheduled", { // Get patient queue
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ podId }) // Ensure podId is defined
@@ -529,13 +529,13 @@ class PodiatristCalendar {
       
       if (targetCell) {
         const eventDiv = document.createElement('div');
-        eventDiv.className = `calendar-event ${appointment.type}`;
+        eventDiv.className = `calendar-event ${appointment.category}`;
         eventDiv.textContent = appointment.time + " " + appointment.patient;
         eventDiv.addEventListener('click', () => {
         // Store additional appointment data for the popup
         const appointmentDataForPopup = {
           urgencyLevel: appointment.urgencyLevel || 3,
-          category: appointment.type || appointment.category || 'General',
+          category: appointment.category || 'General',
           summary: appointment.summary || appointment.initialDiagnosis || 'No case summary available',
           initialDiagnosis: appointment.initialDiagnosis || 'Assessment pending'
         };
@@ -547,7 +547,7 @@ class PodiatristCalendar {
           appointment.patient, 
           appointment.date, 
           appointment.time, 
-          appointment.patId, 
+          appointment.patientId, 
           appointment.apptId
         );
       });
@@ -616,14 +616,14 @@ showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentT
   if (!appointmentData && this.appointments && this.appointments.length > 0) {
     const foundAppointment = this.appointments.find(apt => 
       apt.apptId === appointmentId || 
-      (apt.patId === patientId && apt.date === appointmentDate && apt.time === appointmentTime) ||
+      (apt.patientId === patientId && apt.date === appointmentDate && apt.time === appointmentTime) ||
       (apt.patient === appointmentPatient && apt.date === appointmentDate && apt.time === appointmentTime)
     );
     
     if (foundAppointment) {
       appointmentData = {
         urgencyLevel: foundAppointment.urgencyLevel || 3,
-        category: foundAppointment.category || foundAppointment.type || 'General',
+        category: foundAppointment.category || 'General',
         summary: foundAppointment.summary || foundAppointment.initialDiagnosis || 'No case summary available',
         initialDiagnosis: foundAppointment.initialDiagnosis || 'Assessment pending'
       };
@@ -914,7 +914,7 @@ async saveAppointmentChanges(appointmentId, originalSlot) {
 async updateAppointmentInDatabase(appointmentId, updateData, originalSlot) {
   //Send update request to server
   try {
-    const res = await fetch("/calendar-update-appointment", {
+    const res = await fetch("/podiatrist-update-appointment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData, "originalSlot": originalSlot })
@@ -1059,7 +1059,7 @@ async loadAppointments() {
     // Add cache busting parameter
     const cacheBuster = Date.now();
     
-    const res = await fetch(`/podiatrist-get-calendar?cb=${cacheBuster}`, {
+    const res = await fetch(`/podiatrist-get-appointments-scheduled?cb=${cacheBuster}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })

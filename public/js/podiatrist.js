@@ -26,7 +26,7 @@ window.onload = async () => {
 
   try {
     // Load patient queue
-    const res = await fetch("/podiatrist-get-queue", {
+    const res = await fetch("/podiatrist-get-appointments-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })
@@ -41,7 +41,7 @@ window.onload = async () => {
     console.log('✅ Patient queue loaded and sorted by urgency level');
 
     //load all patients
-    const resAll = await fetch("/podiatrist-get-all-patients", {
+    const resAll = await fetch("/get-all-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -453,7 +453,7 @@ async function refreshPatientQueue() {
     console.log('🔄 Refreshing patient queue...');
     
     const podId = "pod_1";
-    const res = await fetch("/podiatrist-get-queue", {
+    const res = await fetch("/podiatrist-get-appointments-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })
@@ -814,7 +814,7 @@ function populateTable(data = patientQueue) {
     <td>${patient.date}</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.time} on ${patient.date}', '${patient.summary}')"
+      onclick="openModal('queue', '${patient.apptId}', '${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.status}', '${patient.date}', '${patient.time}', '${patient.summary}')"
       >👁️ View</button>
       <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
@@ -903,32 +903,47 @@ function populateAllTab(data = allPatients) {
     <td>${patient.name}</td>
     <td>${patient.category}</td>
     <td>${patient.initialDiagnosis}</td>
+    <td>${patient.status}</td>
     <td>${patient.date}</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.time} on ${patient.date}', '${patient.summary}')"
+      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.status}', '${patient.date}', '${patient.time}', '${patient.summary}')"
       >👁️ View</button>
-      <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
   `;
+
+  //Removed the ask ai button for all appointemtns tab
+  // <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
+
     
     tableBody.appendChild(row);
   });
 }
 
-function openModal(id, name, category, symptoms, waitTime, summary) {
-  document.getElementById('modalPatientId').innerText = id;
+function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary) {
+  document.getElementById('modalPatientId').innerText = patientId;
   document.getElementById('modalPatientName').innerText = name;
   document.getElementById('modalPatientCategory').innerText = category;
   document.getElementById('modalPatientSymptoms').innerText = symptoms;
-  document.getElementById('modalPatientWaitTime').innerText = waitTime;
+  document.getElementById('modalPatientWaitTime').innerText = time + " on " + date;
   document.getElementById('modalPatientCaseSummary').innerText = summary;
 
   document.getElementById('patientModal').style.display = 'block';
+
+  if (tab == 'all' && status != 'canceled') {//Hide edit button if modal opens from all tab and appointemnt is already scheduled. (Basically only allow edits in all tab if that appointment has no podiatrist assigned)
+    document.getElementById('modalPatientEditBtn').hidden = true;
+  }
+
+  document.getElementById('modalPatientEditBtn').onclick = function() {openEditModal(name, date, time, patientId, apptId)};
 }
 
 function closeModal() {
   document.getElementById('patientModal').style.display = 'none';
+}
+
+function openEditModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
+  closeModal();
+  window.podiatristCalendar.showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId);
 }
 
 window.onclick = function(event) {
