@@ -852,4 +852,13 @@ router.post('/translate', async (req, res) => {
 });
 
 
+router.post("/reset-session", (req, res) => {
+  const { patientId } = req.body;
+  delete session[patientId]; // Clear server memory for that user
+  res.json({ success: true });
+});
+
+
+
+
 module.exports = router;

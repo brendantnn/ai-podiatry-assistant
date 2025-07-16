@@ -3,11 +3,24 @@
 
 // Called when user clicks send button in HTML page
 window.onload = async () => {
+
+   
+
+
     const loadingScreen = document.getElementById("loading-screen");
     loadingScreen.style.display = "flex";
 
     const patientId = sessionStorage.getItem("userId");
+ await fetch("/patient/reset-session", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ patientId })
+});
+
+
     const chatbox = document.getElementById("chatbox");
+    chatbox.innerHTML = ""; // Clear any previous messages on page load
+
 
     try {
         const res = await fetch("/patient/chat-patient-details", {
