@@ -671,11 +671,14 @@ if (SpeechRecognition) {
             return;
         }
 
-        micBtn.addEventListener('click', () => {
-            recognition.start();
-            micBtn.textContent = '🎙️ Listening...';
-            micBtn.disabled = true;
-        });
+       micBtn.addEventListener('click', () => {
+    const currentLang = document.getElementById("language-select")?.value || "en";
+    updateRecognitionLanguage(currentLang); // set correct recognition language
+    recognition.start();
+    micBtn.textContent = '🎙️ Listening...';
+    micBtn.disabled = true;
+});
+
 
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
