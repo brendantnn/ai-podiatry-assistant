@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require("express");
 const cors = require("cors");
 const { OpenAI } = require("openai");
@@ -5,14 +7,26 @@ const path = require("path");
 const app = express();
 const { admin,db } = require("./firebase");
 
+// IMPORTS FOR SMS
+const SMSService = require('./smsService');
+const { setupSMSRoutes, setupPatientSMSRoutes } = require('./smsRoutes');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
+// Initialize SMS Service
+const smsService = new SMSService(db, admin);
+
+// Setup SMS routes
+app.use('/sms', setupSMSRoutes(smsService));
+
 // Load patient route
 const patientRoutes = require("./patientRoutes");
 app.use("/patient", patientRoutes);
+
+// ADD SMS routes to patient routes
+app.use("/patient", setupPatientSMSRoutes(smsService));
 
 
 // Declare openai api key here
@@ -1074,79 +1088,131 @@ app.post('/podiatrist-get-calendar', async (req, res) => {
   }
 });
 
-//Update appointment details + update affected availabilities 
+//Update appointment details + update affected availabilities + SMS notification
 app.post('/calendar-update-appointment', async (req, res) => {
   const { apptId, updateData, originalSlot } = req.body;
-  console.log("🔍 Updating appt info for:", apptId);
+  console.log("🔍 Updating appointment with SMS notification:", apptId);
 
   try {
-    const docRef = db.collection("Appointments").doc(apptId);
+    // Get current appointment with patient details
+    const appointmentDoc = await db.collection("Appointments").doc(apptId).get();
+    
+    if (!appointmentDoc.exists) {
+      return res.json({
+        success: false,
+        message: "Appointment not found"
+      });
+    }
 
+    const currentAppointment = appointmentDoc.data();
+    const oldDateTime = currentAppointment.scheduledDate.toDate();
+    const patientId = currentAppointment.patientId;
+
+    // Update the appointment in Firebase
     const updates = {
       scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)),
-      lastModified: admin.firestore.Timestamp.now() // Add timestamp
+      lastModified: admin.firestore.Timestamp.now()
     };
 
-    await docRef.update(updates);
+    await db.collection("Appointments").doc(apptId).update(updates);
 
-    // Set status of original availability to 'available', and status of new availability to 'unavailable' (Move out of /calendar-update-appointment and put in its own route if needed)
+    // Handle availability updates (your existing logic)
+    if (originalSlot) {
+      try {
+        const oldSlotQuery = await db.collection("Availability")
+          .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(originalSlot)))
+          .get();
+
+        if (!oldSlotQuery.empty) {
+          await oldSlotQuery.docs[0].ref.update({ status: "available" });
+        }
+
+        const newSlotQuery = await db.collection("Availability")
+          .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(updateData)))
+          .get();
+
+        if (!newSlotQuery.empty) {
+          await newSlotQuery.docs[0].ref.update({ status: "unavailable" });
+        }
+      } catch (availabilityError) {
+        console.error('⚠️ Availability update failed:', availabilityError);
+      }
+    }
+
+    // Get podiatrist name
+    let podiatristName = "Doctor";
+    try {
+      const podiatristQuery = await db.collection("Users")
+        .where("userId", "==", currentAppointment.podId)
+        .limit(1)
+        .get();
+
+      if (!podiatristQuery.empty) {
+        const podiatristData = podiatristQuery.docs[0].data();
+        podiatristName = `${podiatristData.firstName || ''} ${podiatristData.lastName || ''}`.trim();
+      }
+    } catch (podError) {
+      console.warn('⚠️ Could not fetch podiatrist name:', podError);
+    }
+
+    // Format dates for SMS
+    const oldDateFormatted = oldDateTime.toLocaleString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
     
-    //First find original slot
-    const OldSlotQuery = await db.collection("Availability")
-      .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(originalSlot)))
-      .get();
-
-    if (OldSlotQuery.empty) {
-      return res.json({
-        success: false,
-        message: "Failed to find original slot"
-      });
-    }
-    // Update the slot to be available
-    await OldSlotQuery.docs[0].ref.update({
-      status: "available"
+    const newDateFormatted = new Date(updateData).toLocaleString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
     });
 
-    // Next find new slot
-    const newSlotQuery = await db.collection("Availability")
-      .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(updateData)))
-      .get();
+    // Send SMS notification using SMS service
+    const smsResult = await smsService.sendAppointmentUpdateSMS(
+      apptId,
+      patientId,
+      oldDateFormatted,
+      newDateFormatted,
+      podiatristName
+    );
 
-    if (newSlotQuery.empty) {
-      return res.json({
-        success: false,
-        message: "Failed to find new slot"
-      });
+    let smsStatus = 'no_phone';
+    if (smsResult.success) {
+      smsStatus = 'sent';
+    } else if (smsResult.error === 'no_phone') {
+      smsStatus = 'no_phone';
+    } else if (smsResult.error === 'disabled') {
+      smsStatus = 'disabled';
+    } else {
+      smsStatus = 'failed';
     }
-    // Update the slot to be unavailable
-    await newSlotQuery.docs[0].ref.update({
-      status: "unavailable"
-    });
-    //Availability section end
 
-    // ENHANCED: Return more detailed response for frontend
+    // Return enhanced response
     return res.json({
       success: true,
-      message: "Appointment updated successfully.",
-      timestamp: new Date().toISOString(),
-      updatedAppointment: {
-        id: apptId,
-        newScheduledDate: updateData,
-        formattedDate: new Date(updateData).toLocaleDateString("en-SG", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "Asia/Singapore"
-        })
-      },
-       clearCache: true
+      message: "Appointment updated successfully",
+      appointmentId: apptId,
+      oldDateTime: oldDateFormatted,
+      newDateTime: newDateFormatted,
+      patientName: smsResult.patientName || 'Unknown',
+      smsStatus: smsStatus,
+      clearCache: true,
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    console.error("Error updating appointment:", error);
+    console.error("❌ Appointment update error:", error);
     return res.status(500).json({
       success: false,
       error: "Failed to update appointment.",
@@ -1351,31 +1417,44 @@ function parseDateTime(dateTimeString) {
   }
 }
 
-// EDIT APPOINTMENT ROUTE
+// EDIT APPOINTMENT ROUTE + SMS NOTIFICATION
 app.post("/edit-appointment", async (req, res) => {
-  const { patientId, newDateTime, podiatristId } = req.body;
+  const { patientId, appointmentId, newDateTime, podiatristId } = req.body;
 
   try {
-    console.log('📝 Editing appointment for:', patientId, 'to:', newDateTime);
+    console.log('📝 Editing appointment with SMS notification:', patientId, 'to:', newDateTime);
 
-    // Find the appointment
-    const appointmentQuery = await db.collection("Appointments")
-      .where("patientId", "==", patientId)
-      .where("status", "==", "scheduled")
-      .limit(1)
-      .get();
+    // Find the appointment by ID if provided, otherwise by patientId
+    let appointmentDoc;
+    if (appointmentId) {
+      appointmentDoc = await db.collection("Appointments").doc(appointmentId).get();
+    } else {
+      const appointmentQuery = await db.collection("Appointments")
+        .where("patientId", "==", patientId)
+        .where("status", "==", "scheduled")
+        .limit(1)
+        .get();
 
-    if (appointmentQuery.empty) {
+      if (appointmentQuery.empty) {
+        return res.json({
+          success: false,
+          message: "No scheduled appointment found for this patient"
+        });
+      }
+      appointmentDoc = appointmentQuery.docs[0];
+    }
+
+    if (!appointmentDoc.exists) {
       return res.json({
         success: false,
-        message: "No scheduled appointment found for this patient"
+        message: "Appointment not found"
       });
     }
 
-    const appointmentDoc = appointmentQuery.docs[0];
     const currentAppointment = appointmentDoc.data();
+    const oldDateTime = currentAppointment.scheduledDate.toDate();
 
-    // Parse new date/time (you'll need to implement this)
+    // Parse new date/time
     const newScheduledDate = parseDateTime(newDateTime);
 
     if (!newScheduledDate) {
@@ -1391,39 +1470,61 @@ app.post("/edit-appointment", async (req, res) => {
       lastModified: admin.firestore.Timestamp.now()
     });
 
-    // Get patient name
-    const patientQuery = await db.collection("Users")
-      .where("userId", "==", patientId)
-      .limit(1)
-      .get();
+    // Get podiatrist name
+    let podiatristName = "Doctor";
+    try {
+      const podiatristQuery = await db.collection("Users")
+        .where("userId", "==", currentAppointment.podId)
+        .limit(1)
+        .get();
 
-    const patientName = !patientQuery.empty ?
-      `${patientQuery.docs[0].data().firstName} ${patientQuery.docs[0].data().lastName}` :
-      patientId;
+      if (!podiatristQuery.empty) {
+        const podiatristData = podiatristQuery.docs[0].data();
+        podiatristName = `${podiatristData.firstName || ''} ${podiatristData.lastName || ''}`.trim();
+      }
+    } catch (podError) {
+      console.warn('⚠️ Could not fetch podiatrist name:', podError);
+    }
+
+    // Format dates
+    const oldDateFormatted = oldDateTime.toLocaleDateString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
+
+    const newDateFormatted = newScheduledDate.toLocaleDateString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
+
+    // Send SMS notification
+    const smsResult = await smsService.sendAppointmentUpdateSMS(
+      appointmentDoc.id,
+      patientId,
+      oldDateFormatted,
+      newDateFormatted,
+      podiatristName
+    );
 
     return res.json({
       success: true,
-      patientName: patientName,
-      newDateTime: newScheduledDate.toLocaleDateString("en-SG", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-        timeZone: "Asia/Singapore"
-      }),
-      oldDateTime: currentAppointment.scheduledDate.toDate().toLocaleDateString("en-SG", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-        timeZone: "Asia/Singapore"
-      })
+      patientName: smsResult.patientName || 'Unknown',
+      newDateTime: newDateFormatted,
+      oldDateTime: oldDateFormatted,
+      smsStatus: smsResult.success ? 'sent' : 'failed',
+      smsError: smsResult.error
     });
 
   } catch (error) {
@@ -2025,6 +2126,35 @@ function parseDateForFiltering(dateString) {
   }
 }
 
+// Test SMS system from podiatrist dashboard
+app.post('/test-sms-system', async (req, res) => {
+  try {
+    const { phoneNumber, message } = req.body;
+    
+    if (!phoneNumber || !message) {
+      return res.json({
+        success: false,
+        message: 'Phone number and message are required'
+      });
+    }
+    
+    const result = await smsService.sendSMS(phoneNumber, message);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Test SMS sent successfully!' : `Test SMS failed: ${result.error}`,
+      details: result
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'SMS test failed',
+      error: error.message
+    });
+  }
+});
+
 // Set default path to login.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
@@ -2032,4 +2162,7 @@ app.get("/", (req, res) => {
 
 // Start server
 const PORT = 3000;
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`📱 SMS Service initialized: ${smsService.isInitialized ? 'ENABLED' : 'DISABLED'}`);
+});
