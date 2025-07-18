@@ -738,15 +738,284 @@ function getUrgencyText(urgencyLevel) {
   }
 }
 
+// app.post("/get-schedule-by-date", async (req, res) => {
+//   const { podiatristId, targetDate, cacheBuster } = req.body; // Add cacheBuster parameter
+  
+//   try {
+//     // CACHE CHECK FIRST - Skip cache if cacheBuster is present
+//     const cacheKey = getCacheKey(targetDate, podiatristId);
+//     const cachedResult = scheduleCache.get(cacheKey);
+
+//     if (isValidCache(cachedResult) && !cacheBuster) { // Skip cache if cacheBuster exists
+//       console.log('⚡ CACHE HIT: Returning cached schedule');
+//       return res.json(cachedResult.data);
+//     }
+
+//     console.log('📅 CACHE MISS: Fetching fresh schedule for date:', targetDate);
+//     if (cacheBuster) {
+//       console.log('🧹 CACHE BUSTER: Forced fresh data request');
+//     }
+
+//     // OPTIMIZATION 1: Create date range more efficiently
+//     let scheduleDate;
+//     if (targetDate && targetDate !== 'today') {
+//       if (typeof targetDate === 'string' && targetDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+//         scheduleDate = new Date(targetDate + 'T12:00:00+08:00');
+//       } else {
+//         scheduleDate = new Date(targetDate);
+//       }
+
+//       if (isNaN(scheduleDate.getTime())) {
+//         return res.status(400).json({
+//           success: false,
+//           error: "Invalid date format"
+//         });
+//       }
+//     } else {
+//       scheduleDate = new Date();
+//     }
+
+//     const dateStr = scheduleDate.toISOString().split('T')[0];
+//     const startOfDay = new Date(dateStr + 'T00:00:00+08:00');
+//     const endOfDay = new Date(dateStr + 'T23:59:59.999+08:00');
+
+//     console.log('🚀 FAST: Querying Firebase...');
+//     console.log('🔍 FAST Date string:', dateStr);
+//     console.log('🔍 FAST Start of day (Singapore):', startOfDay.toISOString());
+//     console.log('🔍 FAST End of day (Singapore):', endOfDay.toISOString());
+
+//     // OPTIMIZATION 2: Single optimized query
+//     const appointmentsQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+//       .where("status", "==", "scheduled")
+//       .get();
+
+//     console.log('⚡ FAST: Found', appointmentsQuery.size, 'appointments');
+
+//     if (appointmentsQuery.empty) {
+//       const emptyResult = {
+//         success: true,
+//         appointments: [],
+//         totalCount: 0,
+//         message: `No appointments scheduled for ${scheduleDate.toLocaleDateString("en-SG")}`,
+//         date: scheduleDate.toLocaleDateString("en-SG", {
+//           weekday: "long",
+//           year: "numeric",
+//           month: "long",
+//           day: "numeric",
+//           timeZone: "Asia/Singapore"
+//         }),
+//         isEmpty: true  // ADD EMPTY FLAG FOR DIRECT HANDLING
+//       };
+
+//       // CACHE EMPTY RESULT TOO
+//       scheduleCache.set(cacheKey, {
+//         data: emptyResult,
+//         timestamp: Date.now()
+//       });
+
+//       return res.json(emptyResult);
+//     }
+
+//     // OPTIMIZATION 3: Batch patient lookups with timeout and parallel processing
+//     console.log('🔄 FAST: Processing appointments in parallel...');
+
+//     // Get all unique patient IDs first
+//     const patientIds = [...new Set(appointmentsQuery.docs.map(doc => doc.data().patientId))];
+//     console.log('👥 FAST: Looking up', patientIds.length, 'unique patients');
+
+//     // OPTIMIZATION 4: Batch patient lookup
+//     const patientLookupPromises = patientIds.map(async (patientId) => {
+//       try {
+//         const patientQuery = await Promise.race([
+//           db.collection("Users")
+//             .where("userId", "==", patientId)
+//             .limit(1)
+//             .get(),
+//           new Promise((_, reject) =>
+//             setTimeout(() => reject(new Error('timeout')), 1500) // Reduced timeout
+//           )
+//         ]);
+
+//         if (!patientQuery.empty) {
+//           const patientData = patientQuery.docs[0].data();
+//           return {
+//             patientId,
+//             name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+//             phone: patientData.phone || "N/A",
+//             email: patientData.email || "N/A"
+//           };
+//         }
+//       } catch (error) {
+//         console.log(`⚠️ FAST: Patient lookup failed for ${patientId}:`, error.message);
+//       }
+
+//       // Fallback
+//       return {
+//         patientId,
+//         name: patientId,
+//         phone: "N/A",
+//         email: "N/A"
+//       };
+//     });
+
+//     // Wait for all patient lookups
+//     const patientDataMap = {};
+//     const patientResults = await Promise.all(patientLookupPromises);
+//     patientResults.forEach(result => {
+//       patientDataMap[result.patientId] = result;
+//     });
+
+//     console.log('✅ FAST: Patient data retrieved, building response...');
+
+//     // OPTIMIZATION 5: Fast appointment processing
+//     const dayAppointments = appointmentsQuery.docs.map(appointmentDoc => {
+//       const appointment = appointmentDoc.data();
+//       const patientInfo = patientDataMap[appointment.patientId] || {
+//         name: appointment.patientId,
+//         phone: "N/A",
+//         email: "N/A"
+//       };
+
+//       const scheduledDate = appointment.scheduledDate.toDate();
+//       return {
+//         appointmentId: appointmentDoc.id,
+//         patientId: appointment.patientId,
+//         patientName: patientInfo.name,
+//         patientPhone: patientInfo.phone,
+//         patientEmail: patientInfo.email,
+//         scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: true,
+//           timeZone: "Asia/Singapore"
+//         }),
+//         scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+//           weekday: "long",
+//           year: "numeric",
+//           month: "long",
+//           day: "numeric",
+//           timeZone: "Asia/Singapore"
+//         }),
+//         category: appointment.category || "General",
+//         urgencyLevel: appointment.urgencyLevel || 4,
+//         urgencyText: getUrgencyText(appointment.urgencyLevel),
+//         initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+//         summary: appointment.summary || "No additional notes",
+//         status: appointment.status
+//       };
+//     });
+
+//     // OPTIMIZATION 6: Fast JavaScript sorting
+//     dayAppointments.sort((a, b) => {
+//       if (a.urgencyLevel !== b.urgencyLevel) {
+//         return a.urgencyLevel - b.urgencyLevel;
+//       }
+//       return new Date(`1970-01-01 ${a.scheduledTime}`) - new Date(`1970-01-01 ${b.scheduledTime}`);
+//     });
+
+//     console.log('🚀 FAST: Sending response with', dayAppointments.length, 'appointments');
+
+//     const result = {
+//       success: true,
+//       appointments: dayAppointments,
+//       totalCount: dayAppointments.length,
+//       date: scheduleDate.toLocaleDateString("en-SG", {
+//         weekday: "long",
+//         year: "numeric",
+//         month: "long",
+//         day: "numeric",
+//         timeZone: "Asia/Singapore"
+//       })
+//     };
+
+//     // CACHE THE RESULT FOR FASTER SUBSEQUENT REQUESTS
+//     scheduleCache.set(cacheKey, {
+//       data: result,
+//       timestamp: Date.now()
+//     });
+
+//     console.log('💾 CACHED: Schedule cached for future requests');
+
+//     return res.json(result);
+
+//   } catch (error) {
+//     console.error("❌ FAST: Error fetching schedule:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch schedule",
+//       message: error.message
+//     });
+//   }
+// });
+
+// Fetch list of podiatrists appointments for queue
 app.post("/get-schedule-by-date", async (req, res) => {
-  const { podiatristId, targetDate, cacheBuster } = req.body; // Add cacheBuster parameter
+  const { podiatristId, targetDate, cacheBuster } = req.body; 
   
   try {
+    // NEW: Handle "all" dates request for availability filtering
+    if (targetDate === "all") {
+      console.log('📅 Fetching all scheduled appointments for availability filtering...');
+      
+      const allAppointmentsQuery = await db.collection("Appointments")
+        .where("status", "==", "scheduled")
+        .get();
+      
+      const allAppointments = [];
+      
+      for (const appointmentDoc of allAppointmentsQuery.docs) {
+        const appointment = appointmentDoc.data();
+        
+        // Get patient name
+        let patientName = appointment.patientId;
+        try {
+          const patientQuery = await db.collection("Users")
+            .where("userId", "==", appointment.patientId)
+            .limit(1)
+            .get();
+          if (!patientQuery.empty) {
+            const patientData = patientQuery.docs[0].data();
+            patientName = `${patientData.firstName} ${patientData.lastName}`.trim();
+          }
+        } catch (error) {
+          console.log('Patient lookup failed:', error);
+        }
+        
+        const scheduledDate = appointment.scheduledDate.toDate();
+        allAppointments.push({
+          appointmentId: appointmentDoc.id,
+          patientId: appointment.patientId,
+          patientName,
+          scheduledDateTime: scheduledDate.toLocaleString("en-SG", {
+            weekday: "short",
+            month: "short", 
+            day: "numeric",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore"
+          }),
+          category: appointment.category || "General",
+          urgencyLevel: appointment.urgencyLevel || 4
+        });
+      }
+      
+      return res.json({
+        success: true,
+        appointments: allAppointments,
+        totalCount: allAppointments.length,
+        message: "All scheduled appointments for filtering"
+      });
+    }
+
     // CACHE CHECK FIRST - Skip cache if cacheBuster is present
     const cacheKey = getCacheKey(targetDate, podiatristId);
     const cachedResult = scheduleCache.get(cacheKey);
 
-    if (isValidCache(cachedResult) && !cacheBuster) { // Skip cache if cacheBuster exists
+    if (isValidCache(cachedResult) && !cacheBuster) { 
       console.log('⚡ CACHE HIT: Returning cached schedule');
       return res.json(cachedResult.data);
     }
@@ -950,7 +1219,6 @@ app.post("/get-schedule-by-date", async (req, res) => {
   }
 });
 
-// Fetch list of podiatrists appointments for queue
 app.post('/podiatrist-get-appointments-all', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching queue info for:", podId);

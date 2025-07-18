@@ -8,7 +8,8 @@ class PodiatristAIChat {
     this.patientCache = new Map();
     this.selectedAppointment = null;
     this.currentAppointmentData = null;
-     this.sessionData = null;
+    this.sessionData = null;
+    this.bookedSlots = new Set(); // ← ADD THIS LINE
     
     this.init = this.init.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
@@ -267,8 +268,207 @@ addWelcomeMessage(chatbox) {
   }
 }
 
-// SHOW EDIT FORM DIRECTLY (BYPASS APPOINTMENT SELECTION)
-showDirectEditForm(appointment, suggestedDateTime = null) {
+// // SHOW EDIT FORM DIRECTLY (BYPASS APPOINTMENT SELECTION)
+// showDirectEditForm(appointment, suggestedDateTime = null) {
+//   console.log('📝 Showing direct edit form for appointment:', appointment);
+  
+//   // Store the current appointment data for later use
+//   this.currentAppointmentData = {
+//     patientId: appointment.patientId,
+//     appointmentId: appointment.appointmentId,
+//     patientName: appointment.patientName,
+//     currentDateTime: appointment.scheduledDateTime,
+//     category: appointment.category,
+//     initialDiagnosis: appointment.initialDiagnosis
+//   };
+  
+//   console.log('💾 Stored appointment data:', this.currentAppointmentData);
+  
+//   // Remove existing modal if any
+//   const existingModal = document.getElementById('appointmentEditModal');
+//   if (existingModal) {
+//     existingModal.remove();
+//   }
+  
+//   // Create modal with edit form directly
+//   const modal = document.createElement('div');
+//   modal.id = 'appointmentEditModal';
+//   modal.style.cssText = `
+//     position: fixed;
+//     top: 0;
+//     left: 0;
+//     width: 100%;
+//     height: 100%;
+//     background: rgba(0, 0, 0, 0.5);
+//     display: flex;
+//     justify-content: center;
+//     align-items: center;
+//     z-index: 10000;
+//     animation: fadeIn 0.2s ease-out;
+//   `;
+  
+//   const modalContent = document.createElement('div');
+//   modalContent.style.cssText = `
+//     background: white;
+//     border-radius: 12px;
+//     padding: 20px;
+//     max-width: 500px;
+//     max-height: 80vh;
+//     width: 90%;
+//     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+//     overflow-y: auto;
+//     animation: slideInScale 0.2s ease-out;
+//   `;
+  
+//   // Pre-fill suggested date/time if provided
+//   let preFillDate = '';
+//   let preFillTime = '';
+  
+//   if (suggestedDateTime) {
+//     console.log('🕐 Suggested date/time:', suggestedDateTime);
+    
+//     if (suggestedDateTime.includes('july')) {
+//       const year = new Date().getFullYear();
+//       const match = suggestedDateTime.match(/(\d{1,2})\s*july/i);
+//       if (match) {
+//         const day = match[1].padStart(2, '0');
+//         preFillDate = `${year}-07-${day}`;
+//       }
+//     }
+//   }
+  
+//   modalContent.innerHTML = `
+//     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
+//       <h3 style="margin: 0; color: #1d4ed8; font-size: 1.2rem;">✏️ Edit Appointment</h3>
+//       <button onclick="podiatristAI.closeAppointmentModal()" style="
+//         background: none;
+//         border: none;
+//         font-size: 1.5rem;
+//         cursor: pointer;
+//         color: #6b7280;
+//         padding: 5px;
+//         border-radius: 4px;
+//         transition: background-color 0.2s;
+//       " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">✕</button>
+//     </div>
+    
+//     <div style="margin-bottom: 20px;">
+//       <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;">
+//         <h4 style="margin: 0 0 10px 0; color: #1d4ed8;">📋 Current Appointment</h4>
+//         <div style="font-size: 0.9rem; color: #374151;">
+//           <div><strong>Patient:</strong> ${appointment.patientName}</div>
+//           <div><strong>Appointment ID:</strong> ${appointment.appointmentId}</div>
+//           <div><strong>Current Date/Time:</strong> ${appointment.scheduledDateTime}</div>
+//           <div><strong>Category:</strong> ${appointment.category}</div>
+//           <div><strong>Diagnosis:</strong> ${appointment.initialDiagnosis}</div>
+//         </div>
+//       </div>
+      
+//       <div style="background: #fefdf8; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+//         <h4 style="margin: 0 0 15px 0; color: #374151;">📅 New Date & Time</h4>
+        
+//         <div style="margin-bottom: 15px;">
+//           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Date:</label>
+//           <input type="date" id="newAppointmentDate" value="${preFillDate}" style="
+//             width: 100%;
+//             padding: 10px;
+//             border: 1px solid #d1d5db;
+//             border-radius: 6px;
+//             font-size: 1rem;
+//           " min="${new Date().toISOString().split('T')[0]}">
+//         </div>
+        
+//         <div style="margin-bottom: 20px;">
+//           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Time:</label>
+//           <select id="newAppointmentTime" style="
+//             width: 100%;
+//             padding: 10px;
+//             border: 1px solid #d1d5db;
+//             border-radius: 6px;
+//             font-size: 1rem;
+//           ">
+//             <option value="">Select time</option>
+//             <option value="08:00">8:00 AM</option>
+//             <option value="08:30">8:30 AM</option>
+//             <option value="09:00">9:00 AM</option>
+//             <option value="09:30">9:30 AM</option>
+//             <option value="10:00">10:00 AM</option>
+//             <option value="10:30">10:30 AM</option>
+//             <option value="11:00">11:00 AM</option>
+//             <option value="11:30">11:30 AM</option>
+//             <option value="12:00">12:00 PM</option>
+//             <option value="12:30">12:30 PM</option>
+//             <option value="13:00">1:00 PM</option>
+//             <option value="13:30">1:30 PM</option>
+//             <option value="14:00">2:00 PM</option>
+//             <option value="14:30">2:30 PM</option>
+//             <option value="15:00">3:00 PM</option>
+//             <option value="15:30">3:30 PM</option>
+//             <option value="16:00">4:00 PM</option>
+//             <option value="16:30">4:30 PM</option>
+//             <option value="17:00">5:00 PM</option>
+//           </select>
+//         </div>
+        
+//         <div style="display: flex; gap: 10px; justify-content: flex-end;">
+//           <button onclick="podiatristAI.closeAppointmentModal()" style="
+//             background: #6b7280;
+//             color: white;
+//             border: none;
+//             padding: 10px 20px;
+//             border-radius: 6px;
+//             cursor: pointer;
+//             font-size: 0.9rem;
+//             transition: background-color 0.2s;
+//           " onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
+//             Cancel
+//           </button>
+//           <button onclick="podiatristAI.submitAppointmentEditFixed('${appointment.patientId}', '${appointment.appointmentId}', '${appointment.patientName}')" style="
+//             background: #3b82f6;
+//             color: white;
+//             border: none;
+//             padding: 10px 20px;
+//             border-radius: 6px;
+//             cursor: pointer;
+//             font-size: 0.9rem;
+//             transition: background-color 0.2s;
+//           " onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'">
+//             ✅ Update Appointment
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   `;
+  
+//   modal.appendChild(modalContent);
+//   document.body.appendChild(modal);
+  
+//   // Add animation styles
+//   const style = document.createElement('style');
+//   style.textContent = `
+//     @keyframes fadeIn {
+//       from { opacity: 0; }
+//       to { opacity: 1; }
+//     }
+//     @keyframes slideInScale {
+//       from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+//       to { opacity: 1; transform: translateY(0) scale(1); }
+//     }
+//   `;
+//   document.head.appendChild(style);
+  
+//   // Close modal when clicking outside
+//   modal.addEventListener('click', (e) => {
+//     if (e.target === modal) {
+//       this.closeAppointmentModal();
+//     }
+//   });
+  
+//   console.log('✅ Direct edit form displayed for', appointment.patientName, 'with appointment ID:', appointment.appointmentId);
+// }
+
+// SHOW EDIT FORM DIRECTLY - ORIGINAL FORMAT WITH AVAILABILITY FILTERING
+async showDirectEditForm(appointment, suggestedDateTime = null) {
   console.log('📝 Showing direct edit form for appointment:', appointment);
   
   // Store the current appointment data for later use
@@ -288,6 +488,10 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
   if (existingModal) {
     existingModal.remove();
   }
+  
+  // LOAD BOOKED SLOTS TO FILTER OUT
+  console.log('🔄 Loading booked slots to filter out...');
+  await this.loadBookedSlotsForFiltering();
   
   // Create modal with edit form directly
   const modal = document.createElement('div');
@@ -321,7 +525,6 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
   
   // Pre-fill suggested date/time if provided
   let preFillDate = '';
-  let preFillTime = '';
   
   if (suggestedDateTime) {
     console.log('🕐 Suggested date/time:', suggestedDateTime);
@@ -374,7 +577,7 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
             border: 1px solid #d1d5db;
             border-radius: 6px;
             font-size: 1rem;
-          " min="${new Date().toISOString().split('T')[0]}">
+          " min="${new Date().toISOString().split('T')[0]}" onchange="podiatristAI.updateAvailableTimesForDate()">
         </div>
         
         <div style="margin-bottom: 20px;">
@@ -386,27 +589,11 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
             border-radius: 6px;
             font-size: 1rem;
           ">
-            <option value="">Select time</option>
-            <option value="08:00">8:00 AM</option>
-            <option value="08:30">8:30 AM</option>
-            <option value="09:00">9:00 AM</option>
-            <option value="09:30">9:30 AM</option>
-            <option value="10:00">10:00 AM</option>
-            <option value="10:30">10:30 AM</option>
-            <option value="11:00">11:00 AM</option>
-            <option value="11:30">11:30 AM</option>
-            <option value="12:00">12:00 PM</option>
-            <option value="12:30">12:30 PM</option>
-            <option value="13:00">1:00 PM</option>
-            <option value="13:30">1:30 PM</option>
-            <option value="14:00">2:00 PM</option>
-            <option value="14:30">2:30 PM</option>
-            <option value="15:00">3:00 PM</option>
-            <option value="15:30">3:30 PM</option>
-            <option value="16:00">4:00 PM</option>
-            <option value="16:30">4:30 PM</option>
-            <option value="17:00">5:00 PM</option>
+            <option value="">Select date first</option>
           </select>
+          <p id="availabilityStatus" style="font-size: 0.875rem; margin-top: 8px; color: #6b7280;">
+            Select a date to see available times
+          </p>
         </div>
         
         <div style="display: flex; gap: 10px; justify-content: flex-end;">
@@ -463,7 +650,7 @@ showDirectEditForm(appointment, suggestedDateTime = null) {
     }
   });
   
-  console.log('✅ Direct edit form displayed for', appointment.patientName, 'with appointment ID:', appointment.appointmentId);
+  console.log('✅ Direct edit form displayed for', appointment.patientName);
 }
 
 // FIXED SUBMIT APPOINTMENT EDIT - USES CORRECT APPOINTMENT ID
@@ -805,8 +992,127 @@ selectAppointmentFromModal(patientId, appointmentId, patientName, currentDateTim
   this.showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime);
 }
 
-// SHOW APPOINTMENT EDIT FORM IN MODAL
-showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) {
+// // SHOW APPOINTMENT EDIT FORM IN MODAL
+// showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) {
+//   const modal = document.getElementById('appointmentEditModal');
+//   if (!modal) return;
+  
+//   // STORE THE CURRENT APPOINTMENT DATA HERE TOO
+//   this.currentAppointmentData = {
+//     patientId: patientId,
+//     appointmentId: appointmentId,
+//     patientName: patientName,
+//     currentDateTime: currentDateTime,
+//     category: 'General', // Default since we don't have it here
+//     initialDiagnosis: 'Assessment pending' // Default since we don't have it here
+//   };
+  
+//   const modalContent = modal.querySelector('div');
+  
+//   // Replace modal content with edit form
+//   modalContent.innerHTML = `
+//     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
+//       <h3 style="margin: 0; color: #1d4ed8; font-size: 1.2rem;">✏️ Edit Appointment</h3>
+//       <button onclick="podiatristAI.closeAppointmentModal()" style="
+//         background: none;
+//         border: none;
+//         font-size: 1.5rem;
+//         cursor: pointer;
+//         color: #6b7280;
+//         padding: 5px;
+//         border-radius: 4px;
+//         transition: background-color 0.2s;
+//       " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">✕</button>
+//     </div>
+    
+//     <div style="margin-bottom: 20px;">
+//       <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;">
+//         <h4 style="margin: 0 0 10px 0; color: #1d4ed8;">📋 Current Appointment</h4>
+//         <div style="font-size: 0.9rem; color: #374151;">
+//           <div><strong>Patient:</strong> ${patientName}</div>
+//           <div><strong>Current Date/Time:</strong> ${currentDateTime}</div>
+//         </div>
+//       </div>
+      
+//       <div style="background: #fefdf8; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+//         <h4 style="margin: 0 0 15px 0; color: #374151;">📅 New Date & Time</h4>
+        
+//         <div style="margin-bottom: 15px;">
+//           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Date:</label>
+//           <input type="date" id="newAppointmentDate" style="
+//             width: 100%;
+//             padding: 10px;
+//             border: 1px solid #d1d5db;
+//             border-radius: 6px;
+//             font-size: 1rem;
+//           " min="${new Date().toISOString().split('T')[0]}">
+//         </div>
+        
+//         <div style="margin-bottom: 20px;">
+//           <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Time:</label>
+//           <select id="newAppointmentTime" style="
+//             width: 100%;
+//             padding: 10px;
+//             border: 1px solid #d1d5db;
+//             border-radius: 6px;
+//             font-size: 1rem;
+//           ">
+//             <option value="">Select time</option>
+//             <option value="08:00">8:00 AM</option>
+//             <option value="08:30">8:30 AM</option>
+//             <option value="09:00">9:00 AM</option>
+//             <option value="09:30">9:30 AM</option>
+//             <option value="10:00">10:00 AM</option>
+//             <option value="10:30">10:30 AM</option>
+//             <option value="11:00">11:00 AM</option>
+//             <option value="11:30">11:30 AM</option>
+//             <option value="12:00">12:00 PM</option>
+//             <option value="12:30">12:30 PM</option>
+//             <option value="13:00">1:00 PM</option>
+//             <option value="13:30">1:30 PM</option>
+//             <option value="14:00">2:00 PM</option>
+//             <option value="14:30">2:30 PM</option>
+//             <option value="15:00">3:00 PM</option>
+//             <option value="15:30">3:30 PM</option>
+//             <option value="16:00">4:00 PM</option>
+//             <option value="16:30">4:30 PM</option>
+//             <option value="17:00">5:00 PM</option>
+//           </select>
+//         </div>
+        
+//         <div style="display: flex; gap: 10px; justify-content: flex-end;">
+//           <button onclick="podiatristAI.closeAppointmentModal()" style="
+//             background: #6b7280;
+//             color: white;
+//             border: none;
+//             padding: 10px 20px;
+//             border-radius: 6px;
+//             cursor: pointer;
+//             font-size: 0.9rem;
+//             transition: background-color 0.2s;
+//           " onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
+//             Cancel
+//           </button>
+//           <button onclick="podiatristAI.submitAppointmentEditFixed('${patientId}', '${appointmentId}', '${patientName}')" style="
+//             background: #3b82f6;
+//             color: white;
+//             border: none;
+//             padding: 10px 20px;
+//             border-radius: 6px;
+//             cursor: pointer;
+//             font-size: 0.9rem;
+//             transition: background-color 0.2s;
+//           " onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'">
+//             ✅ Update Appointment
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   `;
+// }
+
+// SHOW APPOINTMENT EDIT FORM IN MODAL - ORIGINAL FORMAT WITH AVAILABILITY FILTERING
+async showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) {
   const modal = document.getElementById('appointmentEditModal');
   if (!modal) return;
   
@@ -816,9 +1122,13 @@ showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) 
     appointmentId: appointmentId,
     patientName: patientName,
     currentDateTime: currentDateTime,
-    category: 'General', // Default since we don't have it here
-    initialDiagnosis: 'Assessment pending' // Default since we don't have it here
+    category: 'General',
+    initialDiagnosis: 'Assessment pending'
   };
+  
+  // LOAD BOOKED SLOTS TO FILTER OUT
+  console.log('🔄 Loading booked slots for filtering...');
+  await this.loadBookedSlotsForFiltering();
   
   const modalContent = modal.querySelector('div');
   
@@ -858,7 +1168,7 @@ showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) 
             border: 1px solid #d1d5db;
             border-radius: 6px;
             font-size: 1rem;
-          " min="${new Date().toISOString().split('T')[0]}">
+          " min="${new Date().toISOString().split('T')[0]}" onchange="podiatristAI.updateAvailableTimesForDate()">
         </div>
         
         <div style="margin-bottom: 20px;">
@@ -870,27 +1180,11 @@ showAppointmentEditForm(patientId, appointmentId, patientName, currentDateTime) 
             border-radius: 6px;
             font-size: 1rem;
           ">
-            <option value="">Select time</option>
-            <option value="08:00">8:00 AM</option>
-            <option value="08:30">8:30 AM</option>
-            <option value="09:00">9:00 AM</option>
-            <option value="09:30">9:30 AM</option>
-            <option value="10:00">10:00 AM</option>
-            <option value="10:30">10:30 AM</option>
-            <option value="11:00">11:00 AM</option>
-            <option value="11:30">11:30 AM</option>
-            <option value="12:00">12:00 PM</option>
-            <option value="12:30">12:30 PM</option>
-            <option value="13:00">1:00 PM</option>
-            <option value="13:30">1:30 PM</option>
-            <option value="14:00">2:00 PM</option>
-            <option value="14:30">2:30 PM</option>
-            <option value="15:00">3:00 PM</option>
-            <option value="15:30">3:30 PM</option>
-            <option value="16:00">4:00 PM</option>
-            <option value="16:30">4:30 PM</option>
-            <option value="17:00">5:00 PM</option>
+            <option value="">Select date first</option>
           </select>
+          <p id="availabilityStatus" style="font-size: 0.875rem; margin-top: 8px; color: #6b7280;">
+            Select a date to see available times
+          </p>
         </div>
         
         <div style="display: flex; gap: 10px; justify-content: flex-end;">
@@ -1101,6 +1395,181 @@ async submitAppointmentEdit(patientId, appointmentId, patientName) {
       }, 200);
     }
   }
+
+  // ========================================
+// AVAILABILITY FILTERING FOR ORIGINAL DATE/TIME FORMAT
+// ========================================
+
+// Load booked slots to filter out from time options
+async loadBookedSlotsForFiltering() {
+  try {
+    console.log("🔍 Loading booked slots for filtering...");
+    
+    // Get all scheduled appointments to know what's booked
+    const response = await fetch("/get-schedule-by-date", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        podiatristId: "current_podiatrist",
+        targetDate: "all", // Special flag to get all dates
+        cacheBuster: Date.now()
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      
+      // Create a set of booked time slots
+      this.bookedSlots = new Set();
+      
+      if (result.success && result.appointments) {
+        result.appointments.forEach(apt => {
+          // Create a date-time key for comparison
+          const aptDateTime = new Date(apt.scheduledDateTime);
+          const dateKey = aptDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+          const timeKey = aptDateTime.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+          const slotKey = `${dateKey}_${timeKey}`;
+          this.bookedSlots.add(slotKey);
+        });
+      }
+      
+      console.log(`📅 Loaded ${this.bookedSlots.size} booked slots for filtering`);
+    } else {
+      // Fallback: get from appointments directly
+      await this.loadBookedSlotsFromAppointments();
+    }
+    
+  } catch (error) {
+    console.error("❌ Error loading booked slots:", error);
+    this.bookedSlots = new Set();
+    
+    // Try fallback method
+    await this.loadBookedSlotsFromAppointments();
+  }
+}
+
+// Fallback method to load booked slots directly from appointments
+async loadBookedSlotsFromAppointments() {
+  try {
+    const podId = "pod_1";
+    const response = await fetch("/podiatrist-get-calendar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
+    });
+    
+    const result = await response.json();
+    this.bookedSlots = new Set();
+    
+    if (result.appointments) {
+      result.appointments.forEach(apt => {
+        // Parse the date and time from the appointment
+        const [day, month, year] = apt.date.split(' ');
+        const monthNum = {
+          'January': '01', 'February': '02', 'March': '03', 'April': '04',
+          'May': '05', 'June': '06', 'July': '07', 'August': '08',
+          'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        }[month];
+        
+        if (monthNum) {
+          const dateKey = `${year}-${monthNum}-${day.padStart(2, '0')}`;
+          
+          // Parse time "3:30 pm" -> "15:30"
+          const timeParts = apt.time.toLowerCase().split(' ');
+          let [hours, minutes] = timeParts[0].split(':');
+          
+          if (timeParts[1] === 'pm' && hours !== '12') {
+            hours = String(Number(hours) + 12);
+          } else if (timeParts[1] === 'am' && hours === '12') {
+            hours = '00';
+          }
+          
+          const timeKey = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+          const slotKey = `${dateKey}_${timeKey}`;
+          this.bookedSlots.add(slotKey);
+        }
+      });
+    }
+    
+    console.log(`📅 Fallback: Loaded ${this.bookedSlots.size} booked slots`);
+  } catch (error) {
+    console.error("❌ Fallback method failed:", error);
+    this.bookedSlots = new Set();
+  }
+}
+
+// Update available times when date is selected
+updateAvailableTimesForDate() {
+  const dateInput = document.getElementById('newAppointmentDate');
+  const timeSelect = document.getElementById('newAppointmentTime');
+  const statusText = document.getElementById('availabilityStatus');
+  
+  if (!dateInput || !timeSelect || !statusText) return;
+  
+  const selectedDate = dateInput.value;
+  
+  if (!selectedDate) {
+    timeSelect.innerHTML = '<option value="">Select date first</option>';
+    statusText.textContent = 'Select a date to see available times';
+    statusText.style.color = '#6b7280';
+    return;
+  }
+  
+  console.log('🔄 Updating available times for date:', selectedDate);
+  
+  // Define all possible time slots (8 AM to 5 PM, 30-min intervals)
+  const allTimeSlots = [
+    { value: "08:00", label: "8:00 AM" },
+    { value: "08:30", label: "8:30 AM" },
+    { value: "09:00", label: "9:00 AM" },
+    { value: "09:30", label: "9:30 AM" },
+    { value: "10:00", label: "10:00 AM" },
+    { value: "10:30", label: "10:30 AM" },
+    { value: "11:00", label: "11:00 AM" },
+    { value: "11:30", label: "11:30 AM" },
+    { value: "12:00", label: "12:00 PM" },
+    { value: "12:30", label: "12:30 PM" },
+    { value: "13:00", label: "1:00 PM" },
+    { value: "13:30", label: "1:30 PM" },
+    { value: "14:00", label: "2:00 PM" },
+    { value: "14:30", label: "2:30 PM" },
+    { value: "15:00", label: "3:00 PM" },
+    { value: "15:30", label: "3:30 PM" },
+    { value: "16:00", label: "4:00 PM" },
+    { value: "16:30", label: "4:30 PM" },
+    { value: "17:00", label: "5:00 PM" }
+  ];
+  
+  // Filter out booked slots
+  const availableSlots = allTimeSlots.filter(slot => {
+    const slotKey = `${selectedDate}_${slot.value}`;
+    const isBooked = this.bookedSlots && this.bookedSlots.has(slotKey);
+    
+    if (isBooked) {
+      console.log(`❌ Slot ${slotKey} is booked, filtering out`);
+    }
+    
+    return !isBooked;
+  });
+  
+  // Update the time dropdown
+  timeSelect.innerHTML = '<option value="">Select time</option>';
+  
+  if (availableSlots.length === 0) {
+    timeSelect.innerHTML += '<option value="" disabled>No available times for this date</option>';
+    statusText.textContent = `❌ No available times on ${selectedDate}`;
+    statusText.style.color = '#dc2626';
+  } else {
+    availableSlots.forEach(slot => {
+      timeSelect.innerHTML += `<option value="${slot.value}">${slot.label}</option>`;
+    });
+    
+    statusText.textContent = `✅ ${availableSlots.length} available times on ${selectedDate}`;
+    statusText.style.color = '#059669';
+  }
+  
+  console.log(`📅 Date ${selectedDate}: ${availableSlots.length} available slots out of ${allTimeSlots.length} total`);
+}
 
   // GET URGENCY COLORS
   getUrgencyColor(urgencyLevel) {
