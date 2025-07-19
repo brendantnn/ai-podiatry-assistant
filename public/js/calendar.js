@@ -779,48 +779,108 @@ getUrgencyText(urgencyLevel) {
 // Add this to calendar.js inside PodiatristCalendar class
 // ========================================
 
-// Show appointment edit modal //WORKING ZONE
+// // Show appointment edit modal //WORKING ZONE
+// async showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
+//   console.log('📝 Opening edit modal for:', appointmentId);
+
+//     await this.loadAvailabilities();
+
+//   // Create option for original slot
+//   const original = `<option value="original">${appointmentDate} at ${appointmentTime} (Original)</option>`;
+  
+//   //TODO: Create tmp value for original slot, pass on to save functions, use that to reopen slot etc in firebase
+//   //Reformat original date to proper form if neede [done]
+
+//   // Create the time slots dropdown
+//   const timeSlotsHTML = this.availabilities.map(slot => `
+//     <option value="${slot}">${new Date(slot).toLocaleString('en-SG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</option>
+//   `).join('');
+//   //NEED TO use new DATE() here, now just need to do saving to db logic, ensure value is a valid format to be updated with
+
+//   const originalSlot = formatDate(appointmentDate) + "T" + formatTime(appointmentTime); // Use T for datetime format
+
+//   function formatDate(dateString) { //Convert Date to HTML Readable 
+//     const [day, month, year] = dateString.split(' ');
+//     const months = {
+//       January: '01', February: '02', March: '03', April: '04',
+//       May: '05', June: '06', July: '07', August: '08',
+//       September: '09', October: '10', November: '11', December: '12'
+//     };
+//     return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
+//   }
+
+//   function formatTime(timeString) { //Convert Date to HTML Readable 
+//     const timeParts = timeString.split(' ');
+//     let [hours, minutes] = timeParts[0].split(':');
+//     if (timeParts[1] === 'pm' && hours !== '12') {
+//       hours = String(Number(hours) + 12);
+//     } else if (timeParts[1] === 'am' && hours === '12') {
+//       hours = '00';
+//     }
+//     return hours+":"+minutes;
+    
+//   }
+  
+//   const modalHTML = `
+//     <div id="editAppointmentModal" class="edit-modal-overlay">
+//       <div class="edit-modal-content">
+//         <div class="edit-modal-header">
+//           <h3>📝 Edit Appointment For: ${appointmentPatient}</h3>
+//           <button class="edit-modal-close" onclick="closeEditAppointmentModal()">✕</button>
+//         </div>
+//         <div class="edit-modal-body">
+//           <div class="form-group">
+//             <label class="medical-label">📅 New Slot:</label>
+//             <select id="editAppointmentSlot" class"medical-input" required>
+//               ${original}
+//               ${timeSlotsHTML}
+//             </select>
+//           </div>
+//           <div class="edit-modal-footer">
+//             <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
+//             <button class="medical-btn medical-btn-primary" id="saveChangesButton" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}', '${originalSlot || 'unknown'}')" disabled>💾 Save Changes</button>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   `;
+  
+//   document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+//   const saveButton = document.getElementById('saveChangesButton');
+//   const timeSelect = document.getElementById('editAppointmentSlot');
+
+//   timeSelect.addEventListener('change', () => {
+//     if (timeSelect.value === 'original') {
+//       saveButton.disabled = true;
+//     } else {
+//       saveButton.disabled = false;
+//     }
+//   });
+  
+//   // Focus on date field
+//   setTimeout(() => {
+//     document.getElementById('editAppointmentSlot').focus();
+//   }, 100);
+// }
+
+// Show appointment edit modal with INSTANT DISPLAY + background loading
 async showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
   console.log('📝 Opening edit modal for:', appointmentId);
 
-    await this.loadAvailabilities();
+  // Store the current appointment data
+  this.currentAppointmentData = {
+    patientId: patientId,
+    appointmentId: appointmentId,
+    patientName: appointmentPatient,
+    currentDateTime: `${appointmentDate} ${appointmentTime}`,
+    category: 'General',
+    initialDiagnosis: 'Assessment pending'
+  };
 
-  // Create option for original slot
-  const original = `<option value="original">${appointmentDate} at ${appointmentTime} (Original)</option>`;
-  
-  //TODO: Create tmp value for original slot, pass on to save functions, use that to reopen slot etc in firebase
-  //Reformat original date to proper form if neede [done]
+  const originalSlot = this.formatDateTimeForServer(appointmentDate, appointmentTime);
 
-  // Create the time slots dropdown
-  const timeSlotsHTML = this.availabilities.map(slot => `
-    <option value="${slot}">${new Date(slot).toLocaleString('en-SG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</option>
-  `).join('');
-  //NEED TO use new DATE() here, now just need to do saving to db logic, ensure value is a valid format to be updated with
-
-  const originalSlot = formatDate(appointmentDate) + "T" + formatTime(appointmentTime); // Use T for datetime format
-
-  function formatDate(dateString) { //Convert Date to HTML Readable 
-    const [day, month, year] = dateString.split(' ');
-    const months = {
-      January: '01', February: '02', March: '03', April: '04',
-      May: '05', June: '06', July: '07', August: '08',
-      September: '09', October: '10', November: '11', December: '12'
-    };
-    return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
-  }
-
-  function formatTime(timeString) { //Convert Date to HTML Readable 
-    const timeParts = timeString.split(' ');
-    let [hours, minutes] = timeParts[0].split(':');
-    if (timeParts[1] === 'pm' && hours !== '12') {
-      hours = String(Number(hours) + 12);
-    } else if (timeParts[1] === 'am' && hours === '12') {
-      hours = '00';
-    }
-    return hours+":"+minutes;
-    
-  }
-  
+  // SHOW MODAL IMMEDIATELY - NO WAITING FOR DATABASE
   const modalHTML = `
     <div id="editAppointmentModal" class="edit-modal-overlay">
       <div class="edit-modal-content">
@@ -829,39 +889,459 @@ async showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentT
           <button class="edit-modal-close" onclick="closeEditAppointmentModal()">✕</button>
         </div>
         <div class="edit-modal-body">
-          <div class="form-group">
-            <label class="medical-label">📅 New Slot:</label>
-            <select id="editAppointmentSlot" class"medical-input" required>
-              ${original}
-              ${timeSlotsHTML}
-            </select>
+          <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1d4ed8;">📋 Current Appointment</h4>
+            <div style="font-size: 0.9rem; color: #374151;">
+              <div><strong>Patient:</strong> ${appointmentPatient}</div>
+              <div><strong>Appointment ID:</strong> ${appointmentId}</div>
+              <div><strong>Current Date/Time:</strong> ${appointmentDate} ${appointmentTime}</div>
+            </div>
           </div>
-          <div class="edit-modal-footer">
-            <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
-            <button class="medical-btn medical-btn-primary" id="saveChangesButton" onclick="saveAppointmentChanges('${appointmentId || 'unknown'}', '${originalSlot || 'unknown'}')" disabled>💾 Save Changes</button>
+          
+          <div style="background: #fefdf8; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <h4 style="margin: 0 0 15px 0; color: #374151;">📅 New Date & Time</h4>
+            
+            <div style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Date:</label>
+              <input type="date" id="newAppointmentDate" style="
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 1rem;
+              " min="${new Date().toISOString().split('T')[0]}" onchange="window.podiatristCalendar.updateAvailableTimesForDate()">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Time:</label>
+              <select id="newAppointmentTime" style="
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 1rem;
+              ">
+                <option value="">Loading available times...</option>
+              </select>
+              <p id="availabilityStatus" style="font-size: 0.875rem; margin-top: 8px; color: #6b7280;">
+                <span class="loading-dots">Loading availability data</span>
+              </p>
+            </div>
+            
+            <div class="edit-modal-footer">
+              <button class="medical-btn medical-btn-secondary" onclick="closeEditAppointmentModal()">❌ Cancel</button>
+              <button class="medical-btn medical-btn-primary" id="saveChangesButton" onclick="window.podiatristCalendar.saveAppointmentChangesNew('${appointmentId || 'unknown'}', '${originalSlot || 'unknown'}')" disabled>💾 Save Changes</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   `;
   
+  // INSTANT MODAL DISPLAY
   document.body.insertAdjacentHTML('beforeend', modalHTML);
 
   const saveButton = document.getElementById('saveChangesButton');
-  const timeSelect = document.getElementById('editAppointmentSlot');
+  const dateInput = document.getElementById('newAppointmentDate');
+  const timeSelect = document.getElementById('newAppointmentTime');
+  const statusText = document.getElementById('availabilityStatus');
 
-  timeSelect.addEventListener('change', () => {
-    if (timeSelect.value === 'original') {
-      saveButton.disabled = true;
-    } else {
-      saveButton.disabled = false;
+  // Add loading animation CSS
+  const loadingStyle = document.createElement('style');
+  loadingStyle.textContent = `
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.5s steps(5, end) infinite;
     }
-  });
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60% { content: '...'; }
+      80%, 100% { content: ''; }
+    }
+  `;
+  document.head.appendChild(loadingStyle);
+
+  // Enable save button when both date and time are selected
+  function checkFormValidity() {
+    if (dateInput.value && timeSelect.value && timeSelect.value !== "" && !timeSelect.value.includes('Loading')) {
+      saveButton.disabled = false;
+    } else {
+      saveButton.disabled = true;
+    }
+  }
+
+  dateInput.addEventListener('change', checkFormValidity);
+  timeSelect.addEventListener('change', checkFormValidity);
+  
+  // BACKGROUND LOADING - Start immediately but don't block modal
+  this.loadAvailabilityDataInBackground();
   
   // Focus on date field
   setTimeout(() => {
-    document.getElementById('editAppointmentSlot').focus();
+    document.getElementById('newAppointmentDate').focus();
   }, 100);
+}
+
+// NEW: Load availability data in background without blocking UI
+async loadAvailabilityDataInBackground() {
+  try {
+    console.log('🔄 Loading availability data in background...');
+    
+    // Show user that data is loading
+    const statusText = document.getElementById('availabilityStatus');
+    if (statusText) {
+      statusText.innerHTML = '<span class="loading-dots">Loading availability data</span>';
+      statusText.style.color = '#6b7280';
+    }
+    
+    // Load data in background
+    await this.loadBookedSlotsForFiltering();
+    
+    // Update UI to show data is ready
+    if (statusText) {
+      statusText.textContent = 'Select a date to see available times';
+      statusText.style.color = '#6b7280';
+    }
+    
+    const timeSelect = document.getElementById('newAppointmentTime');
+    if (timeSelect) {
+      timeSelect.innerHTML = '<option value="">Select date first</option>';
+    }
+    
+    console.log('✅ Availability data loaded in background');
+    
+  } catch (error) {
+    console.error('❌ Error loading availability data:', error);
+    
+    // Show error but don't block the user
+    const statusText = document.getElementById('availabilityStatus');
+    if (statusText) {
+      statusText.textContent = 'Error loading availability - showing all times';
+      statusText.style.color = '#dc2626';
+    }
+    
+    // Fallback: show all time slots
+    this.showAllTimeSlots();
+  }
+}
+
+// NEW: Fallback function to show all time slots if availability loading fails
+showAllTimeSlots() {
+  const timeSelect = document.getElementById('newAppointmentTime');
+  if (!timeSelect) return;
+  
+  const allTimeSlots = [
+    { value: "08:00", label: "8:00 AM" },
+    { value: "08:30", label: "8:30 AM" },
+    { value: "09:00", label: "9:00 AM" },
+    { value: "09:30", label: "9:30 AM" },
+    { value: "10:00", label: "10:00 AM" },
+    { value: "10:30", label: "10:30 AM" },
+    { value: "11:00", label: "11:00 AM" },
+    { value: "11:30", label: "11:30 AM" },
+    { value: "12:00", label: "12:00 PM" },
+    { value: "12:30", label: "12:30 PM" },
+    { value: "13:00", label: "1:00 PM" },
+    { value: "13:30", label: "1:30 PM" },
+    { value: "14:00", label: "2:00 PM" },
+    { value: "14:30", label: "2:30 PM" },
+    { value: "15:00", label: "3:00 PM" },
+    { value: "15:30", label: "3:30 PM" },
+    { value: "16:00", label: "4:00 PM" },
+    { value: "16:30", label: "4:30 PM" },
+    { value: "17:00", label: "5:00 PM" }
+  ];
+  
+  timeSelect.innerHTML = '<option value="">Select time</option>';
+  allTimeSlots.forEach(slot => {
+    timeSelect.innerHTML += `<option value="${slot.value}">${slot.label}</option>`;
+  });
+}
+
+// Helper function to format date and time for server
+formatDateTimeForServer(appointmentDate, appointmentTime) {
+  try {
+    const [day, month, year] = appointmentDate.split(' ');
+    const months = {
+      January: '01', February: '02', March: '03', April: '04',
+      May: '05', June: '06', July: '07', August: '08',
+      September: '09', October: '10', November: '11', December: '12'
+    };
+    
+    const timeParts = appointmentTime.split(' ');
+    let [hours, minutes] = timeParts[0].split(':');
+    if (timeParts[1] === 'pm' && hours !== '12') {
+      hours = String(Number(hours) + 12);
+    } else if (timeParts[1] === 'am' && hours === '12') {
+      hours = '00';
+    }
+    
+    return `${year}-${months[month]}-${String(day).padStart(2, '0')}T${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting date/time:', error);
+    return null;
+  }
+}
+
+// Load booked slots to filter out from time options
+async loadBookedSlotsForFiltering() {
+  try {
+    console.log("🔍 Loading booked slots for filtering...");
+    
+    const response = await fetch("/get-schedule-by-date", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        podiatristId: "pod_1",
+        targetDate: "all",
+        cacheBuster: Date.now()
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      
+      this.bookedSlots = new Set();
+      
+      if (result.success && result.appointments) {
+        result.appointments.forEach(apt => {
+          const aptDateTime = new Date(apt.scheduledDateTime);
+          const dateKey = aptDateTime.toISOString().split('T')[0];
+          const timeKey = aptDateTime.toTimeString().split(' ')[0].substring(0, 5);
+          const slotKey = `${dateKey}_${timeKey}`;
+          this.bookedSlots.add(slotKey);
+        });
+      }
+      
+      console.log(`📅 Loaded ${this.bookedSlots.size} booked slots for filtering`);
+    } else {
+      this.bookedSlots = new Set();
+    }
+    
+  } catch (error) {
+    console.error("❌ Error loading booked slots:", error);
+    this.bookedSlots = new Set();
+  }
+}
+
+// // Update available times when date is selected
+// updateAvailableTimesForDate() {
+//   const dateInput = document.getElementById('newAppointmentDate');
+//   const timeSelect = document.getElementById('newAppointmentTime');
+//   const statusText = document.getElementById('availabilityStatus');
+  
+//   if (!dateInput || !timeSelect || !statusText) return;
+  
+//   const selectedDate = dateInput.value;
+  
+//   if (!selectedDate) {
+//     timeSelect.innerHTML = '<option value="">Select date first</option>';
+//     statusText.textContent = 'Select a date to see available times';
+//     statusText.style.color = '#6b7280';
+//     return;
+//   }
+  
+//   console.log('🔄 Updating available times for date:', selectedDate);
+  
+//   // Define all possible time slots (8 AM to 5 PM, 30-min intervals)
+//   const allTimeSlots = [
+//     { value: "08:00", label: "8:00 AM" },
+//     { value: "08:30", label: "8:30 AM" },
+//     { value: "09:00", label: "9:00 AM" },
+//     { value: "09:30", label: "9:30 AM" },
+//     { value: "10:00", label: "10:00 AM" },
+//     { value: "10:30", label: "10:30 AM" },
+//     { value: "11:00", label: "11:00 AM" },
+//     { value: "11:30", label: "11:30 AM" },
+//     { value: "12:00", label: "12:00 PM" },
+//     { value: "12:30", label: "12:30 PM" },
+//     { value: "13:00", label: "1:00 PM" },
+//     { value: "13:30", label: "1:30 PM" },
+//     { value: "14:00", label: "2:00 PM" },
+//     { value: "14:30", label: "2:30 PM" },
+//     { value: "15:00", label: "3:00 PM" },
+//     { value: "15:30", label: "3:30 PM" },
+//     { value: "16:00", label: "4:00 PM" },
+//     { value: "16:30", label: "4:30 PM" },
+//     { value: "17:00", label: "5:00 PM" }
+//   ];
+  
+//   // Filter out booked slots
+//   const availableSlots = allTimeSlots.filter(slot => {
+//     const slotKey = `${selectedDate}_${slot.value}`;
+//     const isBooked = this.bookedSlots && this.bookedSlots.has(slotKey);
+//     return !isBooked;
+//   });
+  
+//   // Update the time dropdown
+//   timeSelect.innerHTML = '<option value="">Select time</option>';
+  
+//   if (availableSlots.length === 0) {
+//     timeSelect.innerHTML += '<option value="" disabled>No available times for this date</option>';
+//     statusText.textContent = `❌ No available times on ${selectedDate}`;
+//     statusText.style.color = '#dc2626';
+//   } else {
+//     availableSlots.forEach(slot => {
+//       timeSelect.innerHTML += `<option value="${slot.value}">${slot.label}</option>`;
+//     });
+    
+//     statusText.textContent = `✅ ${availableSlots.length} available times on ${selectedDate}`;
+//     statusText.style.color = '#059669';
+//   }
+  
+//   console.log(`📅 Date ${selectedDate}: ${availableSlots.length} available slots out of ${allTimeSlots.length} total`);
+// }
+
+// Update available times when date is selected - OPTIMIZED VERSION
+updateAvailableTimesForDate() {
+  const dateInput = document.getElementById('newAppointmentDate');
+  const timeSelect = document.getElementById('newAppointmentTime');
+  const statusText = document.getElementById('availabilityStatus');
+  
+  if (!dateInput || !timeSelect || !statusText) return;
+  
+  const selectedDate = dateInput.value;
+  
+  if (!selectedDate) {
+    timeSelect.innerHTML = '<option value="">Select date first</option>';
+    statusText.textContent = 'Select a date to see available times';
+    statusText.style.color = '#6b7280';
+    return;
+  }
+  
+  console.log('🔄 Updating available times for date:', selectedDate);
+  
+  // Check if we have booked slots data yet
+  if (!this.bookedSlots) {
+    console.log('⚠️ Availability data not loaded yet, showing all times');
+    statusText.textContent = 'Availability data loading - showing all times';
+    statusText.style.color = '#f59e0b';
+    this.showAllTimeSlots();
+    return;
+  }
+  
+  // Define all possible time slots (8 AM to 5 PM, 30-min intervals)
+  const allTimeSlots = [
+    { value: "08:00", label: "8:00 AM" },
+    { value: "08:30", label: "8:30 AM" },
+    { value: "09:00", label: "9:00 AM" },
+    { value: "09:30", label: "9:30 AM" },
+    { value: "10:00", label: "10:00 AM" },
+    { value: "10:30", label: "10:30 AM" },
+    { value: "11:00", label: "11:00 AM" },
+    { value: "11:30", label: "11:30 AM" },
+    { value: "12:00", label: "12:00 PM" },
+    { value: "12:30", label: "12:30 PM" },
+    { value: "13:00", label: "1:00 PM" },
+    { value: "13:30", label: "1:30 PM" },
+    { value: "14:00", label: "2:00 PM" },
+    { value: "14:30", label: "2:30 PM" },
+    { value: "15:00", label: "3:00 PM" },
+    { value: "15:30", label: "3:30 PM" },
+    { value: "16:00", label: "4:00 PM" },
+    { value: "16:30", label: "4:30 PM" },
+    { value: "17:00", label: "5:00 PM" }
+  ];
+  
+  // Filter out booked slots
+  const availableSlots = allTimeSlots.filter(slot => {
+    const slotKey = `${selectedDate}_${slot.value}`;
+    const isBooked = this.bookedSlots && this.bookedSlots.has(slotKey);
+    return !isBooked;
+  });
+  
+  // Update the time dropdown
+  timeSelect.innerHTML = '<option value="">Select time</option>';
+  
+  if (availableSlots.length === 0) {
+    timeSelect.innerHTML += '<option value="" disabled>No available times for this date</option>';
+    statusText.textContent = `❌ No available times on ${selectedDate}`;
+    statusText.style.color = '#dc2626';
+  } else {
+    availableSlots.forEach(slot => {
+      timeSelect.innerHTML += `<option value="${slot.value}">${slot.label}</option>`;
+    });
+    
+    statusText.textContent = `✅ ${availableSlots.length} available times on ${selectedDate}`;
+    statusText.style.color = '#059669';
+  }
+  
+  console.log(`📅 Date ${selectedDate}: ${availableSlots.length} available slots out of ${allTimeSlots.length} total`);
+}
+
+// New save function for the updated format
+async saveAppointmentChangesNew(appointmentId, originalSlot) {
+  const dateInput = document.getElementById('newAppointmentDate');
+  const timeInput = document.getElementById('newAppointmentTime');
+  
+  if (!dateInput || !timeInput) {
+    alert('Error: Could not find date/time inputs');
+    return;
+  }
+  
+  const newDate = dateInput.value;
+  const newTime = timeInput.value;
+  
+  if (!newDate || !newTime) {
+    alert('Please select both date and time');
+    return;
+  }
+  
+  // Combine date and time
+  const newDateTime = `${newDate} ${newTime}`;
+  
+  console.log('🔄 Updating appointment:', {
+    appointmentId: appointmentId,
+    newDateTime: newDateTime
+  });
+  
+  // Show loading state
+  const saveBtn = document.getElementById('saveChangesButton');
+  const originalText = saveBtn.textContent;
+  saveBtn.textContent = '⏳ Saving...';
+  saveBtn.disabled = true;
+  
+  try {
+    const response = await fetch("/podiatrist-update-appointment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        apptId: appointmentId, 
+        updateData: newDateTime,
+        originalSlot: originalSlot 
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('✅ Database update successful:', result);
+      
+      // Close modal
+      this.closeEditAppointmentModal();
+      
+      // Refresh calendar to show changes
+      setTimeout(async () => {
+        await this.refreshCalendar();
+        if (typeof window.refreshPatientQueue === 'function') {
+          await window.refreshPatientQueue();
+        }
+      }, 500);
+      
+    } else {
+      console.error('❌ Database update failed:', result);
+      alert('❌ Failed to update appointment. Please try again.');
+    }
+
+  } catch (err) {
+    console.error("❌ Failed to update appointment:", err);
+    alert('❌ Failed to update appointment. Please try again.');
+  } finally {
+    // Restore button state
+    saveBtn.textContent = originalText;
+    saveBtn.disabled = false;
+  }
 }
 
 // Close edit modal
@@ -1186,6 +1666,12 @@ window.getCalendarStatus = function() {
     return podiatristCalendar.getStatus();
   } else {
     return { error: 'Calendar not initialized' };
+  }
+};
+
+window.saveAppointmentChangesNew = function(appointmentId, originalSlot) {
+  if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
+    podiatristCalendar.saveAppointmentChangesNew(appointmentId, originalSlot);
   }
 };
 
