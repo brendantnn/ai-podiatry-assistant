@@ -8,11 +8,6 @@ function sanitizeName(name) {
   return name.replace(/[^a-zA-Z\s-]/g, '');
 }
 
-function sanitizePhone(phone) {
-  // Remove all non-digit characters except +
-  return phone.replace(/[^\d+]/g, '');
-}
-
 function formatPhoneNumber(phone) {
   // Remove all spaces and non-digit characters except +
   let cleaned = phone.replace(/[^\d+]/g, '');
@@ -102,6 +97,106 @@ document.getElementById("confirmPassword").addEventListener("input", function(e)
   }
 });
 
+// MODAL CONTROL FUNCTIONS
+function showVerificationModal(phone) {
+  document.getElementById('phoneVerify').textContent = phone;
+  document.getElementById('phoneVerificationModal').style.display = 'flex';
+}
+
+function hideVerificationModal() {
+  document.getElementById('phoneVerificationModal').style.display = 'none';
+  document.getElementById('verificationError').style.display = 'none';
+  document.getElementById('verificationCode').value = '';
+}
+
+// SOLVE ISSUE WHERE MODAL APPEARS ON PAGE LOAD 
+window.addEventListener('DOMContentLoaded', function() {
+  hideVerificationModal();
+});
+
+// CLOSE MODAL HANDLER
+document.querySelector('#phoneVerificationModal .edit-modal-close').addEventListener('click', function() {
+  hideVerificationModal();
+});
+
+// SMS ROUTE TO SEND VERIFICATION CODE
+async function sendVerificationCode(phone, submitButton, originalText) {
+  try {
+    const response = await fetch('/sms/send-verification-code', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ phoneNumber: phone })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      alert("❌ Failed to send verification code. Please try again.");
+      if (submitButton) {
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+      }
+      return;
+    }
+
+    console.log("✅ Verification code sent:", data.details);
+    alert("✅ Verification code sent successfully! Please check your phone.");
+
+  } catch (error) {
+    console.error("❌ Error sending verification code:", error);
+    alert("❌ An error occurred. Please try again.");
+  } finally {
+    if (submitButton) {
+      submitButton.textContent = originalText;
+      submitButton.disabled = false;
+    }
+  }
+}
+
+// SMS ROUTE TO CHECK VERIFICATION STATUS
+async function checkVerificationStatus(phone, code, submitButton, originalText) {
+  try {
+    const response = await fetch('/sms/check-verification-status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        phoneNumber: phone,
+        code: code
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      alert("❌ Verification failed. Please check the code and try again.");
+      if (submitButton) {
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+      }
+      return;
+    }
+
+    console.log("✅ Verification successful:", data.details);
+    alert("✅ Phone number verified successfully!");
+
+    hideVerificationModal();
+    completeRegistration(phone);
+
+  } catch (error) {
+    console.error("❌ Error verifying code:", error);
+    alert("❌ An error occurred during verification. Please try again.");
+  } finally {
+    if (submitButton) {
+      submitButton.textContent = originalText;
+      submitButton.disabled = false;
+    }
+  }
+}
+
 // REGISTER HANDLER
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -180,9 +275,67 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       return;
     }
 
-    // Update button text
-    submitButton.textContent = '⏳ Creating account...';
+    // Send Verification Code
+    await sendVerificationCode(phone, submitButton, originalText);
 
+    // Show verification modal instead of proceeding with registration
+    showVerificationModal(phone);
+    
+  } catch (error) {
+    console.error("Error during registration:", error);
+    alert("❌ An error occurred. Please try again.");
+  } finally {
+    submitButton.textContent = originalText;
+    submitButton.disabled = false;
+  }
+});
+
+// VERIFICATION BUTTON HANDLERS
+document.getElementById("verifyCodeBtn").addEventListener("click", async function() {
+  const phone = document.getElementById('phoneVerify').textContent;
+  const code = document.getElementById('verificationCode').value;
+  const submitButton = document.getElementById('verifyCodeBtn');
+  const originalText = submitButton.textContent;
+  
+  if (!code) {
+    alert("❌ Please enter the verification code.");
+    return;
+  }
+
+  submitButton.textContent = '⏳ Verifying...';
+  submitButton.disabled = true;
+  
+  await checkVerificationStatus(phone, code, submitButton, originalText);
+});
+
+document.getElementById("resendCodeBtn").addEventListener("click", async function() {
+  const phone = document.getElementById('phoneVerify').textContent;
+  const submitButton = document.getElementById('resendCodeBtn');
+  const originalText = submitButton.textContent;
+  
+  submitButton.textContent = '⏳ Sending...';
+  submitButton.disabled = true;
+  
+  await sendVerificationCode(phone, submitButton, originalText);
+});
+
+// CONTINUE WITH REGISTRATION AFTER VERIFICATION
+async function completeRegistration(phone) {
+  const role = document.getElementById("role").value;
+  const email = document.getElementById("email").value.trim().toLowerCase();
+  const password = document.getElementById("password").value;
+  const firstName = sanitizeName(document.getElementById("firstName").value.trim());
+  const lastName = sanitizeName(document.getElementById("lastName").value.trim());
+  const dob = document.getElementById("dob").value;
+  const gender = document.getElementById("gender").value;
+  const language = document.getElementById("language").value;
+
+  const submitButton = document.querySelector('button[type="submit"]');
+  const originalText = submitButton.textContent;
+  submitButton.textContent = '⏳ Creating account...';
+  submitButton.disabled = true;
+
+  try {
     // Step 1: Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
@@ -281,4 +434,4 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     submitButton.textContent = originalText;
     submitButton.disabled = false;
   }
-});
+}

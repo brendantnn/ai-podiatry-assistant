@@ -98,6 +98,38 @@
     </div>
   </div>
 
+  <!-- Twilio Phone Verification Modal -->
+  <div id="phoneVerificationModal" class="edit-modal-overlay hidden">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>📞 Phone Verification</h3>
+        <button type="button" class="edit-modal-close">&times;</button>
+      </div>
+      
+      <div class="edit-modal-body">
+        <p>We've sent a 6-digit verification code to <strong id="phoneVerify"></strong>.</p>
+        
+        <div class="form-group">
+          <label class="medical-label" for="verificationCode">🔑 Verification Code</label>
+          <input type="text" id="verificationCode" class="medical-input" placeholder="Enter 6-digit code" maxlength="6" required />
+        </div>
+        
+        <div id="verificationError" class="text-danger" style="display: none;">
+          Invalid verification code. Please try again.
+        </div>
+      </div>
+      
+      <div class="edit-modal-footer">
+        <button id="verifyCodeBtn" class="medical-btn medical-btn-primary">
+          ✅ Verify Code
+        </button>
+        <button id="resendCodeBtn" class="medical-btn medical-btn-secondary">
+          ⏳ Resend Code
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="js/register.js"></script>
 </body>
 </html>

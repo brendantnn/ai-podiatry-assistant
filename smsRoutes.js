@@ -180,6 +180,64 @@ function setupSMSRoutes(smsService) {
     }
   });
 
+  // ========================================
+  // PHONE VERIFICATION ROUTES
+  // ========================================
+  router.post('/send-verification-code', async (req, res) => {
+    try {
+      const { phoneNumber } = req.body;
+      if (!phoneNumber) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number is required'
+        });
+      }
+      const result = await smsService.sendVerificationCode(phoneNumber);
+      return res.json({
+        success: result.success,
+        message: result.success ? 'Verification code sent successfully' : 'Failed to send verification code',
+        details: result 
+      });
+      
+    } catch (error) {
+      console.error('❌ Send verification code route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification code',
+        error: error.message
+      });
+    }
+  });
+
+  router.post('/check-verification-status', async (req, res) => {
+    try {
+      const { phoneNumber, code } = req.body;
+
+      if (!phoneNumber || !code) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number and verification code are required'
+        });
+      }
+
+      const result = await smsService.checkVerificationStatus(phoneNumber, code);
+
+      return res.json({
+        success: result.success,
+        message: result.success ? 'Verification successful' : 'Verification failed',
+        details: result 
+      });
+
+    } catch (error) {
+      console.error('❌ Verification status route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to check verification status',
+        error: error.message
+      });
+    }
+  });
+
   return router;
 }
 

@@ -2,6 +2,7 @@
 // SMS SERVICE MODULE - smsService.js
 // Separate module for SMS functionality
 // ========================================
+require('dotenv').config();
 
 const twilio = require('twilio');
 const cron = require('node-cron');
@@ -614,6 +615,71 @@ class SMSService {
 
     console.log('✅ SMS Service: Cron jobs scheduled');
   }
+  
+  // ========================================
+  // PHONE VERIFICATION SERVICE
+  // ========================================
+
+  async sendVerificationCode(phoneNumber) {
+    try {
+      // Use Lookup API to verify phone number type and existence
+      const lookup = await this.twilioClient.lookups.v1
+        .phoneNumbers(phoneNumber)
+
+      // Proceed to send verification SMS after validation
+      const verification = await this.twilioClient.verify.v2
+        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verifications.create({ to: phoneNumber, channel: 'sms' });
+
+      return {
+        success: true,
+        message: 'Verification code sent',
+        lookup: lookup, // include lookup info
+        verificationSID: verification.sid,
+      };
+    } catch (error) {
+      console.error('❌ Send verification code error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async checkVerificationStatus(phoneNumber, code) {
+    try {
+      const verificationCheck = await this.twilioClient.verify.v2
+        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verificationChecks.create({ to: phoneNumber, code });
+
+      return {
+        success: verificationCheck.status === 'approved',
+        status: verificationCheck.status,
+      };
+    } catch (error) {
+      console.error('❌ SMS Service: Verification status error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+
+}
+
+// --- ONE-TIME Twilio Verify Service SID creation utility ---
+// RUN 'node smsService.js' to generate SID for field TWILIO_VERIFY_SERVICE_SID in .env file 
+if (require.main === module) {
+  const twilio = require('twilio');
+  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  
+  async function createService() {
+    try {
+      const service = await client.verify.v2.services.create({
+        friendlyName: "My Verify Service",
+      });
+      console.log("Your new Verify Service SID:", service.sid);
+    } catch (err) {
+      console.error("Error creating Verify Service:", err.message);
+    }
+  }
+
+  createService();
 }
 
 module.exports = SMSService;
