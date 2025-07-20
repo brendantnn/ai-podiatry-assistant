@@ -1379,6 +1379,7 @@ app.post('/podiatrist-update-appointment', async (req, res) => {
     // Update the appointment in Firebase
     const updates = {
       scheduledDate: admin.firestore.Timestamp.fromDate(new Date(updateData)),
+      status: 'scheduled',
       lastModified: admin.firestore.Timestamp.now()
     };
 

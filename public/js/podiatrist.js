@@ -35,8 +35,8 @@ window.onload = async () => {
     const data = await res.json();
     patientQueue = data.appointments;
     
-    // ✅ IMPORTANT: populateTable will now auto-sort by urgency
-    populateTable(patientQueue);
+    // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
+    populateQueueTab(patientQueue);
     
     console.log('✅ Patient queue loaded and sorted by urgency level');
 
@@ -51,7 +51,7 @@ window.onload = async () => {
 
     //READ ME BEFORE YOU CONT: Finished getting all list of patients from db, still need check for bugs and over laps, ability to accept appointments, search.
     
-    // ✅ IMPORTANT: populateTable will now auto-sort by urgency [Remove comment]
+    // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency [Remove comment]
     populateAllTab(allPatients);
     
     console.log('✅ Patient queue loaded and sorted by urgency level');
@@ -462,8 +462,8 @@ async function refreshPatientQueue() {
     const data = await res.json();
     patientQueue = data.appointments || [];
     
-    // ✅ IMPORTANT: populateTable will now auto-sort by urgency
-    populateTable(patientQueue);
+    // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
+    populateQueueTab(patientQueue);
     
     console.log('✅ Patient queue refreshed and sorted by urgency level');
     console.log('📊 Queue order:', patientQueue.map(p => `${p.name} (Level ${p.urgencyLevel})`));
@@ -509,7 +509,7 @@ function filterPatients() {
   console.log('✅ Filtered results:', filteredData);
 
   // Update the table with filtered data
-  populateTable(filteredData);
+  populateQueueTab(filteredData);
   
   // Show filter status
   showFilterStatus(filteredData.length, patientQueue.length, searchValue, selectedCategory);
@@ -708,7 +708,7 @@ function clearFilters() {
   }
   
   // Show all patients
-  populateTable(patientQueue);
+  populateQueueTab(patientQueue);
   
   console.log('🧹 Filters cleared, showing all patients');
 }
@@ -750,7 +750,7 @@ function getUrgencyText(urgencyLevel) {
   }
 }
 
-function populateTable(data = patientQueue) {
+function populateQueueTab(data = patientQueue) {
   const tableBody = document.getElementById("patientQueue");
   tableBody.innerHTML = "";
 
@@ -811,7 +811,7 @@ function populateTable(data = patientQueue) {
     <td>${patient.name}</td>
     <td>${patient.category}</td>
     <td>${patient.initialDiagnosis}</td>
-    <td>${patient.date}</td>
+    <td>${patient.date} (Status: ${patient.status})</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
       onclick="openModal('queue', '${patient.apptId}', '${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.status}', '${patient.date}', '${patient.time}', '${patient.summary}')"
@@ -926,6 +926,7 @@ function openModal(tab, apptId, patientId, name, category, symptoms, status, dat
   document.getElementById('modalPatientCategory').innerText = category;
   document.getElementById('modalPatientSymptoms').innerText = symptoms;
   document.getElementById('modalPatientWaitTime').innerText = time + " on " + date;
+  document.getElementById('modalPatientStatus').innerText = status;
   document.getElementById('modalPatientCaseSummary').innerText = summary;
   
   const originalSlot = formatDate(date) + "T" + formatTime(time);
@@ -958,7 +959,7 @@ function openModal(tab, apptId, patientId, name, category, symptoms, status, dat
     document.getElementById('modalPatientEditBtn').hidden = false;
   }
 
-  if (tab == 'queue') {//Only show cancel button if at queue tab
+  if (tab == 'queue' && status != 'cancelled') {//Only show cancel button if at queue tab and appointment now alrd cancelled
     document.getElementById('modalPatientCancelBtn').hidden = false;
   }else{
     document.getElementById('modalPatientCancelBtn').hidden = true;
@@ -974,7 +975,6 @@ function closeModal() {
 
 function openEditModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
   closeModal();
-  alert("HERE");
   window.podiatristCalendar.showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId);
 }
 
