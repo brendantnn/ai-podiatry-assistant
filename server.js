@@ -1243,6 +1243,7 @@ app.post('/podiatrist-get-appointments-all', async (req, res) => {
           patientId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          status: appt.status,
           urgencyLevel: appt.urgencyLevel,
           category: appt.category,
           initialDiagnosis: appt.initialDiagnosis,
@@ -1483,6 +1484,117 @@ app.post('/podiatrist-update-appointment', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Failed to update appointment.",
+      message: error.message
+    });
+  }
+});
+
+app.post('/podiatrist-cancel-appointment', async (req, res) => {//Working zone
+  const { apptId, originalSlot } = req.body;
+  console.log("🔍 Canceling appointment with SMS notification:", apptId);
+
+  try {
+    // Get current appointment with patient details
+    const appointmentDoc = await db.collection("Appointments").doc(apptId).get();
+    
+    if (!appointmentDoc.exists) {
+      return res.json({
+        success: false,
+        message: "Appointment not found"
+      });
+    }
+
+    const currentAppointment = appointmentDoc.data();
+    const oldDateTime = currentAppointment.scheduledDate.toDate();
+    const patientId = currentAppointment.patientId;
+
+    // Update the appointment in Firebase
+    const updates = {
+      status: 'cancelled',
+      lastModified: admin.firestore.Timestamp.now()
+    };
+
+    await db.collection("Appointments").doc(apptId).update(updates);
+
+    // Handle availability updates (your existing logic)
+    if (originalSlot) {
+      try {
+        const oldSlotQuery = await db.collection("Availability")
+          .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(originalSlot)))
+          .get();
+
+        if (!oldSlotQuery.empty) {
+          await oldSlotQuery.docs[0].ref.update({ status: "available" });
+        }
+      } catch (availabilityError) {
+        console.error('⚠️ Availability update failed:', availabilityError);
+      }
+    }
+
+    // Get podiatrist name
+    let podiatristName = "Doctor";
+    try {
+      const podiatristQuery = await db.collection("Users")
+        .where("userId", "==", currentAppointment.podId)
+        .limit(1)
+        .get();
+
+      if (!podiatristQuery.empty) {
+        const podiatristData = podiatristQuery.docs[0].data();
+        podiatristName = `${podiatristData.firstName || ''} ${podiatristData.lastName || ''}`.trim();
+      }
+    } catch (podError) {
+      console.warn('⚠️ Could not fetch podiatrist name:', podError);
+    }
+
+    // Format dates for SMS
+    // const oldDateFormatted = oldDateTime.toLocaleString("en-SG", {
+    //   weekday: "long",
+    //   year: "numeric",
+    //   month: "long",
+    //   day: "numeric",
+    //   hour: "2-digit",
+    //   minute: "2-digit",
+    //   hour12: true,
+    //   timeZone: "Asia/Singapore"
+    // });
+
+    // // Send SMS notification using SMS service
+    // const smsResult = await smsService.sendAppointmentUpdateSMS(
+    //   apptId,
+    //   patientId,
+    //   oldDateFormatted,
+    //   podiatristName
+    // );
+
+    // let smsStatus = 'no_phone';
+    // if (smsResult.success) {
+    //   smsStatus = 'sent';
+    // } else if (smsResult.error === 'no_phone') {
+    //   smsStatus = 'no_phone';
+    // } else if (smsResult.error === 'disabled') {
+    //   smsStatus = 'disabled';
+    // } else {
+    //   smsStatus = 'failed';
+    // }
+
+    // Return enhanced response
+    return res.json({
+      success: true,
+      message: "Appointment cancelled successfully",
+      appointmentId: apptId,
+      oldDateTime: oldDateFormatted,
+      // patientName: smsResult.patientName || 'Unknown',
+      // smsStatus: smsStatus,
+      clearCache: true,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Appointment cancel error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to cancel appointment.",
       message: error.message
     });
   }

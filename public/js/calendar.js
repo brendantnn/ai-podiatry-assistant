@@ -799,27 +799,27 @@ getUrgencyText(urgencyLevel) {
 
 //   const originalSlot = formatDate(appointmentDate) + "T" + formatTime(appointmentTime); // Use T for datetime format
 
-//   function formatDate(dateString) { //Convert Date to HTML Readable 
-//     const [day, month, year] = dateString.split(' ');
-//     const months = {
-//       January: '01', February: '02', March: '03', April: '04',
-//       May: '05', June: '06', July: '07', August: '08',
-//       September: '09', October: '10', November: '11', December: '12'
-//     };
-//     return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
-//   }
+  // function formatDate(dateString) { //Convert Date to HTML Readable 
+  //   const [day, month, year] = dateString.split(' ');
+  //   const months = {
+  //     January: '01', February: '02', March: '03', April: '04',
+  //     May: '05', June: '06', July: '07', August: '08',
+  //     September: '09', October: '10', November: '11', December: '12'
+  //   };
+  //   return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
+  // }
 
-//   function formatTime(timeString) { //Convert Date to HTML Readable 
-//     const timeParts = timeString.split(' ');
-//     let [hours, minutes] = timeParts[0].split(':');
-//     if (timeParts[1] === 'pm' && hours !== '12') {
-//       hours = String(Number(hours) + 12);
-//     } else if (timeParts[1] === 'am' && hours === '12') {
-//       hours = '00';
-//     }
-//     return hours+":"+minutes;
+  // function formatTime(timeString) { //Convert Date to HTML Readable 
+  //   const timeParts = timeString.split(' ');
+  //   let [hours, minutes] = timeParts[0].split(':');
+  //   if (timeParts[1] === 'pm' && hours !== '12') {
+  //     hours = String(Number(hours) + 12);
+  //   } else if (timeParts[1] === 'am' && hours === '12') {
+  //     hours = '00';
+  //   }
+  //   return hours+":"+minutes;
     
-//   }
+  // }
   
 //   const modalHTML = `
 //     <div id="editAppointmentModal" class="edit-modal-overlay">
@@ -1399,8 +1399,6 @@ async updateAppointmentInDatabase(appointmentId, updateData, originalSlot) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData, "originalSlot": originalSlot })
     });
-    //TODO: Free old slot
-    //TODO: Set new slot status as occupied or whatever
 
     const result = await res.json();
     

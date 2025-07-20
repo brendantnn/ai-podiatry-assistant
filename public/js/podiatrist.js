@@ -927,14 +927,45 @@ function openModal(tab, apptId, patientId, name, category, symptoms, status, dat
   document.getElementById('modalPatientSymptoms').innerText = symptoms;
   document.getElementById('modalPatientWaitTime').innerText = time + " on " + date;
   document.getElementById('modalPatientCaseSummary').innerText = summary;
+  
+  const originalSlot = formatDate(date) + "T" + formatTime(time);
 
+  function formatDate(dateString) { //Convert Date to HTML Readable 
+    const [day, month, year] = dateString.split(' ');
+    const months = {
+      January: '01', February: '02', March: '03', April: '04',
+      May: '05', June: '06', July: '07', August: '08',
+      September: '09', October: '10', November: '11', December: '12'
+    };
+    return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
+  }
+
+  function formatTime(timeString) { //Convert Date to HTML Readable 
+    const timeParts = timeString.split(' ');
+    let [hours, minutes] = timeParts[0].split(':');
+    if (timeParts[1] === 'pm' && hours !== '12') {
+      hours = String(Number(hours) + 12);
+    } else if (timeParts[1] === 'am' && hours === '12') {
+      hours = '00';
+    }
+    return hours+":"+minutes;
+  }
   document.getElementById('patientModal').style.display = 'block';
 
-  if (tab == 'all' && status != 'canceled') {//Hide edit button if modal opens from all tab and appointemnt is already scheduled. (Basically only allow edits in all tab if that appointment has no podiatrist assigned)
+  if (tab == 'all' && status != 'cancelled') {//Hide edit button if modal opens from all tab and appointemnt is already scheduled. (Basically only allow edits in all tab if that appointment has no podiatrist assigned)
     document.getElementById('modalPatientEditBtn').hidden = true;
+  }else{
+    document.getElementById('modalPatientEditBtn').hidden = false;
+  }
+
+  if (tab == 'queue') {//Only show cancel button if at queue tab
+    document.getElementById('modalPatientCancelBtn').hidden = false;
+  }else{
+    document.getElementById('modalPatientCancelBtn').hidden = true;
   }
 
   document.getElementById('modalPatientEditBtn').onclick = function() {openEditModal(name, date, time, patientId, apptId)};
+  document.getElementById('modalPatientCancelBtn').onclick = function() {openCancelModal(apptId, originalSlot)};
 }
 
 function closeModal() {
@@ -943,7 +974,87 @@ function closeModal() {
 
 function openEditModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
   closeModal();
+  alert("HERE");
   window.podiatristCalendar.showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId);
+}
+
+function openCancelModal(appointmentId, originalSlot) {
+  closeModal();
+  
+
+  //open cancel modal (put more details in, date time, name) Fix close logic
+  const modalHTML = `
+    <div id="cancelAppointmentModal" class="edit-modal-overlay">
+      <div class="edit-modal-content">
+        <div class="edit-modal-header">
+          <h3>📝 Cancel Appointment For: ${appointmentId}</h3>
+          <button class="edit-modal-close" onclick="closeCancelAppointmentModal()">✕</button>
+        </div>
+        <div class="edit-modal-body">
+          <h3>Are You Sure You Want To Cancel?</h3>
+          <div class="edit-modal-footer">
+            <button class="medical-btn medical-btn-secondary" onclick="cancelAppointment('${appointmentId || 'unknown'}', '${originalSlot || 'unknown'}')">❌ Confirm Cancelation</button>
+            <button class="medical-btn medical-btn-primary" onclick="closeCancelAppointmentModal()">🔄 Go Back</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+};
+
+function closeCancelAppointmentModal() {
+  const modal = document.getElementById('cancelAppointmentModal');
+  if (modal) {
+    modal.remove();
+  }
+};
+
+async function cancelAppointment(appointmentId, originalSlot) {
+  // Show loading state
+  const saveBtn = event.target;
+  const originalText = saveBtn.textContent;
+  saveBtn.textContent = '⏳ Saving...';
+  saveBtn.disabled = true;
+
+  //Update in database
+  try {
+    const res = await fetch("/podiatrist-cancel-appointment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "apptId": appointmentId, "originalSlot": originalSlot })
+    });
+
+    const result = await res.json();
+    
+    if (result.success) {
+      console.log('✅ Appointment cancelation successful:', result);
+      
+      // IMMEDIATE: Trigger calendar refresh right after successful update
+      setTimeout(async () => {
+        console.log('🔄 IMMEDIATE: Triggering calendar refresh...');
+        await window.podiatristCalendar.refreshCalendar();
+        
+        // Also refresh patient queue if available
+        if (typeof this.refreshPatientQueue === 'function') {
+          await this.refreshPatientQueue();
+        }
+      }, 500); // Short delay to ensure DB update is complete
+      
+    } else {
+      console.error('❌ Database update failed:', result);
+    }
+
+  } catch (err) {
+    console.error("❌ Failed to update appt:", err);
+    throw err; // Re-throw to handle in calling function
+  }
+
+  //close cancel modal
+  closeCancelAppointmentModal()
+
+  //regen queue and calendar
 }
 
 window.onclick = function(event) {
