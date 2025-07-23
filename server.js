@@ -49,7 +49,6 @@ function isValidCache(cacheEntry) {
 // key = fake session ID (for now, assume 1 user)
 const session = {};
 
-
 // ******************************** PODIATRIST LOGIC *****************************************
 
 // FIXED PODIATRIST CHAT ROUTE
@@ -1661,7 +1660,7 @@ app.post('/get-all-appointments', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("❌ Error in /podiatrist-get-appointments-all:", error);
+    console.error("❌ Error in /get-all-appointments:", error);
     res.status(500).json({ error: "Failed to fetch queue" });
   }
 });

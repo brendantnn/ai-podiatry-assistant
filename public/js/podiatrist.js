@@ -20,6 +20,20 @@ function isValidNotificationCache() {
          (Date.now() - notificationCache.timestamp) < notificationCache.TTL;
 }
 
+function escapeSpecialCharacters(str) { //Function to escape special characters
+    const escapeMap = {
+        "'": "\\'",  // Escape single quote
+        '"': '\\"',  // Escape double quote
+        '\\': '\\\\', // Escape backslash
+        '\n': '\\n', // Escape newline
+        '\r': '\\r', // Escape carriage return
+        '\t': '\\t', // Escape tab
+        // Add any other characters you want to escape
+    };
+    
+    return str.replace(/['"\\\n\r\t]/g, (match) => escapeMap[match]);
+}
+
 // Load Stuff on entering window
 window.onload = async () => {
   const podId = "pod_1"; // Simulated logged-in podiatrist
@@ -814,7 +828,7 @@ function populateQueueTab(data = patientQueue) {
     <td>${patient.date} (Status: ${patient.status})</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('queue', '${patient.apptId}', '${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.status}', '${patient.date}', '${patient.time}', '${patient.summary}')"
+      onclick="openModal('queue', '${patient.apptId}', '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}')"
       >👁️ View</button>
       <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
@@ -907,15 +921,10 @@ function populateAllTab(data = allPatients) {
     <td>${patient.date}</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${patient.initialDiagnosis}', '${patient.status}', '${patient.date}', '${patient.time}', '${patient.summary}')"
+      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}')"
       >👁️ View</button>
     </td>
   `;
-
-  //Removed the ask ai button for all appointemtns tab
-  // <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
-
-    
     tableBody.appendChild(row);
   });
 }
