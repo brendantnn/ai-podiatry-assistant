@@ -63,8 +63,6 @@ window.onload = async () => {
     const allData = await resAll.json();
     allPatients = allData.appointments;
 
-    //READ ME BEFORE YOU CONT: Finished getting all list of patients from db, still need check for bugs and over laps, ability to accept appointments, search.
-    
     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency [Remove comment]
     populateAllTab(allPatients);
     

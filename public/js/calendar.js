@@ -779,7 +779,7 @@ getUrgencyText(urgencyLevel) {
 // Add this to calendar.js inside PodiatristCalendar class
 // ========================================
 
-// // Show appointment edit modal //WORKING ZONE
+// // Show appointment edit modal
 // async showEditAppointmentModal(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
 //   console.log('📝 Opening edit modal for:', appointmentId);
 

@@ -1489,7 +1489,7 @@ app.post('/podiatrist-update-appointment', async (req, res) => {
   }
 });
 
-app.post('/podiatrist-cancel-appointment', async (req, res) => {//Working zone
+app.post('/podiatrist-cancel-appointment', async (req, res) => {
   const { apptId, originalSlot } = req.body;
   console.log("🔍 Canceling appointment with SMS notification:", apptId);
 
