@@ -2361,3 +2361,45 @@ input.medical-select[type="text"]::placeholder {
   color: var(--gray-400);
   font-weight: var(--font-weight-normal);
 }
+
+/* FORCE AI POPUP VISIBILITY */
+.ai-chat-popup.ai-popup-open {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  display: flex !important;
+}
+
+/* FASTER POPUP ANIMATION */
+.ai-chat-popup {
+  transition: all 0.2s ease !important;
+}
+
+/* BETTER BUTTON SPACING IN ALL TABLES */
+.medical-table td:nth-child(8) {
+  white-space: nowrap;
+  min-width: 200px; /* Ensure enough space for both buttons */
+}
+
+.medical-table td:nth-child(8) .medical-btn {
+  font-size: 0.75rem;
+  padding: var(--space-2) var(--space-3);
+  margin: 0 2px; /* Small margin between buttons */
+  white-space: nowrap;
+}
+
+/* Mobile responsive button stacking */
+@media (max-width: 768px) {
+  .medical-table td:nth-child(8) {
+    min-width: 140px;
+  }
+  
+  .medical-table td:nth-child(8) .medical-btn {
+    font-size: 0.65rem;
+    padding: 2px var(--space-1);
+    margin: 1px;
+    display: block;
+    width: 100%;
+    margin-bottom: 2px;
+  }
+}

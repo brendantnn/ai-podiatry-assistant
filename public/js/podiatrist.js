@@ -921,6 +921,7 @@ function populateAllTab(data = allPatients) {
       <button class="medical-btn medical-btn-primary medical-btn-sm"
       onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}')"
       >👁️ View</button>
+      <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
   `;
     tableBody.appendChild(row);
@@ -1075,18 +1076,60 @@ window.onclick = function(event) {
 // AI ASSISTANT FUNCTIONS
 // ========================================
 
+// function toggleAIChat() {
+//   const popup = document.getElementById('aiChatPopup');
+//   const btn = document.getElementById('aiFloatingBtn');
+  
+//   if (popup && btn) {
+//     if (popup.classList.contains('ai-popup-open')) {
+//       popup.classList.remove('ai-popup-open');
+//       btn.classList.remove('ai-btn-active');
+//     } else {
+//       popup.classList.add('ai-popup-open');
+//       btn.classList.add('ai-btn-active');
+//     }
+//   }
+// }
+
+// function toggleAIChat() {
+//   const popup = document.getElementById('aiChatPopup');
+//   const btn = document.getElementById('aiFloatingBtn');
+  
+//   console.log('🤖 Toggle AI Chat called'); // Debug log
+//   console.log('Popup element:', popup); // Debug log
+//   console.log('Button element:', btn); // Debug log
+  
+//   if (popup && btn) {
+//     // Force show the popup
+//     popup.classList.add('ai-popup-open');
+//     btn.classList.add('ai-btn-active');
+    
+//     console.log('✅ AI Chat popup should now be visible'); // Debug log
+//   } else {
+//     console.error('❌ AI Chat elements not found!');
+//   }
+// }
+
 function toggleAIChat() {
   const popup = document.getElementById('aiChatPopup');
   const btn = document.getElementById('aiFloatingBtn');
   
+  console.log('🤖 Toggle AI Chat called'); // Debug log
+  
   if (popup && btn) {
     if (popup.classList.contains('ai-popup-open')) {
+      // CLOSE the popup
       popup.classList.remove('ai-popup-open');
       btn.classList.remove('ai-btn-active');
+      console.log('✅ AI Chat popup closed');
     } else {
+      // OPEN the popup
       popup.classList.add('ai-popup-open');
       btn.classList.add('ai-btn-active');
+      console.log('✅ AI Chat popup opened');
     }
+  } else {
+    console.error('❌ AI Chat elements not found!');
   }
 }
 
@@ -1139,7 +1182,57 @@ Please provide clinical analysis and recommendations for this specific case.`;
   }, 1000);
 }
 
-// NEW FUNCTION: Handle AI requests from table rows using data attributes
+// // NEW FUNCTION: Handle AI requests from table rows using data attributes
+// function askAIAboutPatientFromRow(buttonElement) {
+//   // Get the table row containing this button
+//   const row = buttonElement.closest('tr');
+  
+//   if (!row) {
+//     console.error('Could not find table row');
+//     return;
+//   }
+  
+//   // Extract patient data from data attributes
+//   const patientData = {
+//     patientId: row.getAttribute('data-patient-id'),
+//     name: row.getAttribute('data-patient-name'),
+//     category: row.getAttribute('data-patient-category'),
+//     initialDiagnosis: row.getAttribute('data-patient-diagnosis'),
+//     date: row.getAttribute('data-patient-date'),
+//     time: row.getAttribute('data-patient-time'),
+//     summary: row.getAttribute('data-patient-summary'),
+//     urgencyLevel: parseInt(row.getAttribute('data-patient-urgency'))
+//   };
+  
+//   console.log('Getting AI analysis for patient from row:', patientData);
+  
+//   toggleAIChat();
+  
+//   setTimeout(() => {
+//     // Build unique message for this specific patient case
+//   const message = `[PATIENT_QUEUE_ANALYSIS] Tell me about this case: 
+//   Patient ID: ${patientData.patientId}
+//   Name: ${patientData.name}
+//   Category: ${patientData.category}  
+//   Diagnosis: ${patientData.initialDiagnosis}
+//   Appointment: ${patientData.date} at ${patientData.time}
+//   Case Summary: ${patientData.summary}
+//   Urgency Level: ${patientData.urgencyLevel}
+
+//   Please provide clinical analysis and recommendations for this specific case.`;
+    
+//     console.log('AI Message for', patientData.patientId, ':', message);
+    
+//     const aiInput = document.getElementById('aiMessage');
+//     if (aiInput) {
+//       aiInput.value = message;
+//       if (window.sendAIMessage) {
+//         window.sendAIMessage();
+//       }
+//     }
+//   }, 1000);
+// }
+
 function askAIAboutPatientFromRow(buttonElement) {
   // Get the table row containing this button
   const row = buttonElement.closest('tr');
@@ -1161,33 +1254,46 @@ function askAIAboutPatientFromRow(buttonElement) {
     urgencyLevel: parseInt(row.getAttribute('data-patient-urgency'))
   };
   
-  console.log('Getting AI analysis for patient from row:', patientData);
+  console.log('🤖 Getting AI analysis for patient from row:', patientData);
   
-  toggleAIChat();
+  // FORCE SHOW the AI chat popup
+  const popup = document.getElementById('aiChatPopup');
+  const btn = document.getElementById('aiFloatingBtn');
   
+  if (popup && btn) {
+    popup.classList.add('ai-popup-open');
+    btn.classList.add('ai-btn-active');
+    console.log('✅ AI popup forced open');
+  }
+  
+  // Add a longer delay to ensure popup is fully opened
   setTimeout(() => {
     // Build unique message for this specific patient case
-  const message = `[PATIENT_QUEUE_ANALYSIS] Tell me about this case: 
-  Patient ID: ${patientData.patientId}
-  Name: ${patientData.name}
-  Category: ${patientData.category}  
-  Diagnosis: ${patientData.initialDiagnosis}
-  Appointment: ${patientData.date} at ${patientData.time}
-  Case Summary: ${patientData.summary}
-  Urgency Level: ${patientData.urgencyLevel}
+    const message = `[PATIENT_QUEUE_ANALYSIS] Tell me about this case: 
+Patient ID: ${patientData.patientId}
+Name: ${patientData.name}
+Category: ${patientData.category}  
+Diagnosis: ${patientData.initialDiagnosis}
+Appointment: ${patientData.date} at ${patientData.time}
+Case Summary: ${patientData.summary}
+Urgency Level: ${patientData.urgencyLevel}
 
-  Please provide clinical analysis and recommendations for this specific case.`;
+Please provide clinical analysis and recommendations for this specific case.`;
     
-    console.log('AI Message for', patientData.patientId, ':', message);
+    console.log('📝 AI Message for', patientData.patientId, ':', message);
     
     const aiInput = document.getElementById('aiMessage');
     if (aiInput) {
       aiInput.value = message;
+      
+      // Auto-send the message
       if (window.sendAIMessage) {
         window.sendAIMessage();
       }
+    } else {
+      console.error('❌ AI input field not found!');
     }
-  }, 1000);
+  }, 500); // Increased delay from 1000ms to 500ms
 }
 
 // ========================================
