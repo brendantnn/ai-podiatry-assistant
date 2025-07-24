@@ -51,7 +51,227 @@ const session = {};
 
 // ******************************** PODIATRIST LOGIC *****************************************
 
-// FIXED PODIATRIST CHAT ROUTE
+// // FIXED PODIATRIST CHAT ROUTE
+// app.post("/podiatrist-chat", async (req, res) => {
+//   const userMessage = req.body.message;
+//   const podiatristId = req.body.podiatristId || "pod1";
+
+//   try {
+//     console.log('🤖 Podiatrist chat message:', userMessage);
+
+//     // FIXED patient ID detection patterns
+//     const patientIdPatterns = [
+//       /\b(patient_\d+)\b/gi,                    // ONLY "patient_1", "patient_2", etc.
+//       /\bpatient\s+(\d+)\b/gi,                  // ONLY "patient 1", "patient 2", etc.
+//       /tell me about (patient_\d+)/gi,          // "tell me about patient_1"
+//       /information.*?(patient_\d+)/gi,          // "give me information patient_1"
+//       /name.*?(patient_\d+)/gi,                 // "name patient_1"
+//       /(patient_\d+).*?(information|name|details)/gi, // "patient_1 information"
+//       /\b(p\d+)\b/gi,                           // "p1", "p2", etc.
+//       /\b(pt\d+)\b/gi                           // "pt1", "pt2", etc.
+//     ];
+
+//     let patientId = null;
+//     let patientData = null;
+//     let patientContext = "";
+
+//     console.log(`🔍 Analyzing message for patient ID: "${userMessage}"`);
+
+//     // Try each pattern to find patient ID
+//     for (let i = 0; i < patientIdPatterns.length; i++) {
+//       const pattern = patientIdPatterns[i];
+//       const matches = [...userMessage.matchAll(pattern)];
+
+//       if (matches.length > 0) {
+//         const match = matches[0]; // Get first match
+//         console.log(`🎯 Pattern ${i + 1} matched:`, match);
+
+//         if (i === 0 || i === 2 || i === 3 || i === 4 || i === 5) {
+//           // For "patient_1" or direct capture patterns
+//           patientId = match[1];
+//         } else if (i === 1) {
+//           // For "patient 1" pattern - construct "patient_1"
+//           patientId = `patient_${match[1]}`;
+//         } else {
+//           // For p1, pt1 patterns - use as is
+//           patientId = match[1];
+//         }
+
+//         console.log(`✅ Extracted patient ID: "${patientId}" from pattern ${i + 1}`);
+
+//         // VALIDATE that it's a real patient ID format
+//         if (/^(patient_\d+|p\d+|pt\d+)$/i.test(patientId)) {
+//           break;
+//         } else {
+//           console.log(`❌ Invalid patient ID format: "${patientId}", continuing search...`);
+//           patientId = null;
+//         }
+//       }
+//     }
+
+//     // DEBUG LOGGING
+//     if (patientId) {
+//       console.log(`🔍 === PATIENT LOOKUP DEBUG ===`);
+//       console.log(`🔍 Original message: "${userMessage}"`);
+//       console.log(`🔍 Extracted patientId: "${patientId}"`);
+//       console.log(`🔍 PatientId length: ${patientId.length}`);
+//       console.log(`🔍 PatientId characters: ${JSON.stringify(patientId.split(''))}`);
+//       console.log(`🔍 About to search database for: "${patientId}"`);
+
+//       try {
+//         // Find user by userId field
+//         const userQuery = await db.collection("Users")
+//           .where("userId", "==", patientId)
+//           .limit(1)
+//           .get();
+
+//         console.log(`📊 Database query for "${patientId}" returned: ${userQuery.size} documents`);
+
+//         if (!userQuery.empty) {
+//           const userDoc = userQuery.docs[0];
+//           const userData = userDoc.data();
+//           const userDocId = userDoc.id; // e.g., "user_1"
+
+//           console.log(`✅ Found user: ${userData.firstName} ${userData.lastName} (Doc ID: ${userDocId})`);
+
+//           // Get patient profile using the document ID
+//           const profileSnapshot = await db.collection("PatientProfiles").doc(userDocId).get();
+
+//           let profile = {
+//             riskLevel: "unknown",
+//             assignedPodId: "",
+//             medicalAlerts: [],
+//             nricLast4: "",
+//             preferredLang: "en"
+//           };
+
+//           if (profileSnapshot.exists) {
+//             profile = profileSnapshot.data();
+//             console.log(`✅ Found patient profile: Risk level ${profile.riskLevel}`);
+//           } else {
+//             console.log(`⚠️ No patient profile found for doc ID: ${userDocId}`);
+//           }
+
+//           patientData = {
+//             name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+//             email: userData.email,
+//             gender: userData.gender,
+//             phone: userData.phone,
+//             dob: userData.dob,
+//             isActive: userData.isActive,
+//             lastLoginAt: userData.lastLoginAt,
+//             riskLevel: profile.riskLevel,
+//             assignedPodId: profile.assignedPodId,
+//             medicalAlerts: profile.medicalAlerts || [],
+//             nricLast4: profile.nricLast4,
+//             preferredLang: profile.preferredLang
+//           };
+
+//           // Create FILTERED context for AI (remove sensitive data)
+//           patientContext = `
+// PATIENT CLINICAL INFORMATION FOR ${patientId.toUpperCase()}:
+// - Patient ID: ${patientId}
+// - Name: ${patientData.name}
+// - Gender: ${patientData.gender}
+// - Risk Level: ${patientData.riskLevel}
+// - Medical Alerts: ${patientData.medicalAlerts.join(', ') || 'None recorded'}
+
+// USER QUERY: "${userMessage}"
+
+// Based on this patient's clinical profile, please provide the requested information.
+// `;
+
+//           console.log(`✅ Generated context for patient: ${patientId}`);
+//         } else {
+//           console.log(`❌ Patient ${patientId} not found in Users collection`);
+//           patientContext = `Patient ${patientId} not found in database. Please verify the patient ID.`;
+//         }
+//       } catch (error) {
+//         console.error("❌ Error fetching patient data:", error);
+//         patientContext = `Error retrieving patient ${patientId} data: ${error.message}`;
+//       }
+//     }
+
+//     // Detect if this is an urgent cases summary request
+//     const isUrgentCasesQuery = req.body.queryType && req.body.queryType.toLowerCase() === 'urgent cases';
+
+//     let systemPrompt = '';
+//     if (isUrgentCasesQuery) {
+//       // Minimal system prompt for urgent cases summary
+//       systemPrompt = 'You are an AI assistant. The user will provide a list of urgent cases. Do not add a workload overview, clinical recommendations, or workflow analysis. Simply summarize or echo the list as a clear, readable summary. Do not add extra sections.';
+//     } else if (patientContext) {
+//       // Patient-specific system prompt
+//       systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+
+// CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
+
+// ${patientContext}
+
+// INSTRUCTIONS:
+// - Provide specific information about this patient based on the user's query
+// - If asked for "information" generally, provide: Patient ID, Name, Gender, Risk Level, and Medical Alerts
+// - If asked for specific details (name, gender, etc.), provide just that information clearly
+// - If asked for "name", respond with: "Patient ${patientId}: [Full Name]"
+// - Keep responses concise and clinical
+// - Always mention the patient ID for clarity
+
+// RESPONSE FORMATTING:
+// - Use clear, professional medical language
+// - Structure responses with bullet points for readability when appropriate
+// - Bold important information using **text**
+// - Always confirm which patient you're discussing
+// - For single-word queries like "name", give a direct answer`;
+//     } else {
+//       // Default system prompt for general queries
+//       systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+
+// CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
+
+// You help with:
+// 1. **Patient-Specific Queries** - Detailed case analysis based on patient history
+// 2. **Clinical Decision Support** - Evidence-based treatment recommendations
+// 3. **Medical Knowledge** - Information about podiatry conditions and protocols  
+// 4. **Case Management** - Guidance on patient prioritization and workflow
+// 5. **Treatment Protocols** - Step-by-step treatment approaches
+// 6. **Drug Information** - Interactions, dosages, and contraindications
+
+// RESPONSE FORMATTING RULES:
+// - Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})
+// - Use clear, professional medical language
+// - Structure responses with headers and bullet points for readability
+// - Bold important medical terms and conditions
+// - Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
+// - Keep responses concise but comprehensive
+// - Always provide evidence-based recommendations
+
+// Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
+//     }
+
+//     const chatCompletion = await openai.chat.completions.create({
+//       model: "gpt-3.5-turbo",
+//       messages: [
+//         {
+//           role: "system",
+//           content: systemPrompt
+//         },
+//         {
+//           role: "user",
+//           content: userMessage
+//         },
+//       ],
+//     });
+
+//     return res.json({
+//       reply: chatCompletion.choices[0].message.content,
+//       patientData: patientData // Include patient data in response for frontend use
+//     });
+
+//   } catch (err) {
+//     console.error("❌ Podiatrist chat error:", err);
+//     return res.status(500).json({ reply: "Something went wrong with the clinical assistant." });
+//   }
+// });
+
 app.post("/podiatrist-chat", async (req, res) => {
   const userMessage = req.body.message;
   const podiatristId = req.body.podiatristId || "pod1";
@@ -59,193 +279,173 @@ app.post("/podiatrist-chat", async (req, res) => {
   try {
     console.log('🤖 Podiatrist chat message:', userMessage);
 
-    // FIXED patient ID detection patterns
+    // DETECT APPOINTMENT ANALYSIS REQUEST
+    const appointmentAnalysisPattern = /analyze appointment (\w+) for patient (patient_\d+)/i;
+    const appointmentMatch = userMessage.match(appointmentAnalysisPattern);
+    
+    if (appointmentMatch) {
+      const appointmentId = appointmentMatch[1];
+      const patientId = appointmentMatch[2];
+      
+      console.log('🔍 Analyzing specific appointment:', appointmentId, 'for patient:', patientId);
+      
+      try {
+        // GET THE SPECIFIC APPOINTMENT BY ID
+        const appointmentDoc = await db.collection("Appointments").doc(appointmentId).get();
+        
+        if (!appointmentDoc.exists) {
+          return res.json({
+            reply: "❌ **Appointment Not Found**\n\nThe specified appointment could not be found in the system.",
+            patientData: null
+          });
+        }
+        
+        const appointmentData = appointmentDoc.data();
+        console.log('📊 Appointment status:', appointmentData.status);
+        
+        // CHECK IF THIS SPECIFIC APPOINTMENT IS CANCELLED
+        if (appointmentData.status === "cancelled") {
+          console.log('🚫 Specific appointment is cancelled');
+          
+          // Get patient name
+          let patientName = patientId;
+          try {
+            const userQuery = await db.collection("Users")
+              .where("userId", "==", patientId)
+              .limit(1)
+              .get();
+            
+            if (!userQuery.empty) {
+              const userData = userQuery.docs[0].data();
+              patientName = `${userData.firstName} ${userData.lastName}`.trim();
+            }
+          } catch (e) {
+            console.log('Could not fetch patient name');
+          }
+          
+          const cancelledResponse = `❌ **Appointment Status: CANCELLED**
+
+**Patient:** ${patientName} (${patientId})
+**Appointment ID:** ${appointmentId}
+**Original Date:** ${appointmentData.scheduledDate ? appointmentData.scheduledDate.toDate().toLocaleDateString("en-SG") : 'Unknown'}
+**Category:** ${appointmentData.category || 'Unknown'}
+
+This appointment has been cancelled and cannot be analyzed for clinical recommendations.
+
+**Next Steps:**
+- Contact the patient to reschedule if appropriate
+- Review cancellation reason in patient records
+- Consider priority rescheduling based on original urgency level
+
+No clinical analysis is available for cancelled appointments.`;
+
+          return res.json({
+            reply: cancelledResponse,
+            patientData: null
+          });
+        }
+        
+        // IF NOT CANCELLED, PROCEED WITH ANALYSIS
+        // Get patient details
+        let patientDetails = null;
+        try {
+          const userQuery = await db.collection("Users")
+            .where("userId", "==", patientId)
+            .limit(1)
+            .get();
+          
+          if (!userQuery.empty) {
+            const userData = userQuery.docs[0].data();
+            patientDetails = {
+              name: `${userData.firstName} ${userData.lastName}`.trim(),
+              email: userData.email,
+              gender: userData.gender
+            };
+          }
+        } catch (e) {
+          console.log('Could not fetch patient details');
+        }
+        
+        // NORMAL CLINICAL ANALYSIS FOR ACTIVE APPOINTMENT
+        const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
+
+CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'}
+
+SPECIFIC APPOINTMENT ANALYSIS:
+- Patient: ${patientDetails ? patientDetails.name : patientId}
+- Appointment ID: ${appointmentId}
+- Status: ${appointmentData.status}
+- Date: ${appointmentData.scheduledDate ? appointmentData.scheduledDate.toDate().toLocaleDateString("en-SG") : 'Unknown'}
+- Category: ${appointmentData.category || 'Unknown'}
+- Urgency: ${appointmentData.urgencyLevel || 'Unknown'}
+- Initial Diagnosis: ${appointmentData.initialDiagnosis || 'Assessment pending'}
+- Summary: ${appointmentData.summary || 'No summary available'}
+
+Provide clinical analysis and recommendations for this specific scheduled appointment.`;
+
+        const chatCompletion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user",
+              content: `Provide clinical analysis for this appointment case.`
+            },
+          ],
+        });
+
+        return res.json({
+          reply: chatCompletion.choices[0].message.content,
+          patientData: patientDetails
+        });
+        
+      } catch (error) {
+        console.error("❌ Error analyzing specific appointment:", error);
+        return res.json({
+          reply: "❌ **Error Analyzing Appointment**\n\nUnable to retrieve appointment details. Please try again.",
+          patientData: null
+        });
+      }
+    }
+
+    // FALLBACK FOR OTHER QUERIES (existing logic)
     const patientIdPatterns = [
-      /\b(patient_\d+)\b/gi,                    // ONLY "patient_1", "patient_2", etc.
-      /\bpatient\s+(\d+)\b/gi,                  // ONLY "patient 1", "patient 2", etc.
-      /tell me about (patient_\d+)/gi,          // "tell me about patient_1"
-      /information.*?(patient_\d+)/gi,          // "give me information patient_1"
-      /name.*?(patient_\d+)/gi,                 // "name patient_1"
-      /(patient_\d+).*?(information|name|details)/gi, // "patient_1 information"
-      /\b(p\d+)\b/gi,                           // "p1", "p2", etc.
-      /\b(pt\d+)\b/gi                           // "pt1", "pt2", etc.
+      /\b(patient_\d+)\b/gi,
+      /\bpatient\s+(\d+)\b/gi
     ];
 
     let patientId = null;
-    let patientData = null;
-    let patientContext = "";
-
-    console.log(`🔍 Analyzing message for patient ID: "${userMessage}"`);
-
-    // Try each pattern to find patient ID
+    
     for (let i = 0; i < patientIdPatterns.length; i++) {
       const pattern = patientIdPatterns[i];
       const matches = [...userMessage.matchAll(pattern)];
 
       if (matches.length > 0) {
-        const match = matches[0]; // Get first match
-        console.log(`🎯 Pattern ${i + 1} matched:`, match);
-
-        if (i === 0 || i === 2 || i === 3 || i === 4 || i === 5) {
-          // For "patient_1" or direct capture patterns
+        const match = matches[0];
+        if (i === 0) {
           patientId = match[1];
         } else if (i === 1) {
-          // For "patient 1" pattern - construct "patient_1"
           patientId = `patient_${match[1]}`;
-        } else {
-          // For p1, pt1 patterns - use as is
-          patientId = match[1];
         }
-
-        console.log(`✅ Extracted patient ID: "${patientId}" from pattern ${i + 1}`);
-
-        // VALIDATE that it's a real patient ID format
-        if (/^(patient_\d+|p\d+|pt\d+)$/i.test(patientId)) {
+        
+        if (/^patient_\d+$/i.test(patientId)) {
           break;
         } else {
-          console.log(`❌ Invalid patient ID format: "${patientId}", continuing search...`);
           patientId = null;
         }
       }
     }
 
-    // DEBUG LOGGING
-    if (patientId) {
-      console.log(`🔍 === PATIENT LOOKUP DEBUG ===`);
-      console.log(`🔍 Original message: "${userMessage}"`);
-      console.log(`🔍 Extracted patientId: "${patientId}"`);
-      console.log(`🔍 PatientId length: ${patientId.length}`);
-      console.log(`🔍 PatientId characters: ${JSON.stringify(patientId.split(''))}`);
-      console.log(`🔍 About to search database for: "${patientId}"`);
+    // GENERAL AI RESPONSE (no specific appointment)
+    const systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
 
-      try {
-        // Find user by userId field
-        const userQuery = await db.collection("Users")
-          .where("userId", "==", patientId)
-          .limit(1)
-          .get();
+CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'}
 
-        console.log(`📊 Database query for "${patientId}" returned: ${userQuery.size} documents`);
-
-        if (!userQuery.empty) {
-          const userDoc = userQuery.docs[0];
-          const userData = userDoc.data();
-          const userDocId = userDoc.id; // e.g., "user_1"
-
-          console.log(`✅ Found user: ${userData.firstName} ${userData.lastName} (Doc ID: ${userDocId})`);
-
-          // Get patient profile using the document ID
-          const profileSnapshot = await db.collection("PatientProfiles").doc(userDocId).get();
-
-          let profile = {
-            riskLevel: "unknown",
-            assignedPodId: "",
-            medicalAlerts: [],
-            nricLast4: "",
-            preferredLang: "en"
-          };
-
-          if (profileSnapshot.exists) {
-            profile = profileSnapshot.data();
-            console.log(`✅ Found patient profile: Risk level ${profile.riskLevel}`);
-          } else {
-            console.log(`⚠️ No patient profile found for doc ID: ${userDocId}`);
-          }
-
-          patientData = {
-            name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
-            email: userData.email,
-            gender: userData.gender,
-            phone: userData.phone,
-            dob: userData.dob,
-            isActive: userData.isActive,
-            lastLoginAt: userData.lastLoginAt,
-            riskLevel: profile.riskLevel,
-            assignedPodId: profile.assignedPodId,
-            medicalAlerts: profile.medicalAlerts || [],
-            nricLast4: profile.nricLast4,
-            preferredLang: profile.preferredLang
-          };
-
-          // Create FILTERED context for AI (remove sensitive data)
-          patientContext = `
-PATIENT CLINICAL INFORMATION FOR ${patientId.toUpperCase()}:
-- Patient ID: ${patientId}
-- Name: ${patientData.name}
-- Gender: ${patientData.gender}
-- Risk Level: ${patientData.riskLevel}
-- Medical Alerts: ${patientData.medicalAlerts.join(', ') || 'None recorded'}
-
-USER QUERY: "${userMessage}"
-
-Based on this patient's clinical profile, please provide the requested information.
-`;
-
-          console.log(`✅ Generated context for patient: ${patientId}`);
-        } else {
-          console.log(`❌ Patient ${patientId} not found in Users collection`);
-          patientContext = `Patient ${patientId} not found in database. Please verify the patient ID.`;
-        }
-      } catch (error) {
-        console.error("❌ Error fetching patient data:", error);
-        patientContext = `Error retrieving patient ${patientId} data: ${error.message}`;
-      }
-    }
-
-    // Detect if this is an urgent cases summary request
-    const isUrgentCasesQuery = req.body.queryType && req.body.queryType.toLowerCase() === 'urgent cases';
-
-    let systemPrompt = '';
-    if (isUrgentCasesQuery) {
-      // Minimal system prompt for urgent cases summary
-      systemPrompt = 'You are an AI assistant. The user will provide a list of urgent cases. Do not add a workload overview, clinical recommendations, or workflow analysis. Simply summarize or echo the list as a clear, readable summary. Do not add extra sections.';
-    } else if (patientContext) {
-      // Patient-specific system prompt
-      systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
-
-CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
-
-${patientContext}
-
-INSTRUCTIONS:
-- Provide specific information about this patient based on the user's query
-- If asked for "information" generally, provide: Patient ID, Name, Gender, Risk Level, and Medical Alerts
-- If asked for specific details (name, gender, etc.), provide just that information clearly
-- If asked for "name", respond with: "Patient ${patientId}: [Full Name]"
-- Keep responses concise and clinical
-- Always mention the patient ID for clarity
-
-RESPONSE FORMATTING:
-- Use clear, professional medical language
-- Structure responses with bullet points for readability when appropriate
-- Bold important information using **text**
-- Always confirm which patient you're discussing
-- For single-word queries like "name", give a direct answer`;
-    } else {
-      // Default system prompt for general queries
-      systemPrompt = `You are an AI clinical assistant for podiatrists at Singapore General Hospital.
-
-CURRENT USER: Dr. ${req.body.podiatristName || 'Unknown'} (${req.body.podiatristId || 'unknown_id'})
-
-You help with:
-1. **Patient-Specific Queries** - Detailed case analysis based on patient history
-2. **Clinical Decision Support** - Evidence-based treatment recommendations
-3. **Medical Knowledge** - Information about podiatry conditions and protocols  
-4. **Case Management** - Guidance on patient prioritization and workflow
-5. **Treatment Protocols** - Step-by-step treatment approaches
-6. **Drug Information** - Interactions, dosages, and contraindications
-
-RESPONSE FORMATTING RULES:
-- Address the podiatrist by name when appropriate (Dr. ${req.body.podiatristName?.split(' ')[0] || 'Doctor'})
-- Use clear, professional medical language
-- Structure responses with headers and bullet points for readability
-- Bold important medical terms and conditions
-- Use minimal emojis - only for essential medical categories (🩹 wound care, 💊 medications, ⚠️ warnings)
-- Keep responses concise but comprehensive
-- Always provide evidence-based recommendations
-
-Always remind that final clinical decisions should be based on physical examination and patient-specific factors.`;
-    }
+You help with clinical queries, patient management, and medical knowledge.
+Keep responses professional and evidence-based.`;
 
     const chatCompletion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -263,7 +463,7 @@ Always remind that final clinical decisions should be based on physical examinat
 
     return res.json({
       reply: chatCompletion.choices[0].message.content,
-      patientData: patientData // Include patient data in response for frontend use
+      patientData: null
     });
 
   } catch (err) {
@@ -1618,6 +1818,7 @@ app.post('/get-all-appointments', async (req, res) => {
 
         //Add data to data object
         const appointment = {
+          apptId: doc.id,
           patientId: appt.patientId,
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
