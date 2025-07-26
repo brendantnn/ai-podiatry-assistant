@@ -139,8 +139,8 @@ addWelcomeMessage(chatbox) {
           <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('urgent cases')" style="text-align: left; padding: 8px 12px;">
             🚨 Urgent Cases Summary
           </button>
-          <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('patient summaries')" style="text-align: left; padding: 8px 12px;">
-            📝 Recent Patient Summaries
+          <button class="medical-btn medical-btn-secondary medical-btn-sm" onclick="podiatristAI.sendQuickQuery('recent case summaries')" style="text-align: left; padding: 8px 12px;">
+            📝 Recent Case Summaries
           </button>
         </div>
         
@@ -2280,95 +2280,144 @@ Focus on clinical priorities and workflow optimization.`;
         }
         break;
         
-      case 'urgent cases':
-        needsDatabase = true;
-        try {
-          console.log('🚨 Fetching urgent cases from database...');
-          const urgentResponse = await fetch("/get-urgent-cases", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              podiatristId: "current_podiatrist"
-            })
-          });
-          const urgentResult = await urgentResponse.json();
-          console.log('🚨 Urgent cases response:', urgentResult);
-          if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
-            scheduleData = { appointments: urgentResult.urgentCases };
-            prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**\n\nFor each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.\n\n${urgentResult.urgentCases.map((apt, index) => {
-              let dateTime = apt.scheduledDate || apt.scheduledTime || 'N/A';
-              let caseSummary = (typeof apt.summary === 'string' && apt.summary.trim() !== '') ? apt.summary : 'N/A';
-              return `${index + 1}. **Patient:** ${apt.patientName || 'N/A'} (${apt.patientId || 'N/A'})\n   - **Scheduled:** ${dateTime}\n   - **Urgency:** ${apt.urgencyText || apt.urgencyLevel || 'N/A'}\n   - **Category:** ${apt.category || 'N/A'}\n   - **Diagnosis:** ${apt.initialDiagnosis || 'N/A'}\n   - **Case Summary:** ${caseSummary}`;
-            }).join('\n')}\n\n---\nThis is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
-            console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
-          } else {
-            console.log('✅ No urgent cases found in database');
-            prompt = `No upcoming urgent cases (urgency level 1 or 2) are currently scheduled.`;
-          }
-        } catch (fetchError) {
-          console.error('❌ Error fetching urgent cases:', fetchError);
-          prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
-        }
-        break;
+
+    //   case 'urgent cases':
+    //   needsDatabase = true;
+    //   try {
+    //     console.log('🚨 Fetching urgent cases from database...');
+    //     const urgentResponse = await fetch("/get-urgent-cases", {
+    //       method: "POST",
+    //       headers: { "Content-Type": "application/json" },
+    //       body: JSON.stringify({ 
+    //         podiatristId: "current_podiatrist"
+    //       })
+    //     });
+    //     const urgentResult = await urgentResponse.json();
+    //     console.log('🚨 Urgent cases response:', urgentResult);
         
-      case 'patient summaries':
-        needsDatabase = true;
+    //     if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
+    //       scheduleData = { appointments: urgentResult.urgentCases };
+    //       prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**
+
+    // For each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.
+
+    // ${urgentResult.urgentCases.map((apt, index) => {
+    //   let dateTime = apt.scheduledDate || apt.scheduledTime || 'N/A';
+    //   let caseSummary = (typeof apt.summary === 'string' && apt.summary.trim() !== '') ? apt.summary : 'N/A';
+    //   return `${index + 1}. **Patient:** ${apt.patientName || 'N/A'} (${apt.patientId || 'N/A'})
+    //   - **Scheduled:** ${dateTime}
+    //   - **Urgency:** ${apt.urgencyText || apt.urgencyLevel || 'N/A'}
+    //   - **Category:** ${apt.category || 'N/A'}
+    //   - **Diagnosis:** ${apt.initialDiagnosis || 'N/A'}
+    //   - **Case Summary:** ${caseSummary}`;
+    // }).join('\n')}
+
+    // ---
+    // This is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
+    //       console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
+    //     } else {
+    //       console.log('✅ No urgent cases found in database');
+    //       prompt = `No upcoming urgent cases (urgency level 1 or 2) are currently scheduled.`;
+    //     }
+    //   } catch (fetchError) {
+    //     console.error('❌ Error fetching urgent cases:', fetchError);
+    //     prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
+    //   }
+    //   break;
+
+    case 'urgent cases':
+    needsDatabase = true;
+    try {
+      console.log('🚨 Fetching urgent cases from database...');
+      const urgentResponse = await fetch("/get-urgent-cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          podiatristId: "current_podiatrist"
+        })
+      });
+      const urgentResult = await urgentResponse.json();
+      console.log('🚨 Urgent cases response:', urgentResult);
+      
+      if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
+        scheduleData = { appointments: urgentResult.urgentCases };
+        prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**
+
+  For each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.
+
+  ${urgentResult.urgentCases.map((apt, index) => {
+    let dateTime = apt.scheduledDate || apt.scheduledTime || 'N/A';
+    let caseSummary = (typeof apt.summary === 'string' && apt.summary.trim() !== '') ? apt.summary : 'N/A';
+    return `${index + 1}. **Patient:** ${apt.patientName || 'N/A'} (${apt.patientId || 'N/A'})
+    - **Scheduled:** ${dateTime}
+    - **Urgency:** ${apt.urgencyText || apt.urgencyLevel || 'N/A'}
+    - **Category:** ${apt.category || 'N/A'}
+    - **Diagnosis:** ${apt.initialDiagnosis || 'N/A'}
+    - **Case Summary:** ${caseSummary}`;
+  }).join('\n')}
+
+  ---
+  This is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
+        console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
+      } else {
+        console.log('✅ No urgent cases found in database');
+        // DIRECT RESPONSE - Don't send to AI, respond immediately
+        this.removeLoadingIndicator(loadingDiv);
+        this.addMessageToChat('📋 **No Urgent Cases Found**\n\n✅ Good news! There are currently no urgent cases (urgency level 1 or 2) scheduled in the system.\n\n**Current Status:**\n- All scheduled appointments are medium to low priority\n- No immediate clinical attention required\n- You can focus on routine care and follow-ups\n\n💡 **Tip:** You can check "Recent Case Summaries" to review upcoming appointments for the week.', 'bot', chatbox);
+        return; // Exit early, don't continue to AI processing
+      }
+    } catch (fetchError) {
+      console.error('❌ Error fetching urgent cases:', fetchError);
+      prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
+    }
+    break;
         
-        try {
-          const summariesResponse = await fetch("/get-recent-summaries", {
-            method: "POST", 
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              podiatristId: "current_podiatrist"
-            })
-          });
+      case 'recent case summaries':
+      needsDatabase = true;
+      
+      try {
+        console.log('📝 Fetching upcoming case summaries...');
+        const summariesResponse = await fetch("/get-upcoming-case-summaries", {
+          method: "POST", 
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            podiatristId: "current_podiatrist"
+          })
+        });
+        
+        const summariesResult = await summariesResponse.json();
+        
+        if (summariesResult.success && summariesResult.caseSummaries && summariesResult.caseSummaries.length > 0) {
+          scheduleData = { appointments: summariesResult.caseSummaries };
           
-          const summariesResult = await summariesResponse.json();
+          prompt = `**Upcoming Case Summaries (Next 7 Days) - ${summariesResult.totalCount} appointments found:**
+
+    ${summariesResult.caseSummaries.map((summary, index) => `
+    **${index + 1}. ${summary.scheduledDate} at ${summary.scheduledTime}** (${summary.daysUntil} days away)
+    - **Patient:** ${summary.patientName} (${summary.patientId})
+    - **Category:** ${summary.category} | **Priority:** ${summary.urgencyText}
+    - **Initial Diagnosis:** ${summary.initialDiagnosis}
+    - **Case Summary:** ${summary.summary}
+    - **Contact:** ${summary.patientPhone} | ${summary.patientEmail}
+    - **Triaged:** ${summary.triageDate}
+    - **Status:** ${summary.status}
+
+    `).join('')}
+
+    **Date Range:** ${summariesResult.dateRange.start} to ${summariesResult.dateRange.end}
+
+    Please provide clinical insights including priority assessment, preparation recommendations, and workflow planning for these upcoming appointments.`;
           
-          if (summariesResult.success && summariesResult.summaries && summariesResult.summaries.length > 0) {
-            scheduleData = { appointments: summariesResult.summaries };
-            
-            prompt = `Based on the actual patient data from our database, provide a well-structured summary of recent patient interactions:
-
-**REAL PATIENT DATA FROM DATABASE:**
-${summariesResult.summaries.map((summary, index) => `
-${index + 1}. Patient ID: ${summary.patientId} - Name: ${summary.patientName}
-   - Triage Date: ${summary.triageDate}
-   - Category: ${summary.category} (Urgency Level: ${summary.urgencyLevel})
-   - Initial Diagnosis: ${summary.initialDiagnosis}
-   - Clinical Summary: ${summary.summary}
-   - Current Status: ${summary.status}
-
-`).join('')}
-
-Please provide a clinical analysis covering current case load summary, priority assessment, follow-up requirements, and clinical recommendations.`;
-          } else {
-            prompt = 'No recent patient summaries available in the database.';
-          }
-        } catch (fetchError) {
-          prompt = 'Unable to access patient summary data from the database.';
+          console.log('✅ Generated prompt with upcoming case summaries');
+        } else {
+          console.log('✅ No upcoming appointments found');
+          prompt = `No appointments are scheduled for the next 7 days.`;
         }
-        break;
-        
-      case 'clinical guidelines':
-        prompt = 'What are the latest clinical guidelines for podiatry care, particularly for wound management and diabetic foot care?';
-        break;
-        
-      case 'drug interactions':
-        prompt = 'What are important drug interactions for treating foot conditions, especially for diabetic and elderly patients?';
-        break;
-        
-      case 'treatment protocols':
-        prompt = 'Provide current treatment protocols for common podiatric conditions.';
-        break;
-        
-      case 'reschedule help':
-        prompt = 'What factors should I consider when rescheduling patient appointments? Provide guidance on managing appointment changes effectively.';
-        break;
-        
-      default:
-        prompt = query;
-        break;
+      } catch (fetchError) {
+        console.error('❌ Error fetching case summaries:', fetchError);
+        prompt = 'Unable to access upcoming appointment data from the database.';
+      }
+      break;
     }
     
     // Update loading message to show AI is thinking

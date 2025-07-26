@@ -476,7 +476,302 @@ Keep responses professional and evidence-based.`;
 // NEW DATABASE ROUTES FOR AI CHAT
 // ========================================
 
-// GET URGENT CASES - Separate route for better organization
+// // GET URGENT CASES - Separate route for better organization
+// app.post("/get-urgent-cases", async (req, res) => {
+//   const { podiatristId } = req.body;
+
+//   try {
+//     console.log('🚨 Fetching urgent cases...');
+//     console.log('🔍 DEBUG: Current time:', new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }));
+
+//     // Only show upcoming urgent cases (today and future)
+//     const now = new Date();
+//     now.setHours(0, 0, 0, 0); // Start from today 00:00
+
+//     const farFuture = new Date('2100-12-31T23:59:59Z');
+
+//     console.log('🔍 DEBUG: Date range:', {
+//       start: now.toISOString(),
+//       end: farFuture.toISOString()
+//     });
+
+//     // Query for all scheduled appointments from today onwards
+//     const urgentQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(now))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(farFuture))
+//       .where("status", "==", "scheduled")
+//       .get();
+
+//     console.log('📊 Total upcoming appointments found:', urgentQuery.size);
+
+//     // Filter for urgent cases (level 1 and 2) and collect results
+//     const urgentAppointments = [];
+
+//     for (const appointmentDoc of urgentQuery.docs) {
+//       const appointment = appointmentDoc.data();
+
+//       console.log(`🔍 Checking appointment: PatientID=${appointment.patientId}, UrgencyLevel=${appointment.urgencyLevel}, Category=${appointment.category}`);
+
+//       // CRITICAL: Only include urgency level 1 AND 2 as urgent cases
+//       if (appointment.urgencyLevel <= 2) {
+//         console.log(`✅ URGENT CASE FOUND: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
+
+//         // Get patient details
+//         let patientInfo = {
+//           name: appointment.patientId
+//         };
+
+//         try {
+//           const patientQuery = await db.collection("Users")
+//             .where("userId", "==", appointment.patientId)
+//             .limit(1)
+//             .get();
+
+//           if (!patientQuery.empty) {
+//             const patientData = patientQuery.docs[0].data();
+//             patientInfo = {
+//               name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim()
+//             };
+//             console.log(`✅ Found patient details: ${patientInfo.name}`);
+//           } else {
+//             console.log(`⚠️ No patient details found for: ${appointment.patientId}`);
+//           }
+//         } catch (patientError) {
+//           console.log('⚠️ Patient lookup failed:', patientError.message);
+//         }
+
+//         const scheduledDate = appointment.scheduledDate.toDate();
+//         const urgentCase = {
+//           appointmentId: appointmentDoc.id,
+//           patientId: appointment.patientId,
+//           patientName: patientInfo.name,
+//           scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+//             hour: "2-digit",
+//             minute: "2-digit",
+//             hour12: true,
+//             timeZone: "Asia/Singapore"
+//           }),
+//           scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+//             weekday: "long",
+//             year: "numeric",
+//             month: "long",
+//             day: "numeric",
+//             timeZone: "Asia/Singapore"
+//           }),
+//           category: appointment.category || "General",
+//           urgencyLevel: appointment.urgencyLevel,
+//           urgencyText: getUrgencyText(appointment.urgencyLevel),
+//           initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+//           summary: appointment.summary || "No additional notes",
+//           status: appointment.status
+//         };
+
+//         urgentAppointments.push(urgentCase);
+//         console.log(`✅ Added urgent case: ${patientInfo.name} - ${urgentCase.urgencyText}`);
+//       } else {
+//         console.log(`⏭️ Non-urgent case skipped: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
+//       }
+//     }
+
+//     // Sort by urgency level (most urgent first)
+//     urgentAppointments.sort((a, b) => a.urgencyLevel - b.urgencyLevel);
+
+//     console.log(`🚨 FINAL RESULT: Returning ${urgentAppointments.length} urgent cases out of ${urgentQuery.size} total appointments`);
+    
+//     if (urgentAppointments.length > 0) {
+//       console.log('📋 Urgent cases details:');
+//       urgentAppointments.forEach((case_, index) => {
+//         console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
+//       });
+//     }
+
+//     return res.json({
+//       success: true,
+//       urgentCases: urgentAppointments,
+//       totalCount: urgentAppointments.length,
+//       totalAppointmentsUpcoming: urgentQuery.size,
+//       date: new Date().toLocaleDateString("en-SG", {
+//         weekday: "long",
+//         year: "numeric",
+//         month: "long",
+//         day: "numeric",
+//         timeZone: "Asia/Singapore"
+//       }),
+//       debugInfo: {
+//         dateRange: {
+//           start: now.toISOString(),
+//           end: farFuture.toISOString()
+//         },
+//         urgentCasesFound: urgentAppointments.length,
+//         totalAppointmentsUpcoming: urgentQuery.size
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching urgent cases:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch urgent cases",
+//       message: error.message,
+//       urgentCases: [],
+//       totalCount: 0
+//     });
+//   }
+// });
+// // GET URGENT CASES - FIXED DATE FILTERING
+// app.post("/get-urgent-cases", async (req, res) => {
+//   const { podiatristId } = req.body;
+
+//   try {
+//     console.log('🚨 Fetching urgent cases...');
+//     console.log('🔍 DEBUG: Current time:', new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }));
+
+//     // FIXED: Use a much wider date range to catch all appointments
+//     const startDate = new Date('2025-01-01T00:00:00Z'); // Start of 2025
+//     const endDate = new Date('2025-12-31T23:59:59Z');   // End of 2025
+
+//     console.log('🔍 DEBUG: Date range:', {
+//       start: startDate.toISOString(),
+//       end: endDate.toISOString()
+//     });
+
+//     // Query for ALL scheduled appointments in 2025
+//     const urgentQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
+//       .where("status", "==", "scheduled")
+//       .get();
+
+//     console.log('📊 Total appointments found in date range:', urgentQuery.size);
+
+//     // Log each appointment for debugging
+//     urgentQuery.docs.forEach((doc, index) => {
+//       const apt = doc.data();
+//       console.log(`📋 Appointment ${index + 1}:`, {
+//         id: doc.id,
+//         patientId: apt.patientId,
+//         urgencyLevel: apt.urgencyLevel,
+//         scheduledDate: apt.scheduledDate.toDate().toISOString(),
+//         status: apt.status
+//       });
+//     });
+
+//     // Filter for urgent cases (level 1 and 2) and collect results
+//     const urgentAppointments = [];
+
+//     for (const appointmentDoc of urgentQuery.docs) {
+//       const appointment = appointmentDoc.data();
+
+//       console.log(`🔍 Checking appointment: PatientID=${appointment.patientId}, UrgencyLevel=${appointment.urgencyLevel}, Category=${appointment.category}`);
+
+//       // CRITICAL: Only include urgency level 1 AND 2 as urgent cases
+//       if (appointment.urgencyLevel <= 2) {
+//         console.log(`✅ URGENT CASE FOUND: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
+
+//         // Get patient details
+//         let patientInfo = {
+//           name: appointment.patientId
+//         };
+
+//         try {
+//           const patientQuery = await db.collection("Users")
+//             .where("userId", "==", appointment.patientId)
+//             .limit(1)
+//             .get();
+
+//           if (!patientQuery.empty) {
+//             const patientData = patientQuery.docs[0].data();
+//             patientInfo = {
+//               name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim()
+//             };
+//             console.log(`✅ Found patient details: ${patientInfo.name}`);
+//           } else {
+//             console.log(`⚠️ No patient details found for: ${appointment.patientId}`);
+//           }
+//         } catch (patientError) {
+//           console.log('⚠️ Patient lookup failed:', patientError.message);
+//         }
+
+//         const scheduledDate = appointment.scheduledDate.toDate();
+//         const urgentCase = {
+//           appointmentId: appointmentDoc.id,
+//           patientId: appointment.patientId,
+//           patientName: patientInfo.name,
+//           scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+//             hour: "2-digit",
+//             minute: "2-digit",
+//             hour12: true,
+//             timeZone: "Asia/Singapore"
+//           }),
+//           scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+//             weekday: "long",
+//             year: "numeric",
+//             month: "long",
+//             day: "numeric",
+//             timeZone: "Asia/Singapore"
+//           }),
+//           category: appointment.category || "General",
+//           urgencyLevel: appointment.urgencyLevel,
+//           urgencyText: getUrgencyText(appointment.urgencyLevel),
+//           initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+//           summary: appointment.summary || "No additional notes",
+//           status: appointment.status
+//         };
+
+//         urgentAppointments.push(urgentCase);
+//         console.log(`✅ Added urgent case: ${patientInfo.name} - ${urgentCase.urgencyText}`);
+//       } else {
+//         console.log(`⏭️ Non-urgent case skipped: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
+//       }
+//     }
+
+//     // Sort by urgency level (most urgent first)
+//     urgentAppointments.sort((a, b) => a.urgencyLevel - b.urgencyLevel);
+
+//     console.log(`🚨 FINAL RESULT: Returning ${urgentAppointments.length} urgent cases out of ${urgentQuery.size} total appointments`);
+    
+//     if (urgentAppointments.length > 0) {
+//       console.log('📋 Urgent cases details:');
+//       urgentAppointments.forEach((case_, index) => {
+//         console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
+//       });
+//     }
+
+//     return res.json({
+//       success: true,
+//       urgentCases: urgentAppointments,
+//       totalCount: urgentAppointments.length,
+//       totalAppointmentsUpcoming: urgentQuery.size,
+//       date: new Date().toLocaleDateString("en-SG", {
+//         weekday: "long",
+//         year: "numeric",
+//         month: "long",
+//         day: "numeric",
+//         timeZone: "Asia/Singapore"
+//       }),
+//       debugInfo: {
+//         dateRange: {
+//           start: startDate.toISOString(),
+//           end: endDate.toISOString()
+//         },
+//         urgentCasesFound: urgentAppointments.length,
+//         totalAppointmentsUpcoming: urgentQuery.size
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching urgent cases:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch urgent cases",
+//       message: error.message,
+//       urgentCases: [],
+//       totalCount: 0
+//     });
+//   }
+// });
+
+// GET URGENT CASES - FIXED DATE FILTERING WITH ENHANCED RESPONSE
 app.post("/get-urgent-cases", async (req, res) => {
   const { podiatristId } = req.body;
 
@@ -484,25 +779,35 @@ app.post("/get-urgent-cases", async (req, res) => {
     console.log('🚨 Fetching urgent cases...');
     console.log('🔍 DEBUG: Current time:', new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }));
 
-    // Only show upcoming urgent cases (today and future)
-    const now = new Date();
-    now.setHours(0, 0, 0, 0); // Start from today 00:00
-
-    const farFuture = new Date('2100-12-31T23:59:59Z');
+    // FIXED: Use a much wider date range to catch all appointments
+    const startDate = new Date('2025-01-01T00:00:00Z'); // Start of 2025
+    const endDate = new Date('2025-12-31T23:59:59Z');   // End of 2025
 
     console.log('🔍 DEBUG: Date range:', {
-      start: now.toISOString(),
-      end: farFuture.toISOString()
+      start: startDate.toISOString(),
+      end: endDate.toISOString()
     });
 
-    // Query for all scheduled appointments from today onwards
+    // Query for ALL scheduled appointments in 2025
     const urgentQuery = await db.collection("Appointments")
-      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(now))
-      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(farFuture))
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
       .where("status", "==", "scheduled")
       .get();
 
-    console.log('📊 Total upcoming appointments found:', urgentQuery.size);
+    console.log('📊 Total appointments found in date range:', urgentQuery.size);
+
+    // Log each appointment for debugging
+    urgentQuery.docs.forEach((doc, index) => {
+      const apt = doc.data();
+      console.log(`📋 Appointment ${index + 1}:`, {
+        id: doc.id,
+        patientId: apt.patientId,
+        urgencyLevel: apt.urgencyLevel,
+        scheduledDate: apt.scheduledDate.toDate().toISOString(),
+        status: apt.status
+      });
+    });
 
     // Filter for urgent cases (level 1 and 2) and collect results
     const urgentAppointments = [];
@@ -583,6 +888,8 @@ app.post("/get-urgent-cases", async (req, res) => {
       urgentAppointments.forEach((case_, index) => {
         console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
       });
+    } else {
+      console.log('📋 No urgent cases found - all appointments are medium to low priority');
     }
 
     return res.json({
@@ -590,6 +897,10 @@ app.post("/get-urgent-cases", async (req, res) => {
       urgentCases: urgentAppointments,
       totalCount: urgentAppointments.length,
       totalAppointmentsUpcoming: urgentQuery.size,
+      hasUrgentCases: urgentAppointments.length > 0,
+      message: urgentAppointments.length > 0 ? 
+        `Found ${urgentAppointments.length} urgent cases` : 
+        'No urgent cases found - all appointments are medium to low priority',
       date: new Date().toLocaleDateString("en-SG", {
         weekday: "long",
         year: "numeric",
@@ -599,8 +910,8 @@ app.post("/get-urgent-cases", async (req, res) => {
       }),
       debugInfo: {
         dateRange: {
-          start: now.toISOString(),
-          end: farFuture.toISOString()
+          start: startDate.toISOString(),
+          end: endDate.toISOString()
         },
         urgentCasesFound: urgentAppointments.length,
         totalAppointmentsUpcoming: urgentQuery.size
@@ -614,54 +925,66 @@ app.post("/get-urgent-cases", async (req, res) => {
       error: "Failed to fetch urgent cases",
       message: error.message,
       urgentCases: [],
-      totalCount: 0
+      totalCount: 0,
+      hasUrgentCases: false
     });
   }
 });
 
-// FIXED GET RECENT PATIENT SUMMARIES - Uses actual database data
-app.post("/get-recent-summaries", async (req, res) => {
+
+
+// GET UPCOMING CASE SUMMARIES - Within next 7 days
+app.post("/get-upcoming-case-summaries", async (req, res) => {
   const { podiatristId } = req.body;
 
   try {
-    console.log('📝 Fetching recent patient summaries from actual database...');
+    console.log('📝 Fetching upcoming case summaries...');
+    
+    // Get date range for next 7 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const oneWeekFromNow = new Date(today);
+    oneWeekFromNow.setDate(today.getDate() + 7);
+    oneWeekFromNow.setHours(23, 59, 59, 999);
 
-    // Get all appointments (recent ones) - adjust date range as needed
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    console.log('📅 Date range:', {
+      start: today.toISOString(),
+      end: oneWeekFromNow.toISOString()
+    });
 
-    const appointmentsQuery = await db.collection("Appointments")
-      .where("triageDateTime", ">=", admin.firestore.Timestamp.fromDate(oneWeekAgo))
-      .orderBy("triageDateTime", "desc")
+    // Query for upcoming appointments in the next week
+    const upcomingQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(today))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(oneWeekFromNow))
+      .where("status", "==", "scheduled")
       .get();
 
-    console.log('📊 Found', appointmentsQuery.size, 'recent appointments');
+    console.log('📊 Found upcoming appointments:', upcomingQuery.size);
 
-    if (appointmentsQuery.empty) {
+    if (upcomingQuery.empty) {
       return res.json({
         success: true,
-        summaries: [],
+        caseSummaries: [],
         totalCount: 0,
-        message: "No recent patient summaries found in database"
+        message: "No upcoming appointments found for the next 7 days"
       });
     }
 
-    const recentSummaries = [];
+    const caseSummaries = [];
 
-    // Process each appointment and get REAL patient details
-    for (const appointmentDoc of appointmentsQuery.docs) {
+    // Process each appointment
+    for (const appointmentDoc of upcomingQuery.docs) {
       const appointment = appointmentDoc.data();
-      console.log('Processing appointment for patient:', appointment.patientId);
 
-      // Get REAL patient details from Users collection
-      let realPatientInfo = {
-        name: appointment.patientId, // fallback to patientId
+      // Get patient details
+      let patientInfo = {
+        name: appointment.patientId,
         phone: "N/A",
         email: "N/A"
       };
 
       try {
-        console.log('Looking up REAL patient data for:', appointment.patientId);
         const patientQuery = await db.collection("Users")
           .where("userId", "==", appointment.patientId)
           .limit(1)
@@ -669,38 +992,38 @@ app.post("/get-recent-summaries", async (req, res) => {
 
         if (!patientQuery.empty) {
           const patientData = patientQuery.docs[0].data();
-          console.log('✅ Found REAL patient:', patientData.firstName, patientData.lastName);
-
-          realPatientInfo = {
+          patientInfo = {
             name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
             phone: patientData.phone || "N/A",
             email: patientData.email || "N/A"
           };
-        } else {
-          console.log('⚠️ No patient found in Users collection for:', appointment.patientId);
         }
       } catch (patientError) {
-        console.error('❌ Error looking up patient:', patientError);
+        console.log('⚠️ Patient lookup failed for', appointment.patientId);
       }
 
-      // Format the REAL appointment data
-      const triageDate = appointment.triageDateTime ?
-        appointment.triageDateTime.toDate() :
-        new Date();
-
-      const scheduledDate = appointment.scheduledDate ?
-        appointment.scheduledDate.toDate() :
-        new Date();
-
-      const realSummary = {
+      const scheduledDate = appointment.scheduledDate.toDate();
+      
+      // Calculate days until appointment
+      const daysUntil = Math.ceil((scheduledDate - today) / (1000 * 60 * 60 * 24));
+      
+      const caseSummary = {
         appointmentId: appointmentDoc.id,
         patientId: appointment.patientId,
-        patientName: realPatientInfo.name,
-        patientEmail: realPatientInfo.email,
-        triageDate: triageDate.toLocaleDateString("en-SG", {
-          weekday: "short",
-          month: "short",
+        patientName: patientInfo.name,
+        patientPhone: patientInfo.phone,
+        patientEmail: patientInfo.email,
+        scheduledDateTime: scheduledDate.toLocaleDateString("en-SG", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
           day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore"
+        }),
+        scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: true,
@@ -710,47 +1033,53 @@ app.post("/get-recent-summaries", async (req, res) => {
           weekday: "long",
           month: "long",
           day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
           timeZone: "Asia/Singapore"
         }),
+        daysUntil: daysUntil,
         category: appointment.category || "General",
         urgencyLevel: appointment.urgencyLevel || 4,
         urgencyText: getUrgencyText(appointment.urgencyLevel),
         initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
-        summary: appointment.summary || "No clinical summary available",
-        status: appointment.status || "unknown"
+        summary: appointment.summary || "No case summary available",
+        status: appointment.status,
+        triageDate: appointment.triageDateTime ? 
+          appointment.triageDateTime.toDate().toLocaleDateString("en-SG", {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore"
+          }) : 'N/A'
       };
 
-      console.log('✅ Processed REAL summary for:', realSummary.patientName);
-      recentSummaries.push(realSummary);
+      caseSummaries.push(caseSummary);
     }
 
-    // Sort by triage date (most recent first)
-    recentSummaries.sort((a, b) => {
-      const dateA = new Date(a.triageDate);
-      const dateB = new Date(b.triageDate);
-      return dateB - dateA;
+    // Sort by scheduled date (earliest first)
+    caseSummaries.sort((a, b) => {
+      return new Date(a.scheduledDateTime) - new Date(b.scheduledDateTime);
     });
 
-    console.log('📝 Returning', recentSummaries.length, 'REAL patient summaries');
-    console.log('📋 Patient names found:', recentSummaries.map(s => s.patientName));
+    console.log('✅ Processed', caseSummaries.length, 'case summaries');
 
     return res.json({
       success: true,
-      summaries: recentSummaries,
-      totalCount: recentSummaries.length,
-      message: `Found ${recentSummaries.length} real patient summaries from database`
+      caseSummaries: caseSummaries,
+      totalCount: caseSummaries.length,
+      dateRange: {
+        start: today.toLocaleDateString("en-SG"),
+        end: oneWeekFromNow.toLocaleDateString("en-SG")
+      }
     });
 
   } catch (error) {
-    console.error("❌ Error fetching real patient summaries:", error);
+    console.error("❌ Error fetching upcoming case summaries:", error);
     return res.status(500).json({
       success: false,
-      error: "Failed to fetch patient summaries from database",
+      error: "Failed to fetch case summaries",
       message: error.message,
-      summaries: [],
+      caseSummaries: [],
       totalCount: 0
     });
   }
