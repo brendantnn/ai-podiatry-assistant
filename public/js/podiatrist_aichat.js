@@ -167,9 +167,7 @@ addWelcomeMessage(chatbox) {
           </button>
         </div>
         
-        <p style="color: #6b7280; font-size: 0.875rem; margin: 0;">
-          💡 <strong>Tip:</strong> You can ask "Edit patient_1's appointment" or "Reschedule John's appointment to tomorrow 2pm"
-        </p>
+      
       </div>
     `;
     chatbox.appendChild(welcomeDiv);
