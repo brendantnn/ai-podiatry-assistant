@@ -227,43 +227,87 @@ addWelcomeMessage(chatbox) {
   // APPOINTMENT EDITING FUNCTIONALITY WITH MODAL
   // ========================================
 
-  // START APPOINTMENT EDIT WORKFLOW - WITH MODAL
-  async startAppointmentEdit() {
-    const chatbox = document.getElementById('aiChatbox');
-    if (!chatbox) return;
+  // // START APPOINTMENT EDIT WORKFLOW - WITH MODAL
+  // async startAppointmentEdit() {
+  //   const chatbox = document.getElementById('aiChatbox');
+  //   if (!chatbox) return;
     
-    this.addMessageToChat("I'd like to edit an appointment", 'user', chatbox);
-    this.addMessageToChat("🔍 Loading appointment selection...", 'bot', chatbox);
+  //   this.addMessageToChat("I'd like to edit an appointment", 'user', chatbox);
+  //   this.addMessageToChat("🔍 Loading appointment selection...", 'bot', chatbox);
     
-    try {
-      const response = await fetch("/get-upcoming-appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          podiatristId: "current_podiatrist",
-          days: 14,
-          limit: 10
-        })
-      });
+  //   try {
+  //     const response = await fetch("/get-upcoming-appointments", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ 
+  //         podiatristId: "current_podiatrist",
+  //         days: 14,
+  //         limit: 10
+  //       })
+  //     });
       
-      const result = await response.json();
+  //     const result = await response.json();
       
-      if (result.success && result.appointments && result.appointments.length > 0) {
-        this.addMessageToChat(`📅 Found ${result.appointments.length} appointments. Opening selection window...`, 'bot', chatbox);
+  //     if (result.success && result.appointments && result.appointments.length > 0) {
+  //       this.addMessageToChat(`📅 Found ${result.appointments.length} appointments. Opening selection window...`, 'bot', chatbox);
         
-        // Show modal instead of inline list
-        setTimeout(() => {
-          this.showAppointmentModal(result.appointments, result.totalCount);
-        }, 500);
-      } else {
-        this.addMessageToChat("📅 No appointments found to edit.", 'bot', chatbox);
-      }
+  //       // Show modal instead of inline list
+  //       setTimeout(() => {
+  //         this.showAppointmentModal(result.appointments, result.totalCount);
+  //       }, 500);
+  //     } else {
+  //       this.addMessageToChat("📅 No appointments found to edit.", 'bot', chatbox);
+  //     }
       
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
-      this.addMessageToChat("❌ Error loading appointments. Please try again.", 'bot', chatbox);
+  //   } catch (error) {
+  //     console.error("Error fetching appointments:", error);
+  //     this.addMessageToChat("❌ Error loading appointments. Please try again.", 'bot', chatbox);
+  //   }
+  // }
+
+
+// START APPOINTMENT EDIT WORKFLOW - WITH MODAL
+async startAppointmentEdit() {
+  const chatbox = document.getElementById('aiChatbox');
+  if (!chatbox) return;
+  
+  this.addMessageToChat("I'd like to edit an appointment", 'user', chatbox);
+  this.addMessageToChat("🔍 Loading appointment selection...", 'bot', chatbox);
+  
+  try {
+    const currentPodId = this.getCurrentPodId(); // 🔧 FIXED: Get current pod ID
+    
+    const response = await fetch("/get-upcoming-appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        podiatristId: currentPodId, // Keep for backward compatibility
+        podId: currentPodId, // 🔧 ADDED: Pass podId for proper filtering
+        days: 14,
+        limit: 10
+      })
+    });
+    
+    const result = await response.json();
+    
+    console.log('📅 Appointment editing response for pod', currentPodId, ':', result); // 🔧 ADDED: Debug logging
+    
+    if (result.success && result.appointments && result.appointments.length > 0) {
+      this.addMessageToChat(`📅 Found ${result.appointments.length} appointments for pod ${currentPodId}. Opening selection window...`, 'bot', chatbox);
+      
+      // Show modal instead of inline list
+      setTimeout(() => {
+        this.showAppointmentModal(result.appointments, result.totalCount);
+      }, 500);
+    } else {
+      this.addMessageToChat(`📅 No appointments found to edit for pod ${currentPodId}.`, 'bot', chatbox);
     }
+    
+  } catch (error) {
+    console.error("Error fetching appointments:", error);
+    this.addMessageToChat("❌ Error loading appointments. Please try again.", 'bot', chatbox);
   }
+}
 
  async showDirectAppointmentEdit(patientId, suggestedDateTime = null) {
   try {

@@ -2473,33 +2473,132 @@ app.post("/edit-appointment", async (req, res) => {
   }
 });
 
-// GET UPCOMING APPOINTMENTS FOR EDITING
+// // GET UPCOMING APPOINTMENTS FOR EDITING
+// app.post("/get-upcoming-appointments", async (req, res) => {
+//   const { podiatristId, days = 7, limit = 10 } = req.body;
+
+//   try {
+//     console.log('📅 Fetching upcoming appointments for editing...');
+
+//     // Get date range (today + next X days)
+//     const startDate = new Date();
+//     const endDate = new Date();
+//     endDate.setDate(startDate.getDate() + days);
+
+//     // Query appointments
+//     const appointmentsQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
+//       .where("status", "==", "scheduled")
+//       .orderBy("scheduledDate")
+//       .limit(limit)
+//       .get();
+
+//     // Get total count (for "show more" functionality)
+//     const countQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
+//       .where("status", "==", "scheduled")
+//       .get();
+
+//     const appointments = [];
+
+//     for (const doc of appointmentsQuery.docs) {
+//       const appointment = doc.data();
+
+//       // Get patient name
+//       let patientName = appointment.patientId;
+//       try {
+//         const patientQuery = await db.collection("Users")
+//           .where("userId", "==", appointment.patientId)
+//           .limit(1)
+//           .get();
+
+//         if (!patientQuery.empty) {
+//           const patientData = patientQuery.docs[0].data();
+//           patientName = `${patientData.firstName} ${patientData.lastName}`.trim();
+//         }
+//       } catch (error) {
+//         console.log('Patient lookup failed:', error);
+//       }
+
+//       const scheduledDate = appointment.scheduledDate.toDate();
+//       appointments.push({
+//         appointmentId: doc.id,
+//         patientId: appointment.patientId,
+//         patientName,
+//         scheduledDateTime: scheduledDate.toLocaleDateString("en-SG", {
+//           weekday: "short",
+//           month: "short",
+//           day: "numeric",
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: true,
+//           timeZone: "Asia/Singapore"
+//         }),
+//         category: appointment.category || "General",
+//         urgencyLevel: appointment.urgencyLevel || 4,
+//         urgencyText: getUrgencyText(appointment.urgencyLevel),
+//         initialDiagnosis: appointment.initialDiagnosis || "Assessment pending"
+//       });
+//     }
+
+//     return res.json({
+//       success: true,
+//       appointments,
+//       totalCount: countQuery.size,
+//       showing: appointments.length
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching upcoming appointments:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch appointments"
+//     });
+//   }
+// });
+
+// GET UPCOMING APPOINTMENTS FOR EDITING - FIXED VERSION WITH POD FILTERING
 app.post("/get-upcoming-appointments", async (req, res) => {
-  const { podiatristId, days = 7, limit = 10 } = req.body;
+  const { podiatristId, podId, days = 7, limit = 10 } = req.body; // 🔧 ADDED: Accept podId parameter
+  
+  // Use podId if provided, fallback to podiatristId for backward compatibility
+  const targetPodId = podId || podiatristId; // 🔧 ADDED: Use podId logic
 
   try {
-    console.log('📅 Fetching upcoming appointments for editing...');
+    console.log('📅 Fetching upcoming appointments for editing for pod:', targetPodId); // 🔧 UPDATED: Log pod ID
 
     // Get date range (today + next X days)
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + days);
 
-    // Query appointments
+    console.log('🔍 DEBUG: Date range and pod filter:', {
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      podId: targetPodId
+    });
+
+    // 🔧 CRITICAL FIX: Filter by both date range AND podId
     const appointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
       .where("status", "==", "scheduled")
+      .where("podId", "==", targetPodId) // 🔧 ADDED: Filter by pod
       .orderBy("scheduledDate")
       .limit(limit)
       .get();
 
-    // Get total count (for "show more" functionality)
+    // 🔧 CRITICAL FIX: Filter count query by podId too
     const countQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
       .where("status", "==", "scheduled")
+      .where("podId", "==", targetPodId) // 🔧 ADDED: Filter by pod
       .get();
+
+    console.log(`📊 Found ${appointmentsQuery.size} appointments for editing for pod ${targetPodId}`);
 
     const appointments = [];
 
@@ -2547,7 +2646,11 @@ app.post("/get-upcoming-appointments", async (req, res) => {
       success: true,
       appointments,
       totalCount: countQuery.size,
-      showing: appointments.length
+      showing: appointments.length,
+      podId: targetPodId, // 🔧 ADDED: Return which pod the data is for
+      message: appointments.length > 0 ? 
+        `Found ${appointments.length} appointments for editing for pod ${targetPodId}` : 
+        `No appointments found for editing for pod ${targetPodId}` // 🔧 ADDED: Pod-specific message
     });
 
   } catch (error) {
