@@ -1285,7 +1285,7 @@ function getUrgencyText(urgencyLevel) {
   }
 }
 
-// app.post("/get-schedule-by-date", async (req, res) => {
+
 //   const { podiatristId, targetDate, cacheBuster } = req.body; // Add cacheBuster parameter
   
 //   try {
@@ -1505,9 +1505,12 @@ app.post("/get-schedule-by-date", async (req, res) => {
     // NEW: Handle "all" dates request for availability filtering
     if (targetDate === "all") {
       console.log('📅 Fetching all scheduled appointments for availability filtering...');
+      console.log('🔍 Filtering appointments for podiatrist:', podiatristId);
       
+      // 🔧 CRITICAL FIX: Filter by podiatrist ID
       const allAppointmentsQuery = await db.collection("Appointments")
         .where("status", "==", "scheduled")
+        .where("podId", "==", podiatristId) // 🔧 ADDED: Filter by current podiatrist
         .get();
       
       const allAppointments = [];
@@ -1550,11 +1553,13 @@ app.post("/get-schedule-by-date", async (req, res) => {
         });
       }
       
+      console.log(`📅 Loaded ${allAppointments.length} appointments for podiatrist ${podiatristId}`);
+      
       return res.json({
         success: true,
         appointments: allAppointments,
         totalCount: allAppointments.length,
-        message: "All scheduled appointments for filtering"
+        message: `Filtered appointments for podiatrist ${podiatristId}`
       });
     }
 

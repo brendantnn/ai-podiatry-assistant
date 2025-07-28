@@ -1542,7 +1542,7 @@ async loadBookedSlotsForFiltering() {
 // Fallback method to load booked slots directly from appointments
 async loadBookedSlotsFromAppointments() {
   try {
-    const podId = "pod_1";
+    const podId = getCurrentPodId();
     const response = await fetch("/podiatrist-get-calendar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

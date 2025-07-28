@@ -1187,16 +1187,61 @@ formatDateTimeForServer(appointmentDate, appointmentTime) {
   }
 }
 
+// // Load booked slots to filter out from time options
+// async loadBookedSlotsForFiltering() {
+//   try {
+//     console.log("🔍 Loading booked slots for filtering...");
+    
+//     const response = await fetch("/get-schedule-by-date", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ 
+//        podiatristId: this.getCurrentPodId(), // 🔧 FIXED: Get podId using the class method
+//         targetDate: "all",
+//         cacheBuster: Date.now()
+//       })
+//     });
+    
+//     if (response.ok) {
+//       const result = await response.json();
+      
+//       this.bookedSlots = new Set();
+      
+//       if (result.success && result.appointments) {
+//         result.appointments.forEach(apt => {
+//           const aptDateTime = new Date(apt.scheduledDateTime);
+//           const dateKey = aptDateTime.toISOString().split('T')[0];
+//           const timeKey = aptDateTime.toTimeString().split(' ')[0].substring(0, 5);
+//           const slotKey = `${dateKey}_${timeKey}`;
+//           this.bookedSlots.add(slotKey);
+//         });
+//       }
+      
+//       console.log(`📅 Loaded ${this.bookedSlots.size} booked slots for filtering`);
+//     } else {
+//       this.bookedSlots = new Set();
+//     }
+    
+//   } catch (error) {
+//     console.error("❌ Error loading booked slots:", error);
+//     this.bookedSlots = new Set();
+//   }
+// }
+
 // Load booked slots to filter out from time options
 async loadBookedSlotsForFiltering() {
   try {
     console.log("🔍 Loading booked slots for filtering...");
     
+    // 🔧 FIX: Get current podiatrist ID
+    const podId = this.getCurrentPodId();
+    console.log("🔍 Checking slot availability for current podiatrist:", podId);
+    
     const response = await fetch("/get-schedule-by-date", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-       podiatristId: this.getCurrentPodId(), // 🔧 FIXED: Get podId using the class method
+        podiatristId: podId, // 🔧 FIXED: Use current podiatrist's dynamic ID
         targetDate: "all",
         cacheBuster: Date.now()
       })
@@ -1217,13 +1262,68 @@ async loadBookedSlotsForFiltering() {
         });
       }
       
-      console.log(`📅 Loaded ${this.bookedSlots.size} booked slots for filtering`);
+      console.log(`📅 Loaded ${this.bookedSlots.size} booked slots for current podiatrist ${podId}`);
     } else {
-      this.bookedSlots = new Set();
+      console.log("❌ API call failed, using fallback method");
+      await this.loadBookedSlotsFromAppointmentsFallback();
     }
     
   } catch (error) {
     console.error("❌ Error loading booked slots:", error);
+    console.log("🔄 Using fallback method...");
+    await this.loadBookedSlotsFromAppointmentsFallback();
+  }
+}
+
+// Fallback method to load booked slots directly from appointments
+async loadBookedSlotsFromAppointmentsFallback() {
+  try {
+    // 🔧 FIX: Use current podiatrist ID instead of hardcoded pod_1
+    const podId = this.getCurrentPodId();
+    console.log("🔄 Fallback: Loading booked slots for current podiatrist:", podId);
+    
+    const response = await fetch("/podiatrist-get-appointments-scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
+    });
+    
+    const result = await response.json();
+    this.bookedSlots = new Set();
+    
+    if (result.appointments) {
+      result.appointments.forEach(apt => {
+        // Parse the date and time from the appointment
+        const [day, month, year] = apt.date.split(' ');
+        const monthNum = {
+          'January': '01', 'February': '02', 'March': '03', 'April': '04',
+          'May': '05', 'June': '06', 'July': '07', 'August': '08',
+          'September': '09', 'October': '10', 'November': '11', 'December': '12'
+        }[month];
+        
+        if (monthNum) {
+          const dateKey = `${year}-${monthNum}-${day.padStart(2, '0')}`;
+          
+          // Parse time "3:30 pm" -> "15:30"
+          const timeParts = apt.time.toLowerCase().split(' ');
+          let [hours, minutes] = timeParts[0].split(':');
+          
+          if (timeParts[1] === 'pm' && hours !== '12') {
+            hours = String(Number(hours) + 12);
+          } else if (timeParts[1] === 'am' && hours === '12') {
+            hours = '00';
+          }
+          
+          const timeKey = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+          const slotKey = `${dateKey}_${timeKey}`;
+          this.bookedSlots.add(slotKey);
+        }
+      });
+    }
+    
+    console.log(`📅 Fallback: Loaded ${this.bookedSlots.size} booked slots for podiatrist ${podId}`);
+  } catch (error) {
+    console.error("❌ Fallback method failed:", error);
     this.bookedSlots = new Set();
   }
 }
@@ -1297,6 +1397,83 @@ async loadBookedSlotsForFiltering() {
 // }
 
 // Update available times when date is selected - OPTIMIZED VERSION
+// updateAvailableTimesForDate() {
+//   const dateInput = document.getElementById('newAppointmentDate');
+//   const timeSelect = document.getElementById('newAppointmentTime');
+//   const statusText = document.getElementById('availabilityStatus');
+  
+//   if (!dateInput || !timeSelect || !statusText) return;
+  
+//   const selectedDate = dateInput.value;
+  
+//   if (!selectedDate) {
+//     timeSelect.innerHTML = '<option value="">Select date first</option>';
+//     statusText.textContent = 'Select a date to see available times';
+//     statusText.style.color = '#6b7280';
+//     return;
+//   }
+  
+//   console.log('🔄 Updating available times for date:', selectedDate);
+  
+//   // Check if we have booked slots data yet
+//   if (!this.bookedSlots) {
+//     console.log('⚠️ Availability data not loaded yet, showing all times');
+//     statusText.textContent = 'Availability data loading - showing all times';
+//     statusText.style.color = '#f59e0b';
+//     this.showAllTimeSlots();
+//     return;
+//   }
+  
+//   // Define all possible time slots (8 AM to 5 PM, 30-min intervals)
+//   const allTimeSlots = [
+//     { value: "08:00", label: "8:00 AM" },
+//     { value: "08:30", label: "8:30 AM" },
+//     { value: "09:00", label: "9:00 AM" },
+//     { value: "09:30", label: "9:30 AM" },
+//     { value: "10:00", label: "10:00 AM" },
+//     { value: "10:30", label: "10:30 AM" },
+//     { value: "11:00", label: "11:00 AM" },
+//     { value: "11:30", label: "11:30 AM" },
+//     { value: "12:00", label: "12:00 PM" },
+//     { value: "12:30", label: "12:30 PM" },
+//     { value: "13:00", label: "1:00 PM" },
+//     { value: "13:30", label: "1:30 PM" },
+//     { value: "14:00", label: "2:00 PM" },
+//     { value: "14:30", label: "2:30 PM" },
+//     { value: "15:00", label: "3:00 PM" },
+//     { value: "15:30", label: "3:30 PM" },
+//     { value: "16:00", label: "4:00 PM" },
+//     { value: "16:30", label: "4:30 PM" },
+//     { value: "17:00", label: "5:00 PM" }
+//   ];
+  
+//   // Filter out booked slots
+//   const availableSlots = allTimeSlots.filter(slot => {
+//     const slotKey = `${selectedDate}_${slot.value}`;
+//     const isBooked = this.bookedSlots && this.bookedSlots.has(slotKey);
+//     return !isBooked;
+//   });
+  
+//   // Update the time dropdown
+//   timeSelect.innerHTML = '<option value="">Select time</option>';
+  
+//   if (availableSlots.length === 0) {
+//     timeSelect.innerHTML += '<option value="" disabled>No available times for this date</option>';
+//     statusText.textContent = `❌ No available times on ${selectedDate}`;
+//     statusText.style.color = '#dc2626';
+//   } else {
+//     availableSlots.forEach(slot => {
+//       timeSelect.innerHTML += `<option value="${slot.value}">${slot.label}</option>`;
+//     });
+    
+//     statusText.textContent = `✅ ${availableSlots.length} available times on ${selectedDate}`;
+//     statusText.style.color = '#059669';
+//   }
+  
+//   console.log(`📅 Date ${selectedDate}: ${availableSlots.length} available slots out of ${allTimeSlots.length} total`);
+// }
+
+// Update available times when date is selected - ACTIVE VERSION
 updateAvailableTimesForDate() {
   const dateInput = document.getElementById('newAppointmentDate');
   const timeSelect = document.getElementById('newAppointmentTime');
@@ -1314,6 +1491,8 @@ updateAvailableTimesForDate() {
   }
   
   console.log('🔄 Updating available times for date:', selectedDate);
+  console.log('🔍 Current podiatrist:', this.getCurrentPodId());
+  console.log('🔍 Booked slots for this pod:', this.bookedSlots);
   
   // Check if we have booked slots data yet
   if (!this.bookedSlots) {
@@ -1347,10 +1526,15 @@ updateAvailableTimesForDate() {
     { value: "17:00", label: "5:00 PM" }
   ];
   
-  // Filter out booked slots
+  // Filter out booked slots (only for current podiatrist)
   const availableSlots = allTimeSlots.filter(slot => {
     const slotKey = `${selectedDate}_${slot.value}`;
     const isBooked = this.bookedSlots && this.bookedSlots.has(slotKey);
+    
+    if (isBooked) {
+      console.log(`❌ Slot ${slotKey} is booked for current podiatrist, filtering out`);
+    }
+    
     return !isBooked;
   });
   
