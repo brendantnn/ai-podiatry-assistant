@@ -20,6 +20,134 @@ class PodiatristCalendar {
     this.resetCalendarFilters = this.resetCalendarFilters.bind(this);
   }
 
+  // // FUNCTION TO GET CURRENT USER'S POD ID
+  // getCurrentPodId() {
+  //   // First try to get from sessionStorage (manual login)
+  //   const sessionPodId = sessionStorage.getItem('currentPodId');
+  //   if (sessionPodId) {
+  //     console.log('✅ Calendar using pod ID from session:', sessionPodId);
+  //     return sessionPodId;
+  //   }
+    
+  //   // Fallback to check if stored during login
+  //   const storedUser = sessionStorage.getItem('currentUser');
+  //   if (storedUser) {
+  //     try {
+  //       const userData = JSON.parse(storedUser);
+  //       if (userData.podId) {
+  //         console.log('✅ Calendar using pod ID from stored user:', userData.podId);
+  //         return userData.podId;
+  //       }
+  //     } catch (e) {
+  //       console.error('Error parsing stored user data:', e);
+  //     }
+  //   }
+    
+  //   // Last fallback to pod_1 (for backward compatibility)
+  //   console.log('⚠️ Calendar: No pod ID found, falling back to pod_1');
+  //   return "pod_1";
+  // }
+  // REPLACE the getCurrentPodId() method in your PodiatristCalendar class with this FIXED version
+
+// FUNCTION TO GET CURRENT USER'S POD ID
+getCurrentPodId() {
+  console.log('🔍 Calendar getCurrentPodId() called');
+  
+  // Method 1: Check for directly stored pod ID
+  const sessionPodId = sessionStorage.getItem('currentPodId');
+  console.log('Method 1 - Calendar sessionStorage currentPodId:', sessionPodId);
+  if (sessionPodId) {
+    console.log('✅ Calendar using pod ID from session:', sessionPodId);
+    return sessionPodId;
+  }
+  
+  // Method 2: Check stored user data (JSON format)
+  const storedUser = sessionStorage.getItem('currentUser');
+  console.log('Method 2 - Calendar sessionStorage currentUser:', storedUser);
+  if (storedUser && storedUser !== 'null') {
+    try {
+      const userData = JSON.parse(storedUser);
+      console.log('Calendar parsed user data:', userData);
+      if (userData.podId) {
+        console.log('✅ Calendar using pod ID from stored user:', userData.podId);
+        return userData.podId;
+      }
+      if (userData.userId) {
+        console.log('✅ Calendar using userId as pod ID:', userData.userId);
+        return userData.userId;
+      }
+    } catch (e) {
+      console.error('Calendar error parsing stored user data:', e);
+    }
+  }
+  
+  // Method 3: Check for userId stored as individual key (YOUR CASE!)
+  const userIdFromSession = sessionStorage.getItem('userId');
+  console.log('Method 3 - Calendar direct userId from session:', userIdFromSession);
+  if (userIdFromSession && userIdFromSession.includes('pod_')) {
+    console.log('✅ Calendar found pod ID in userId session key:', userIdFromSession);
+    return userIdFromSession;
+  }
+  
+  // Method 4: Check if there's any login info stored under different keys
+  console.log('Method 4 - Calendar checking all sessionStorage keys for pod info:');
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    const value = sessionStorage.getItem(key);
+    
+    // Check specific keys that might contain pod info
+    if (key === 'userId' && value && value.includes('pod_')) {
+      console.log(`✅ Calendar found pod ID in ${key}:`, value);
+      return value;
+    }
+    
+    // Check if any key contains pod information
+    if (key.toLowerCase().includes('pod')) {
+      console.log(`Calendar checking pod-related key: ${key} = ${value}`);
+      if (value && value.includes('pod_')) {
+        console.log(`✅ Calendar found pod ID in ${key}:`, value);
+        return value;
+      }
+    }
+    
+    // Check for JSON values that might contain pod info
+    if (value && value.includes('pod_')) {
+      try {
+        const parsedValue = JSON.parse(value);
+        if (parsedValue.podId) {
+          console.log(`✅ Calendar found podId in ${key}:`, parsedValue.podId);
+          return parsedValue.podId;
+        }
+        if (parsedValue.userId && parsedValue.userId.includes('pod_')) {
+          console.log(`✅ Calendar found pod in userId from ${key}:`, parsedValue.userId);
+          return parsedValue.userId;
+        }
+      } catch (e) {
+        // Not JSON, check if it's a direct pod ID
+        if (value.includes('pod_')) {
+          console.log(`✅ Calendar found pod ID in ${key}:`, value);
+          return value;
+        }
+      }
+    }
+  }
+  
+  // Method 5: Check URL parameters (if pod ID is passed in URL)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlPodId = urlParams.get('podId') || urlParams.get('pod');
+  console.log('Method 5 - Calendar URL params pod ID:', urlPodId);
+  if (urlPodId) {
+    console.log('✅ Calendar using pod ID from URL:', urlPodId);
+    // Store it for future use
+    sessionStorage.setItem('currentPodId', urlPodId);
+    return urlPodId;
+  }
+  
+  // Last fallback
+  console.log('⚠️ Calendar: No pod ID found anywhere, falling back to pod_1');
+  return "pod_1";
+}
+
   // Initialize calendar when DOM is ready
   async init() {
     console.log('🗓️ Initializing Podiatrist Calendar...');
@@ -42,7 +170,7 @@ class PodiatristCalendar {
   }
 
   async loadAppointments() {
-    const podId = "pod_1";//TODO: Make Id not fixed
+    const podId = this.getCurrentPodId();//TODO: Make Id not fixed
     try {
       const res = await fetch("/podiatrist-get-appointments-scheduled", { // Get patient queue
         method: "POST",
@@ -61,7 +189,7 @@ class PodiatristCalendar {
   }
 
   async loadAvailabilities() {//If need can add the pre edit datetime as argument to put in list as a default
-    const podId = "pod_1";//TODO: Make Id not fixed
+    const podId = this.getCurrentPodId();//TODO: Make Id not fixed
     try {
       const res = await fetch("/podiatrist-get-availability", { // Get patient queue
         method: "POST",
@@ -1093,7 +1221,7 @@ async loadBookedSlotsForFiltering() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-        podiatristId: "pod_1",
+       podiatristId: podId, // 🔧 FIXED: Use dynamic pod ID
         targetDate: "all",
         cacheBuster: Date.now()
       })
@@ -1125,7 +1253,7 @@ async loadBookedSlotsForFiltering() {
   }
 }
 
-// // Update available times when date is selected
+
 // updateAvailableTimesForDate() {
 //   const dateInput = document.getElementById('newAppointmentDate');
 //   const timeSelect = document.getElementById('newAppointmentTime');
@@ -1530,7 +1658,7 @@ async refreshCalendar() {
 
 // Enhanced loadAppointments with cache busting
 async loadAppointments() {
-  const podId = "pod_1";
+  const podId = this.getCurrentPodId(); // 🔧 FIXED: Use dynamic pod ID
   try {
     console.log('📅 Loading fresh appointments from server...');
     

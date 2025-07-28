@@ -476,149 +476,7 @@ Keep responses professional and evidence-based.`;
 // NEW DATABASE ROUTES FOR AI CHAT
 // ========================================
 
-// // GET URGENT CASES - Separate route for better organization
-// app.post("/get-urgent-cases", async (req, res) => {
-//   const { podiatristId } = req.body;
-
-//   try {
-//     console.log('🚨 Fetching urgent cases...');
-//     console.log('🔍 DEBUG: Current time:', new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }));
-
-//     // Only show upcoming urgent cases (today and future)
-//     const now = new Date();
-//     now.setHours(0, 0, 0, 0); // Start from today 00:00
-
-//     const farFuture = new Date('2100-12-31T23:59:59Z');
-
-//     console.log('🔍 DEBUG: Date range:', {
-//       start: now.toISOString(),
-//       end: farFuture.toISOString()
-//     });
-
-//     // Query for all scheduled appointments from today onwards
-//     const urgentQuery = await db.collection("Appointments")
-//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(now))
-//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(farFuture))
-//       .where("status", "==", "scheduled")
-//       .get();
-
-//     console.log('📊 Total upcoming appointments found:', urgentQuery.size);
-
-//     // Filter for urgent cases (level 1 and 2) and collect results
-//     const urgentAppointments = [];
-
-//     for (const appointmentDoc of urgentQuery.docs) {
-//       const appointment = appointmentDoc.data();
-
-//       console.log(`🔍 Checking appointment: PatientID=${appointment.patientId}, UrgencyLevel=${appointment.urgencyLevel}, Category=${appointment.category}`);
-
-//       // CRITICAL: Only include urgency level 1 AND 2 as urgent cases
-//       if (appointment.urgencyLevel <= 2) {
-//         console.log(`✅ URGENT CASE FOUND: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
-
-//         // Get patient details
-//         let patientInfo = {
-//           name: appointment.patientId
-//         };
-
-//         try {
-//           const patientQuery = await db.collection("Users")
-//             .where("userId", "==", appointment.patientId)
-//             .limit(1)
-//             .get();
-
-//           if (!patientQuery.empty) {
-//             const patientData = patientQuery.docs[0].data();
-//             patientInfo = {
-//               name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim()
-//             };
-//             console.log(`✅ Found patient details: ${patientInfo.name}`);
-//           } else {
-//             console.log(`⚠️ No patient details found for: ${appointment.patientId}`);
-//           }
-//         } catch (patientError) {
-//           console.log('⚠️ Patient lookup failed:', patientError.message);
-//         }
-
-//         const scheduledDate = appointment.scheduledDate.toDate();
-//         const urgentCase = {
-//           appointmentId: appointmentDoc.id,
-//           patientId: appointment.patientId,
-//           patientName: patientInfo.name,
-//           scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
-//             hour: "2-digit",
-//             minute: "2-digit",
-//             hour12: true,
-//             timeZone: "Asia/Singapore"
-//           }),
-//           scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
-//             weekday: "long",
-//             year: "numeric",
-//             month: "long",
-//             day: "numeric",
-//             timeZone: "Asia/Singapore"
-//           }),
-//           category: appointment.category || "General",
-//           urgencyLevel: appointment.urgencyLevel,
-//           urgencyText: getUrgencyText(appointment.urgencyLevel),
-//           initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
-//           summary: appointment.summary || "No additional notes",
-//           status: appointment.status
-//         };
-
-//         urgentAppointments.push(urgentCase);
-//         console.log(`✅ Added urgent case: ${patientInfo.name} - ${urgentCase.urgencyText}`);
-//       } else {
-//         console.log(`⏭️ Non-urgent case skipped: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
-//       }
-//     }
-
-//     // Sort by urgency level (most urgent first)
-//     urgentAppointments.sort((a, b) => a.urgencyLevel - b.urgencyLevel);
-
-//     console.log(`🚨 FINAL RESULT: Returning ${urgentAppointments.length} urgent cases out of ${urgentQuery.size} total appointments`);
-    
-//     if (urgentAppointments.length > 0) {
-//       console.log('📋 Urgent cases details:');
-//       urgentAppointments.forEach((case_, index) => {
-//         console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
-//       });
-//     }
-
-//     return res.json({
-//       success: true,
-//       urgentCases: urgentAppointments,
-//       totalCount: urgentAppointments.length,
-//       totalAppointmentsUpcoming: urgentQuery.size,
-//       date: new Date().toLocaleDateString("en-SG", {
-//         weekday: "long",
-//         year: "numeric",
-//         month: "long",
-//         day: "numeric",
-//         timeZone: "Asia/Singapore"
-//       }),
-//       debugInfo: {
-//         dateRange: {
-//           start: now.toISOString(),
-//           end: farFuture.toISOString()
-//         },
-//         urgentCasesFound: urgentAppointments.length,
-//         totalAppointmentsUpcoming: urgentQuery.size
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error("❌ Error fetching urgent cases:", error);
-//     return res.status(500).json({
-//       success: false,
-//       error: "Failed to fetch urgent cases",
-//       message: error.message,
-//       urgentCases: [],
-//       totalCount: 0
-//     });
-//   }
-// });
-// // GET URGENT CASES - FIXED DATE FILTERING
+// // GET URGENT CASES - FIXED DATE FILTERING WITH ENHANCED RESPONSE
 // app.post("/get-urgent-cases", async (req, res) => {
 //   const { podiatristId } = req.body;
 
@@ -735,6 +593,8 @@ Keep responses professional and evidence-based.`;
 //       urgentAppointments.forEach((case_, index) => {
 //         console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
 //       });
+//     } else {
+//       console.log('📋 No urgent cases found - all appointments are medium to low priority');
 //     }
 
 //     return res.json({
@@ -742,6 +602,10 @@ Keep responses professional and evidence-based.`;
 //       urgentCases: urgentAppointments,
 //       totalCount: urgentAppointments.length,
 //       totalAppointmentsUpcoming: urgentQuery.size,
+//       hasUrgentCases: urgentAppointments.length > 0,
+//       message: urgentAppointments.length > 0 ? 
+//         `Found ${urgentAppointments.length} urgent cases` : 
+//         'No urgent cases found - all appointments are medium to low priority',
 //       date: new Date().toLocaleDateString("en-SG", {
 //         weekday: "long",
 //         year: "numeric",
@@ -766,48 +630,42 @@ Keep responses professional and evidence-based.`;
 //       error: "Failed to fetch urgent cases",
 //       message: error.message,
 //       urgentCases: [],
-//       totalCount: 0
+//       totalCount: 0,
+//       hasUrgentCases: false
 //     });
 //   }
 // });
 
-// GET URGENT CASES - FIXED DATE FILTERING WITH ENHANCED RESPONSE
 app.post("/get-urgent-cases", async (req, res) => {
-  const { podiatristId } = req.body;
+  const { podiatristId, podId } = req.body;
+  
+  // Use podId if provided, fallback to podiatristId for backward compatibility
+  const targetPodId = podId || podiatristId;
+  
+  console.log('🚨 Fetching urgent cases for pod:', targetPodId);
 
   try {
-    console.log('🚨 Fetching urgent cases...');
     console.log('🔍 DEBUG: Current time:', new Date().toLocaleString("en-SG", { timeZone: "Asia/Singapore" }));
 
-    // FIXED: Use a much wider date range to catch all appointments
-    const startDate = new Date('2025-01-01T00:00:00Z'); // Start of 2025
-    const endDate = new Date('2025-12-31T23:59:59Z');   // End of 2025
+    // Use a wide date range to catch all appointments
+    const startDate = new Date('2025-01-01T00:00:00Z');
+    const endDate = new Date('2025-12-31T23:59:59Z');
 
     console.log('🔍 DEBUG: Date range:', {
       start: startDate.toISOString(),
-      end: endDate.toISOString()
+      end: endDate.toISOString(),
+      podId: targetPodId
     });
 
-    // Query for ALL scheduled appointments in 2025
+    // 🔧 CRITICAL FIX: Filter by both date range AND podId
     const urgentQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startDate))
       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endDate))
       .where("status", "==", "scheduled")
+      .where("podId", "==", targetPodId) // 🔧 ADDED: Filter by pod
       .get();
 
-    console.log('📊 Total appointments found in date range:', urgentQuery.size);
-
-    // Log each appointment for debugging
-    urgentQuery.docs.forEach((doc, index) => {
-      const apt = doc.data();
-      console.log(`📋 Appointment ${index + 1}:`, {
-        id: doc.id,
-        patientId: apt.patientId,
-        urgencyLevel: apt.urgencyLevel,
-        scheduledDate: apt.scheduledDate.toDate().toISOString(),
-        status: apt.status
-      });
-    });
+    console.log(`📊 Found ${urgentQuery.size} total appointments for pod ${targetPodId}`);
 
     // Filter for urgent cases (level 1 and 2) and collect results
     const urgentAppointments = [];
@@ -815,15 +673,15 @@ app.post("/get-urgent-cases", async (req, res) => {
     for (const appointmentDoc of urgentQuery.docs) {
       const appointment = appointmentDoc.data();
 
-      console.log(`🔍 Checking appointment: PatientID=${appointment.patientId}, UrgencyLevel=${appointment.urgencyLevel}, Category=${appointment.category}`);
+      console.log(`🔍 Checking appointment: PatientID=${appointment.patientId}, UrgencyLevel=${appointment.urgencyLevel}, Pod=${appointment.podId}`);
 
-      // CRITICAL: Only include urgency level 1 AND 2 as urgent cases
-      if (appointment.urgencyLevel <= 2) {
-        console.log(`✅ URGENT CASE FOUND: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
-
+      // Only include urgent cases (level 1 or 2)
+      if (appointment.urgencyLevel === 1 || appointment.urgencyLevel === 2) {
         // Get patient details
         let patientInfo = {
-          name: appointment.patientId
+          name: appointment.patientId,
+          phone: "N/A",
+          email: "N/A"
         };
 
         try {
@@ -835,61 +693,54 @@ app.post("/get-urgent-cases", async (req, res) => {
           if (!patientQuery.empty) {
             const patientData = patientQuery.docs[0].data();
             patientInfo = {
-              name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim()
+              name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+              phone: patientData.phone || "N/A",
+              email: patientData.email || "N/A"
             };
-            console.log(`✅ Found patient details: ${patientInfo.name}`);
-          } else {
-            console.log(`⚠️ No patient details found for: ${appointment.patientId}`);
           }
         } catch (patientError) {
-          console.log('⚠️ Patient lookup failed:', patientError.message);
+          console.log(`⚠️ Patient lookup failed for ${appointment.patientId}:`, patientError.message);
         }
 
-        const scheduledDate = appointment.scheduledDate.toDate();
+        // Format the appointment data
         const urgentCase = {
-          appointmentId: appointmentDoc.id,
+          id: appointmentDoc.id,
           patientId: appointment.patientId,
           patientName: patientInfo.name,
-          scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Singapore"
+          patientPhone: patientInfo.phone,
+          patientEmail: patientInfo.email,
+          scheduledDate: appointment.scheduledDate.toDate().toLocaleDateString('en-SG', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
           }),
-          scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            timeZone: "Asia/Singapore"
+          scheduledTime: appointment.scheduledDate.toDate().toLocaleTimeString('en-SG', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true 
           }),
-          category: appointment.category || "General",
           urgencyLevel: appointment.urgencyLevel,
-          urgencyText: getUrgencyText(appointment.urgencyLevel),
-          initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
-          summary: appointment.summary || "No additional notes",
-          status: appointment.status
+          urgencyText: appointment.urgencyLevel === 1 ? "🚨 Urgent - Wound Care" : "⚠️ High - Nail Surgery",
+          category: appointment.category || 'General',
+          initialDiagnosis: appointment.initialDiagnosis || 'Assessment pending',
+          summary: appointment.summary || 'No case summary available',
+          status: appointment.status,
+          podId: appointment.podId
         };
 
         urgentAppointments.push(urgentCase);
-        console.log(`✅ Added urgent case: ${patientInfo.name} - ${urgentCase.urgencyText}`);
-      } else {
-        console.log(`⏭️ Non-urgent case skipped: ${appointment.patientId} - Level ${appointment.urgencyLevel}`);
+        console.log(`✅ Added urgent case: ${patientInfo.name} - ${urgentCase.urgencyText} - ${urgentCase.scheduledTime}`);
       }
     }
 
-    // Sort by urgency level (most urgent first)
-    urgentAppointments.sort((a, b) => a.urgencyLevel - b.urgencyLevel);
+    console.log(`🚨 Found ${urgentAppointments.length} urgent cases for pod ${targetPodId}`);
 
-    console.log(`🚨 FINAL RESULT: Returning ${urgentAppointments.length} urgent cases out of ${urgentQuery.size} total appointments`);
-    
     if (urgentAppointments.length > 0) {
-      console.log('📋 Urgent cases details:');
       urgentAppointments.forEach((case_, index) => {
-        console.log(`  ${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
+        console.log(`${index + 1}. ${case_.patientName} - ${case_.urgencyText} - ${case_.scheduledTime}`);
       });
     } else {
-      console.log('📋 No urgent cases found - all appointments are medium to low priority');
+      console.log(`📋 No urgent cases found for pod ${targetPodId} - all appointments are medium to low priority`);
     }
 
     return res.json({
@@ -898,9 +749,10 @@ app.post("/get-urgent-cases", async (req, res) => {
       totalCount: urgentAppointments.length,
       totalAppointmentsUpcoming: urgentQuery.size,
       hasUrgentCases: urgentAppointments.length > 0,
+      podId: targetPodId, // 🔧 ADDED: Return which pod the data is for
       message: urgentAppointments.length > 0 ? 
-        `Found ${urgentAppointments.length} urgent cases` : 
-        'No urgent cases found - all appointments are medium to low priority',
+        `Found ${urgentAppointments.length} urgent cases for pod ${targetPodId}` : 
+        `No urgent cases found for pod ${targetPodId} - all appointments are medium to low priority`,
       date: new Date().toLocaleDateString("en-SG", {
         weekday: "long",
         year: "numeric",
@@ -914,7 +766,8 @@ app.post("/get-urgent-cases", async (req, res) => {
           end: endDate.toISOString()
         },
         urgentCasesFound: urgentAppointments.length,
-        totalAppointmentsUpcoming: urgentQuery.size
+        totalAppointmentsUpcoming: urgentQuery.size,
+        podId: targetPodId
       }
     });
 
@@ -932,14 +785,167 @@ app.post("/get-urgent-cases", async (req, res) => {
 });
 
 
+// // GET UPCOMING CASE SUMMARIES - Within next 7 days
+// app.post("/get-upcoming-case-summaries", async (req, res) => {
+//   const { podiatristId } = req.body;
 
-// GET UPCOMING CASE SUMMARIES - Within next 7 days
+//   try {
+//     console.log('📝 Fetching upcoming case summaries...');
+    
+//     // Get date range for next 7 days
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+    
+//     const oneWeekFromNow = new Date(today);
+//     oneWeekFromNow.setDate(today.getDate() + 7);
+//     oneWeekFromNow.setHours(23, 59, 59, 999);
+
+//     console.log('📅 Date range:', {
+//       start: today.toISOString(),
+//       end: oneWeekFromNow.toISOString()
+//     });
+
+//     // Query for upcoming appointments in the next week
+//     const upcomingQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(today))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(oneWeekFromNow))
+//       .where("status", "==", "scheduled")
+//       .get();
+
+//     console.log('📊 Found upcoming appointments:', upcomingQuery.size);
+
+//     if (upcomingQuery.empty) {
+//       return res.json({
+//         success: true,
+//         caseSummaries: [],
+//         totalCount: 0,
+//         message: "No upcoming appointments found for the next 7 days"
+//       });
+//     }
+
+//     const caseSummaries = [];
+
+//     // Process each appointment
+//     for (const appointmentDoc of upcomingQuery.docs) {
+//       const appointment = appointmentDoc.data();
+
+//       // Get patient details
+//       let patientInfo = {
+//         name: appointment.patientId,
+//         phone: "N/A",
+//         email: "N/A"
+//       };
+
+//       try {
+//         const patientQuery = await db.collection("Users")
+//           .where("userId", "==", appointment.patientId)
+//           .limit(1)
+//           .get();
+
+//         if (!patientQuery.empty) {
+//           const patientData = patientQuery.docs[0].data();
+//           patientInfo = {
+//             name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+//             phone: patientData.phone || "N/A",
+//             email: patientData.email || "N/A"
+//           };
+//         }
+//       } catch (patientError) {
+//         console.log('⚠️ Patient lookup failed for', appointment.patientId);
+//       }
+
+//       const scheduledDate = appointment.scheduledDate.toDate();
+      
+//       // Calculate days until appointment
+//       const daysUntil = Math.ceil((scheduledDate - today) / (1000 * 60 * 60 * 24));
+      
+//       const caseSummary = {
+//         appointmentId: appointmentDoc.id,
+//         patientId: appointment.patientId,
+//         patientName: patientInfo.name,
+//         patientPhone: patientInfo.phone,
+//         patientEmail: patientInfo.email,
+//         scheduledDateTime: scheduledDate.toLocaleDateString("en-SG", {
+//           weekday: "long",
+//           year: "numeric",
+//           month: "long",
+//           day: "numeric",
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: true,
+//           timeZone: "Asia/Singapore"
+//         }),
+//         scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: true,
+//           timeZone: "Asia/Singapore"
+//         }),
+//         scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
+//           weekday: "long",
+//           month: "long",
+//           day: "numeric",
+//           timeZone: "Asia/Singapore"
+//         }),
+//         daysUntil: daysUntil,
+//         category: appointment.category || "General",
+//         urgencyLevel: appointment.urgencyLevel || 4,
+//         urgencyText: getUrgencyText(appointment.urgencyLevel),
+//         initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
+//         summary: appointment.summary || "No case summary available",
+//         status: appointment.status,
+//         triageDate: appointment.triageDateTime ? 
+//           appointment.triageDateTime.toDate().toLocaleDateString("en-SG", {
+//             month: "short",
+//             day: "numeric",
+//             hour: "2-digit",
+//             minute: "2-digit",
+//             hour12: true,
+//             timeZone: "Asia/Singapore"
+//           }) : 'N/A'
+//       };
+
+//       caseSummaries.push(caseSummary);
+//     }
+
+//     // Sort by scheduled date (earliest first)
+//     caseSummaries.sort((a, b) => {
+//       return new Date(a.scheduledDateTime) - new Date(b.scheduledDateTime);
+//     });
+
+//     console.log('✅ Processed', caseSummaries.length, 'case summaries');
+
+//     return res.json({
+//       success: true,
+//       caseSummaries: caseSummaries,
+//       totalCount: caseSummaries.length,
+//       dateRange: {
+//         start: today.toLocaleDateString("en-SG"),
+//         end: oneWeekFromNow.toLocaleDateString("en-SG")
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching upcoming case summaries:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch case summaries",
+//       message: error.message,
+//       caseSummaries: [],
+//       totalCount: 0
+//     });
+//   }
+// });
+
 app.post("/get-upcoming-case-summaries", async (req, res) => {
-  const { podiatristId } = req.body;
+  const { podiatristId, podId } = req.body;
+  
+  // Use podId if provided, fallback to podiatristId for backward compatibility
+  const targetPodId = podId || podiatristId;
+  
+  console.log('📝 Fetching upcoming case summaries for pod:', targetPodId);
 
   try {
-    console.log('📝 Fetching upcoming case summaries...');
-    
     // Get date range for next 7 days
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -948,34 +954,54 @@ app.post("/get-upcoming-case-summaries", async (req, res) => {
     oneWeekFromNow.setDate(today.getDate() + 7);
     oneWeekFromNow.setHours(23, 59, 59, 999);
 
-    console.log('📅 Date range:', {
+    console.log('📅 Date range for pod', targetPodId, ':', {
       start: today.toISOString(),
       end: oneWeekFromNow.toISOString()
     });
 
-    // Query for upcoming appointments in the next week
-    const upcomingQuery = await db.collection("Appointments")
+    // 🔧 CRITICAL FIX: Filter by both date range AND podId
+    const caseSummariesQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(today))
       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(oneWeekFromNow))
       .where("status", "==", "scheduled")
+      .where("podId", "==", targetPodId) // 🔧 ADDED: Filter by pod
+      .orderBy("scheduledDate", "asc")
       .get();
 
-    console.log('📊 Found upcoming appointments:', upcomingQuery.size);
+    console.log(`📊 Found ${caseSummariesQuery.size} appointments in next 7 days for pod ${targetPodId}`);
 
-    if (upcomingQuery.empty) {
+    if (caseSummariesQuery.empty) {
       return res.json({
         success: true,
         caseSummaries: [],
         totalCount: 0,
-        message: "No upcoming appointments found for the next 7 days"
+        podId: targetPodId,
+        message: `No appointments scheduled for pod ${targetPodId} in the next 7 days`,
+        dateRange: {
+          start: today.toLocaleDateString("en-SG", { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          }),
+          end: oneWeekFromNow.toLocaleDateString("en-SG", { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })
+        }
       });
     }
 
+    // Process each appointment
     const caseSummaries = [];
 
-    // Process each appointment
-    for (const appointmentDoc of upcomingQuery.docs) {
+    for (const appointmentDoc of caseSummariesQuery.docs) {
       const appointment = appointmentDoc.data();
+      const appointmentDate = appointment.scheduledDate.toDate();
+
+      // Calculate days until appointment
+      const timeDiff = appointmentDate - today;
+      const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
       // Get patient details
       let patientInfo = {
@@ -999,82 +1025,75 @@ app.post("/get-upcoming-case-summaries", async (req, res) => {
           };
         }
       } catch (patientError) {
-        console.log('⚠️ Patient lookup failed for', appointment.patientId);
+        console.log(`⚠️ Patient lookup failed for ${appointment.patientId}:`, patientError.message);
       }
 
-      const scheduledDate = appointment.scheduledDate.toDate();
-      
-      // Calculate days until appointment
-      const daysUntil = Math.ceil((scheduledDate - today) / (1000 * 60 * 60 * 24));
-      
+      // Get urgency text
+      const getUrgencyText = (level) => {
+        switch (level) {
+          case 1: return "🚨 Urgent - Wound Care";
+          case 2: return "⚠️ High - Nail Surgery";
+          case 3: return "📋 Medium - High Risk Footcare";
+          case 4: return "📝 Low - MSK";
+          default: return "📋 Standard";
+        }
+      };
+
       const caseSummary = {
-        appointmentId: appointmentDoc.id,
+        id: appointmentDoc.id,
         patientId: appointment.patientId,
         patientName: patientInfo.name,
         patientPhone: patientInfo.phone,
         patientEmail: patientInfo.email,
-        scheduledDateTime: scheduledDate.toLocaleDateString("en-SG", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "Asia/Singapore"
+        scheduledDate: appointmentDate.toLocaleDateString('en-SG', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
         }),
-        scheduledTime: scheduledDate.toLocaleTimeString("en-SG", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "Asia/Singapore"
-        }),
-        scheduledDate: scheduledDate.toLocaleDateString("en-SG", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-          timeZone: "Asia/Singapore"
+        scheduledTime: appointmentDate.toLocaleTimeString('en-SG', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true 
         }),
         daysUntil: daysUntil,
-        category: appointment.category || "General",
-        urgencyLevel: appointment.urgencyLevel || 4,
-        urgencyText: getUrgencyText(appointment.urgencyLevel),
-        initialDiagnosis: appointment.initialDiagnosis || "Assessment pending",
-        summary: appointment.summary || "No case summary available",
+        urgencyLevel: appointment.urgencyLevel || 3,
+        urgencyText: getUrgencyText(appointment.urgencyLevel || 3),
+        category: appointment.category || 'General',
+        initialDiagnosis: appointment.initialDiagnosis || 'Assessment pending',
+        summary: appointment.summary || 'No case summary available',
         status: appointment.status,
         triageDate: appointment.triageDateTime ? 
-          appointment.triageDateTime.toDate().toLocaleDateString("en-SG", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Singapore"
-          }) : 'N/A'
+          appointment.triageDateTime.toDate().toLocaleDateString('en-SG') : 'N/A',
+        podId: appointment.podId
       };
 
       caseSummaries.push(caseSummary);
     }
 
-    // Sort by scheduled date (earliest first)
-    caseSummaries.sort((a, b) => {
-      return new Date(a.scheduledDateTime) - new Date(b.scheduledDateTime);
-    });
-
-    console.log('✅ Processed', caseSummaries.length, 'case summaries');
+    console.log(`📝 Processed ${caseSummaries.length} case summaries for pod ${targetPodId}`);
 
     return res.json({
       success: true,
       caseSummaries: caseSummaries,
       totalCount: caseSummaries.length,
+      podId: targetPodId, // 🔧 ADDED: Return which pod the data is for
+      message: `Found ${caseSummaries.length} upcoming appointments for pod ${targetPodId}`,
       dateRange: {
-        start: today.toLocaleDateString("en-SG"),
-        end: oneWeekFromNow.toLocaleDateString("en-SG")
+        start: today.toLocaleDateString("en-SG", { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        end: oneWeekFromNow.toLocaleDateString("en-SG", { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
       }
     });
 
   } catch (error) {
-    console.error("❌ Error fetching upcoming case summaries:", error);
+    console.error("❌ Error fetching case summaries:", error);
     return res.status(500).json({
       success: false,
       error: "Failed to fetch case summaries",
@@ -2634,13 +2653,182 @@ app.post("/get-dashboard-metrics", async (req, res) => {
   }
 });
 
-// OPTIMIZED GET REAL-TIME NOTIFICATIONS - MUCH FASTER
+// // OPTIMIZED GET REAL-TIME NOTIFICATIONS - MUCH FASTER
+// app.post("/get-notifications", async (req, res) => {
+//   const { podiatristId } = req.body;
+
+//   try {
+//     console.log('🔔 FAST: Fetching notifications...');
+
+//     const notifications = [];
+//     const now = new Date();
+
+//     // Get today's date range  
+//     const startOfDay = new Date(now);
+//     startOfDay.setHours(0, 0, 0, 0);
+
+//     // CHANGED: Extend end date to include next 2 days
+//     const endOfDay = new Date(now);
+//     endOfDay.setDate(endOfDay.getDate() + 2); // Add 2 days
+//     endOfDay.setHours(23, 59, 59, 999);
+
+//     // SINGLE OPTIMIZED QUERY for today's appointments
+//     const todayAppointmentsQuery = await db.collection("Appointments")
+//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
+//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
+//       .where("status", "==", "scheduled")
+//       .get();
+
+//     console.log('⚡ FAST: Found', todayAppointmentsQuery.size, 'appointments');
+
+//     // OPTIMIZATION 2: Process all appointments in single loop
+//     const next2Hours = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+//     const next30Min = new Date(now.getTime() + (30 * 60 * 1000));
+
+//     // OPTIMIZATION 3: Batch patient lookups
+//     const patientIds = new Set();
+//     const appointmentData = [];
+
+//     todayAppointmentsQuery.docs.forEach(doc => {
+//       const appointment = doc.data();
+//       const scheduledTime = appointment.scheduledDate.toDate();
+
+//       patientIds.add(appointment.patientId);
+//       appointmentData.push({
+//         id: doc.id,
+//         ...appointment,
+//         scheduledTime
+//       });
+//     });
+
+//     // OPTIMIZATION 4: Single batch patient lookup instead of individual queries
+//     const patientMap = {};
+//     if (patientIds.size > 0) {
+//       const patientQuery = await db.collection("Users")
+//         .where("userId", "in", Array.from(patientIds))
+//         .get();
+
+//       patientQuery.docs.forEach(doc => {
+//         const data = doc.data();
+//         patientMap[data.userId] = `${data.firstName} ${data.lastName}`.trim();
+//       });
+//     }
+
+//     // OPTIMIZATION 5: Process notifications in single loop
+//     appointmentData.forEach(appointment => {
+//       const patientName = patientMap[appointment.patientId] || appointment.patientId;
+//       const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
+
+//       // Get formatted appointment time
+//       const appointmentTime = appointment.scheduledTime.toLocaleTimeString("en-SG", {
+//         hour: "2-digit",
+//         minute: "2-digit",
+//         hour12: true,
+//         timeZone: "Asia/Singapore"
+//       });
+
+//       // Urgent appointments (next 2 hours, urgency 1-2)
+//       if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
+//         notifications.push({
+//           id: `urgent_${appointment.id}`,
+//           type: "urgent",
+//           title: "Urgent Appointment",
+//           message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+//           timestamp: now.toISOString(),
+//           priority: 1,
+//           appointmentId: appointment.id,
+//           patientId: appointment.patientId
+//         });
+//       }
+//       // Upcoming appointments (next 30 minutes, urgency 3-4)
+//       else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
+//         notifications.push({
+//           id: `upcoming_${appointment.id}`,
+//           type: "upcoming",
+//           title: "Upcoming Appointment",
+//           message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+//           timestamp: now.toISOString(),
+//           priority: 2,
+//           appointmentId: appointment.id,
+//           patientId: appointment.patientId
+//         });
+//       }
+//       // NEW: Tomorrow's appointments (urgent cases only)
+//       else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
+//         notifications.push({
+//           id: `tomorrow_urgent_${appointment.id}`,
+//           type: "urgent",
+//           title: "Urgent Appointment Tomorrow",
+//           message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+//           timestamp: now.toISOString(),
+//           priority: 3,
+//           appointmentId: appointment.id,
+//           patientId: appointment.patientId
+//         });
+//       }
+//       // NEW: Day after tomorrow's appointments (urgent cases only)
+//       else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
+//         notifications.push({
+//           id: `day_after_urgent_${appointment.id}`,
+//           type: "reminder",
+//           title: "Urgent Appointment in 2 Days",
+//           message: `${patientName} - ${appointment.category} in 2 days at ${appointmentTime}`,
+//           timestamp: now.toISOString(),
+//           priority: 4,
+//           appointmentId: appointment.id,
+//           patientId: appointment.patientId
+//         });
+//       }
+//       // NEW: Tomorrow's regular appointments (urgency 3-4)
+//       else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
+//         notifications.push({
+//           id: `tomorrow_regular_${appointment.id}`,
+//           type: "reminder",
+//           title: "Appointment Tomorrow",
+//           message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+//           timestamp: now.toISOString(),
+//           priority: 5,
+//           appointmentId: appointment.id,
+//           patientId: appointment.patientId
+//         });
+//       }
+//     });
+
+
+//     // OPTIMIZATION 6: Fast JavaScript sorting
+//     notifications.sort((a, b) => a.priority - b.priority);
+//     const limitedNotifications = notifications.slice(0, 5);
+
+//     console.log('⚡ FAST: Generated', limitedNotifications.length, 'notifications');
+
+//     return res.json({
+//       success: true,
+//       notifications: limitedNotifications,
+//       totalCount: notifications.length,
+//       lastUpdated: now.toISOString()
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching notifications:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch notifications",
+//       message: error.message
+//     });
+//   }
+// });
+
+// REPLACE your /get-notifications endpoint in server.js with this FIXED version
+
 app.post("/get-notifications", async (req, res) => {
-  const { podiatristId } = req.body;
+  const { podiatristId, podId } = req.body; // 🔧 FIXED: Accept both parameters
+  
+  // Use podId if provided, fallback to podiatristId for backward compatibility
+  const targetPodId = podId || podiatristId;
+  
+  console.log('🔔 FAST: Fetching notifications for pod:', targetPodId);
 
   try {
-    console.log('🔔 FAST: Fetching notifications...');
-
     const notifications = [];
     const now = new Date();
 
@@ -2653,115 +2841,102 @@ app.post("/get-notifications", async (req, res) => {
     endOfDay.setDate(endOfDay.getDate() + 2); // Add 2 days
     endOfDay.setHours(23, 59, 59, 999);
 
-    // SINGLE OPTIMIZED QUERY for today's appointments
+    // 🔧 CRITICAL FIX: Filter appointments by podId
     const todayAppointmentsQuery = await db.collection("Appointments")
       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
       .where("status", "==", "scheduled")
+      .where("podId", "==", targetPodId) // 🔧 ADDED: Filter by pod
       .get();
 
-    console.log('⚡ FAST: Found', todayAppointmentsQuery.size, 'appointments');
+    console.log(`⚡ FAST: Found ${todayAppointmentsQuery.size} appointments for pod ${targetPodId}`);
 
-    // OPTIMIZATION 2: Process all appointments in single loop
-    const next2Hours = new Date(now.getTime() + (2 * 60 * 60 * 1000));
-    const next30Min = new Date(now.getTime() + (30 * 60 * 1000));
-
-    // OPTIMIZATION 3: Batch patient lookups
-    const patientIds = new Set();
-    const appointmentData = [];
+    // Get patient names in batch
+    const patientIds = [];
+    const appointmentMap = new Map();
 
     todayAppointmentsQuery.docs.forEach(doc => {
       const appointment = doc.data();
-      const scheduledTime = appointment.scheduledDate.toDate();
-
-      patientIds.add(appointment.patientId);
-      appointmentData.push({
+      patientIds.push(appointment.patientId);
+      appointmentMap.set(appointment.patientId, {
         id: doc.id,
         ...appointment,
-        scheduledTime
+        scheduledDateTime: appointment.scheduledDate.toDate()
       });
     });
 
-    // OPTIMIZATION 4: Single batch patient lookup instead of individual queries
-    const patientMap = {};
-    if (patientIds.size > 0) {
-      const patientQuery = await db.collection("Users")
-        .where("userId", "in", Array.from(patientIds))
-        .get();
+    let patientNames = {};
+    if (patientIds.length > 0) {
+      // Get patient names in batch (max 10 per query due to Firestore 'in' limit)
+      const batches = [];
+      for (let i = 0; i < patientIds.length; i += 10) {
+        batches.push(patientIds.slice(i, i + 10));
+      }
 
-      patientQuery.docs.forEach(doc => {
-        const data = doc.data();
-        patientMap[data.userId] = `${data.firstName} ${data.lastName}`.trim();
-      });
+      for (const batch of batches) {
+        const userQuery = await db.collection("Users")
+          .where("userId", "in", batch)
+          .get();
+
+        userQuery.docs.forEach(userDoc => {
+          const userData = userDoc.data();
+          patientNames[userData.userId] = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        });
+      }
     }
 
-    // OPTIMIZATION 5: Process notifications in single loop
-    appointmentData.forEach(appointment => {
-      const patientName = patientMap[appointment.patientId] || appointment.patientId;
-      const daysUntil = Math.round((appointment.scheduledTime - now) / (1000 * 60 * 60 * 24));
-
-      // Get formatted appointment time
-      const appointmentTime = appointment.scheduledTime.toLocaleTimeString("en-SG", {
+    // Generate notifications for each appointment
+    appointmentMap.forEach((appointment, patientId) => {
+      const patientName = patientNames[patientId] || "Unknown Patient";
+      const appointmentDateTime = appointment.scheduledDateTime;
+      const appointmentTime = appointmentDateTime.toLocaleTimeString("en-SG", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
         timeZone: "Asia/Singapore"
       });
 
-      // Urgent appointments (next 2 hours, urgency 1-2)
-      if (appointment.scheduledTime <= next2Hours && appointment.urgencyLevel <= 2) {
+      // Calculate time until appointment
+      const timeDiff = appointmentDateTime - now;
+      const hoursUntil = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutesUntil = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+      // TODAY'S URGENT CASES (Level 1 & 2)
+      if (appointment.urgencyLevel <= 2 && hoursUntil >= 0 && hoursUntil <= 24) {
         notifications.push({
           id: `urgent_${appointment.id}`,
           type: "urgent",
-          title: "Urgent Appointment",
-          message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
+          title: "🚨 Urgent Case Today",
+          message: `${patientName} - ${appointment.category} at ${appointmentTime}`,
           timestamp: now.toISOString(),
-          priority: 1,
+          priority: appointment.urgencyLevel,
           appointmentId: appointment.id,
-          patientId: appointment.patientId
+          patientId: patientId
         });
       }
-      // Upcoming appointments (next 30 minutes, urgency 3-4)
-      else if (appointment.scheduledTime <= next30Min && appointment.urgencyLevel > 2) {
+
+      // UPCOMING APPOINTMENTS (Next 2-4 hours)
+      if (hoursUntil >= 2 && hoursUntil <= 4) {
         notifications.push({
           id: `upcoming_${appointment.id}`,
-          type: "upcoming",
-          title: "Upcoming Appointment",
-          message: `${patientName} - ${appointment.category} today at ${appointmentTime}`,
-          timestamp: now.toISOString(),
-          priority: 2,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
-      // NEW: Tomorrow's appointments (urgent cases only)
-      else if (daysUntil === 1 && appointment.urgencyLevel <= 2) {
-        notifications.push({
-          id: `tomorrow_urgent_${appointment.id}`,
-          type: "urgent",
-          title: "Urgent Appointment Tomorrow",
-          message: `${patientName} - ${appointment.category} tomorrow at ${appointmentTime}`,
+          type: "reminder",
+          title: "⏰ Appointment Soon",
+          message: `${patientName} - ${appointment.category} in ${hoursUntil}h ${minutesUntil}m`,
           timestamp: now.toISOString(),
           priority: 3,
           appointmentId: appointment.id,
-          patientId: appointment.patientId
+          patientId: patientId
         });
       }
-      // NEW: Day after tomorrow's appointments (urgent cases only)
-      else if (daysUntil === 2 && appointment.urgencyLevel <= 2) {
-        notifications.push({
-          id: `day_after_urgent_${appointment.id}`,
-          type: "reminder",
-          title: "Urgent Appointment in 2 Days",
-          message: `${patientName} - ${appointment.category} in 2 days at ${appointmentTime}`,
-          timestamp: now.toISOString(),
-          priority: 4,
-          appointmentId: appointment.id,
-          patientId: appointment.patientId
-        });
-      }
-      // NEW: Tomorrow's regular appointments (urgency 3-4)
-      else if (daysUntil === 1 && appointment.urgencyLevel > 2) {
+
+      // TOMORROW'S REGULAR APPOINTMENTS (Level 3+)
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setHours(23, 59, 59, 999);
+
+      if (appointmentDateTime >= tomorrow && appointmentDateTime <= dayAfterTomorrow && appointment.urgencyLevel > 2) {
         notifications.push({
           id: `tomorrow_regular_${appointment.id}`,
           type: "reminder",
@@ -2770,23 +2945,23 @@ app.post("/get-notifications", async (req, res) => {
           timestamp: now.toISOString(),
           priority: 5,
           appointmentId: appointment.id,
-          patientId: appointment.patientId
+          patientId: patientId
         });
       }
     });
 
-
-    // OPTIMIZATION 6: Fast JavaScript sorting
+    // OPTIMIZATION: Fast JavaScript sorting
     notifications.sort((a, b) => a.priority - b.priority);
     const limitedNotifications = notifications.slice(0, 5);
 
-    console.log('⚡ FAST: Generated', limitedNotifications.length, 'notifications');
+    console.log(`⚡ FAST: Generated ${limitedNotifications.length} notifications for pod ${targetPodId}`);
 
     return res.json({
       success: true,
       notifications: limitedNotifications,
       totalCount: notifications.length,
-      lastUpdated: now.toISOString()
+      lastUpdated: now.toISOString(),
+      podId: targetPodId // 🔧 ADDED: Return which pod the notifications are for
     });
 
   } catch (error) {

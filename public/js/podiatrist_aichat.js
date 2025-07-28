@@ -25,6 +25,55 @@ class PodiatristAIChat {
     this.selectAppointmentFromModal = this.selectAppointmentFromModal.bind(this);
   }
 
+  getCurrentPodId() {
+  // Method 1: Check for directly stored pod ID
+  const sessionPodId = sessionStorage.getItem('currentPodId');
+  if (sessionPodId) {
+    console.log('✅ AI Chat using pod ID from session:', sessionPodId);
+    return sessionPodId;
+  }
+  
+  // Method 2: Check stored user data (JSON format)
+  const storedUser = sessionStorage.getItem('currentUser');
+  if (storedUser && storedUser !== 'null') {
+    try {
+      const userData = JSON.parse(storedUser);
+      if (userData.podId) {
+        console.log('✅ AI Chat using pod ID from stored user:', userData.podId);
+        return userData.podId;
+      }
+      if (userData.userId) {
+        console.log('✅ AI Chat using userId as pod ID:', userData.userId);
+        return userData.userId;
+      }
+    } catch (e) {
+      console.error('AI Chat error parsing stored user data:', e);
+    }
+  }
+  
+  // Method 3: Check for userId stored as individual key
+  const userIdFromSession = sessionStorage.getItem('userId');
+  if (userIdFromSession && userIdFromSession.includes('pod_')) {
+    console.log('✅ AI Chat found pod ID in userId session key:', userIdFromSession);
+    return userIdFromSession;
+  }
+  
+  // Method 4: Check all sessionStorage keys
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    const value = sessionStorage.getItem(key);
+    
+    if (key === 'userId' && value && value.includes('pod_')) {
+      console.log(`✅ AI Chat found pod ID in ${key}:`, value);
+      return value;
+    }
+  }
+  
+  // Last fallback
+  console.log('⚠️ AI Chat: No pod ID found, falling back to pod_1');
+  return "pod_1";
+}
+
   // Load session data for personalization
 loadSessionData() {
   try {
@@ -2278,68 +2327,73 @@ Focus on clinical priorities and workflow optimization.`;
         }
         break;
         
-
-    //   case 'urgent cases':
-    //   needsDatabase = true;
-    //   try {
-    //     console.log('🚨 Fetching urgent cases from database...');
-    //     const urgentResponse = await fetch("/get-urgent-cases", {
-    //       method: "POST",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({ 
-    //         podiatristId: "current_podiatrist"
-    //       })
-    //     });
-    //     const urgentResult = await urgentResponse.json();
-    //     console.log('🚨 Urgent cases response:', urgentResult);
-        
-    //     if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
-    //       scheduleData = { appointments: urgentResult.urgentCases };
-    //       prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**
-
-    // For each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.
-
-    // ${urgentResult.urgentCases.map((apt, index) => {
-    //   let dateTime = apt.scheduledDate || apt.scheduledTime || 'N/A';
-    //   let caseSummary = (typeof apt.summary === 'string' && apt.summary.trim() !== '') ? apt.summary : 'N/A';
-    //   return `${index + 1}. **Patient:** ${apt.patientName || 'N/A'} (${apt.patientId || 'N/A'})
-    //   - **Scheduled:** ${dateTime}
-    //   - **Urgency:** ${apt.urgencyText || apt.urgencyLevel || 'N/A'}
-    //   - **Category:** ${apt.category || 'N/A'}
-    //   - **Diagnosis:** ${apt.initialDiagnosis || 'N/A'}
-    //   - **Case Summary:** ${caseSummary}`;
-    // }).join('\n')}
-
-    // ---
-    // This is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
-    //       console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
-    //     } else {
-    //       console.log('✅ No urgent cases found in database');
-    //       prompt = `No upcoming urgent cases (urgency level 1 or 2) are currently scheduled.`;
-    //     }
-    //   } catch (fetchError) {
-    //     console.error('❌ Error fetching urgent cases:', fetchError);
-    //     prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
-    //   }
-    //   break;
-
-    case 'urgent cases':
-    needsDatabase = true;
-    try {
-      console.log('🚨 Fetching urgent cases from database...');
-      const urgentResponse = await fetch("/get-urgent-cases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          podiatristId: "current_podiatrist"
-        })
-      });
-      const urgentResult = await urgentResponse.json();
-      console.log('🚨 Urgent cases response:', urgentResult);
+  //   case 'urgent cases':
+  //   needsDatabase = true;
+  //   try {
+  //     console.log('🚨 Fetching urgent cases from database...');
+  //     const urgentResponse = await fetch("/get-urgent-cases", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ 
+  //         podiatristId: "current_podiatrist"
+  //       })
+  //     });
+  //     const urgentResult = await urgentResponse.json();
+  //     console.log('🚨 Urgent cases response:', urgentResult);
       
-      if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
-        scheduleData = { appointments: urgentResult.urgentCases };
-        prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**
+  //     if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
+  //       scheduleData = { appointments: urgentResult.urgentCases };
+  //       prompt = `**Upcoming Urgent Cases (${urgentResult.urgentCases.length} found):**
+
+  // For each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.
+
+  // ${urgentResult.urgentCases.map((apt, index) => {
+  //   let dateTime = apt.scheduledDate || apt.scheduledTime || 'N/A';
+  //   let caseSummary = (typeof apt.summary === 'string' && apt.summary.trim() !== '') ? apt.summary : 'N/A';
+  //   return `${index + 1}. **Patient:** ${apt.patientName || 'N/A'} (${apt.patientId || 'N/A'})
+  //   - **Scheduled:** ${dateTime}
+  //   - **Urgency:** ${apt.urgencyText || apt.urgencyLevel || 'N/A'}
+  //   - **Category:** ${apt.category || 'N/A'}
+  //   - **Diagnosis:** ${apt.initialDiagnosis || 'N/A'}
+  //   - **Case Summary:** ${caseSummary}`;
+  // }).join('\n')}
+
+  // ---
+  // This is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
+  //       console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
+  //     } else {
+  //       console.log('✅ No urgent cases found in database');
+  //       // DIRECT RESPONSE - Don't send to AI, respond immediately
+  //       this.removeLoadingIndicator(loadingDiv);
+  //       this.addMessageToChat('📋 **No Urgent Cases Found**\n\n✅ Good news! There are currently no urgent cases (urgency level 1 or 2) scheduled in the system.\n\n**Current Status:**\n- All scheduled appointments are medium to low priority\n- No immediate clinical attention required\n- You can focus on routine care and follow-ups\n\n💡 **Tip:** You can check "Recent Case Summaries" to review upcoming appointments for the week.', 'bot', chatbox);
+  //       return; // Exit early, don't continue to AI processing
+  //     }
+  //   } catch (fetchError) {
+  //     console.error('❌ Error fetching urgent cases:', fetchError);
+  //     prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
+  //   }
+  //   break;
+
+  case 'urgent cases':
+  needsDatabase = true;
+  try {
+    console.log('🚨 Fetching urgent cases from database...');
+    const currentPodId = this.getCurrentPodId(); // 🔧 FIXED: Use dynamic pod ID
+    
+    const urgentResponse = await fetch("/get-urgent-cases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        podiatristId: currentPodId, // 🔧 FIXED: Use dynamic pod ID
+        podId: currentPodId // 🔧 ADDED: Also send as podId for server filtering
+      })
+    });
+    const urgentResult = await urgentResponse.json();
+    console.log('🚨 Urgent cases response for pod', currentPodId, ':', urgentResult);
+    
+    if (urgentResult.success && urgentResult.urgentCases && urgentResult.urgentCases.length > 0) {
+      scheduleData = { appointments: urgentResult.urgentCases };
+      prompt = `**Upcoming Urgent Cases for Pod ${currentPodId} (${urgentResult.urgentCases.length} found):**
 
   For each case, always include both the initial diagnosis and the case summary. The case summary must be shown word-for-word exactly as it appears in the database, with no changes or substitutions.
 
@@ -2355,40 +2409,92 @@ Focus on clinical priorities and workflow optimization.`;
   }).join('\n')}
 
   ---
-  This is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled).`;
-        console.log('✅ Generated prompt with real urgent cases data (summary is word-for-word from DB)');
-      } else {
-        console.log('✅ No urgent cases found in database');
-        // DIRECT RESPONSE - Don't send to AI, respond immediately
-        this.removeLoadingIndicator(loadingDiv);
-        this.addMessageToChat('📋 **No Urgent Cases Found**\n\n✅ Good news! There are currently no urgent cases (urgency level 1 or 2) scheduled in the system.\n\n**Current Status:**\n- All scheduled appointments are medium to low priority\n- No immediate clinical attention required\n- You can focus on routine care and follow-ups\n\n💡 **Tip:** You can check "Recent Case Summaries" to review upcoming appointments for the week.', 'bot', chatbox);
-        return; // Exit early, don't continue to AI processing
-      }
-    } catch (fetchError) {
-      console.error('❌ Error fetching urgent cases:', fetchError);
-      prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
+  This is a list of all upcoming urgent cases (urgency level 1 or 2, status: scheduled) for Pod ${currentPodId}.`;
+      console.log('✅ Generated prompt with real urgent cases data for pod:', currentPodId);
+    } else {
+      console.log('✅ No urgent cases found for pod:', currentPodId);
+      // DIRECT RESPONSE - Don't send to AI, respond immediately
+      this.removeLoadingIndicator(loadingDiv);
+      this.addMessageToChat(`📋 **No Urgent Cases Found for Pod ${currentPodId}**\n\n✅ Good news! There are currently no urgent cases (urgency level 1 or 2) scheduled for your pod.\n\n**Current Status:**\n- All scheduled appointments are medium to low priority\n- No immediate clinical attention required\n- You can focus on routine care and follow-ups\n\n💡 **Tip:** You can check "Recent Case Summaries" to review upcoming appointments for the week.`, 'bot', chatbox);
+      return; // Exit early, don't continue to AI processing
     }
-    break;
+  } catch (fetchError) {
+    console.error('❌ Error fetching urgent cases:', fetchError);
+    prompt = 'Unable to access urgent case data from the database. Please check system connectivity and try again.';
+  }
+  break;
+
         
-      case 'recent case summaries':
-      needsDatabase = true;
+    //   case 'recent case summaries':
+    //   needsDatabase = true;
       
-      try {
-        console.log('📝 Fetching upcoming case summaries...');
-        const summariesResponse = await fetch("/get-upcoming-case-summaries", {
-          method: "POST", 
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            podiatristId: "current_podiatrist"
-          })
-        });
+    //   try {
+    //     console.log('📝 Fetching upcoming case summaries...');
+    //     const summariesResponse = await fetch("/get-upcoming-case-summaries", {
+    //       method: "POST", 
+    //       headers: { "Content-Type": "application/json" },
+    //       body: JSON.stringify({ 
+    //         podiatristId: "current_podiatrist"
+    //       })
+    //     });
         
-        const summariesResult = await summariesResponse.json();
+    //     const summariesResult = await summariesResponse.json();
         
-        if (summariesResult.success && summariesResult.caseSummaries && summariesResult.caseSummaries.length > 0) {
-          scheduleData = { appointments: summariesResult.caseSummaries };
+    //     if (summariesResult.success && summariesResult.caseSummaries && summariesResult.caseSummaries.length > 0) {
+    //       scheduleData = { appointments: summariesResult.caseSummaries };
           
-          prompt = `**Upcoming Case Summaries (Next 7 Days) - ${summariesResult.totalCount} appointments found:**
+    //       prompt = `**Upcoming Case Summaries (Next 7 Days) - ${summariesResult.totalCount} appointments found:**
+
+    // ${summariesResult.caseSummaries.map((summary, index) => `
+    // **${index + 1}. ${summary.scheduledDate} at ${summary.scheduledTime}** (${summary.daysUntil} days away)
+    // - **Patient:** ${summary.patientName} (${summary.patientId})
+    // - **Category:** ${summary.category} | **Priority:** ${summary.urgencyText}
+    // - **Initial Diagnosis:** ${summary.initialDiagnosis}
+    // - **Case Summary:** ${summary.summary}
+    // - **Contact:** ${summary.patientPhone} | ${summary.patientEmail}
+    // - **Triaged:** ${summary.triageDate}
+    // - **Status:** ${summary.status}
+
+    // `).join('')}
+
+    // **Date Range:** ${summariesResult.dateRange.start} to ${summariesResult.dateRange.end}
+
+    // Please provide clinical insights including priority assessment, preparation recommendations, and workflow planning for these upcoming appointments.`;
+          
+    //       console.log('✅ Generated prompt with upcoming case summaries');
+    //     } else {
+    //       console.log('✅ No upcoming appointments found');
+    //       prompt = `No appointments are scheduled for the next 7 days.`;
+    //     }
+    //   } catch (fetchError) {
+    //     console.error('❌ Error fetching case summaries:', fetchError);
+    //     prompt = 'Unable to access upcoming appointment data from the database.';
+    //   }
+    //   break;
+    // 3. REPLACE the "recent case summaries" case section (around line 130)
+    case 'recent case summaries':
+    needsDatabase = true;
+
+    try {
+      console.log('📝 Fetching upcoming case summaries...');
+      const currentPodId = this.getCurrentPodId(); // 🔧 FIXED: Use dynamic pod ID
+      
+      const summariesResponse = await fetch("/get-upcoming-case-summaries", {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          podiatristId: currentPodId, // 🔧 FIXED: Use dynamic pod ID
+          podId: currentPodId // 🔧 ADDED: Also send as podId for server filtering
+        })
+      });
+      
+      const summariesResult = await summariesResponse.json();
+      console.log('📝 Case summaries response for pod', currentPodId, ':', summariesResult);
+      
+      if (summariesResult.success && summariesResult.caseSummaries && summariesResult.caseSummaries.length > 0) {
+        scheduleData = { appointments: summariesResult.caseSummaries };
+        
+        prompt = `**Upcoming Case Summaries for Pod ${currentPodId} (Next 7 Days) - ${summariesResult.totalCount} appointments found:**
 
     ${summariesResult.caseSummaries.map((summary, index) => `
     **${index + 1}. ${summary.scheduledDate} at ${summary.scheduledTime}** (${summary.daysUntil} days away)
@@ -2403,37 +2509,34 @@ Focus on clinical priorities and workflow optimization.`;
     `).join('')}
 
     **Date Range:** ${summariesResult.dateRange.start} to ${summariesResult.dateRange.end}
+    **Pod:** ${currentPodId}
 
     Please provide clinical insights including priority assessment, preparation recommendations, and workflow planning for these upcoming appointments.`;
-          
-          console.log('✅ Generated prompt with upcoming case summaries');
-        } else {
-          console.log('✅ No upcoming appointments found');
-          prompt = `No appointments are scheduled for the next 7 days.`;
-        }
-      } catch (fetchError) {
-        console.error('❌ Error fetching case summaries:', fetchError);
-        prompt = 'Unable to access upcoming appointment data from the database.';
+        
+        console.log('✅ Generated prompt with upcoming case summaries for pod:', currentPodId);
+      } else {
+        console.log('✅ No upcoming appointments found for pod:', currentPodId);
+        prompt = `No appointments are scheduled for Pod ${currentPodId} in the next 7 days.`;
       }
-      break;
+    } catch (fetchError) {
+      console.error('❌ Error fetching case summaries:', fetchError);
+      prompt = 'Unable to access upcoming appointment data from the database.';
+    }
+    break;
     }
     
     // Update loading message to show AI is thinking
     this.updateLoadingMessage(loadingDiv, 'AI is analyzing your request...');
     
-    // Send the prompt to the AI
-    const response = await fetch("/podiatrist-chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        message: prompt,
-        podiatristId: this.sessionData?.userId || "current_podiatrist",
-        podiatristName: this.sessionData ? 
-          `${this.sessionData.firstName} ${this.sessionData.lastName}`.trim() : 
-          'Unknown Doctor',
-        queryType: query
-      })
-    });
+   const response = await fetch("/podiatrist-chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      message: prompt,
+      podiatristId: this.getCurrentPodId(), // 🔧 FIXED: Use dynamic pod ID
+      podiatristName: this.sessionData ? `${this.sessionData.firstName} ${this.sessionData.lastName}` : 'Doctor'
+    })
+  });
     
     const data = await response.json();
     

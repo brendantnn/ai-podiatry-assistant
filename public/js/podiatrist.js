@@ -14,6 +14,91 @@ let notificationCache = {
   TTL: 60000 // 1 minute cache
 };
 
+// REPLACE your getCurrentPodId function with this FIXED version
+
+function getCurrentPodId() {
+  console.log('🔍 getCurrentPodId() called');
+  
+  // Method 1: Check for directly stored pod ID
+  const sessionPodId = sessionStorage.getItem('currentPodId');
+  console.log('Method 1 - sessionStorage currentPodId:', sessionPodId);
+  if (sessionPodId) {
+    console.log('✅ Using pod ID from session:', sessionPodId);
+    return sessionPodId;
+  }
+  
+  // Method 2: Check stored user data
+  const storedUser = sessionStorage.getItem('currentUser');
+  console.log('Method 2 - sessionStorage currentUser:', storedUser);
+  if (storedUser) {
+    try {
+      const userData = JSON.parse(storedUser);
+      console.log('Parsed user data:', userData);
+      if (userData.podId) {
+        console.log('✅ Using pod ID from stored user:', userData.podId);
+        return userData.podId;
+      }
+      if (userData.userId) {
+        console.log('✅ Using userId as pod ID:', userData.userId);
+        return userData.userId;
+      }
+    } catch (e) {
+      console.error('Error parsing stored user data:', e);
+    }
+  }
+  
+  // Method 3: Check if there's any login info stored under different keys
+  console.log('Method 3 - Checking all sessionStorage keys for pod info:');
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    const value = sessionStorage.getItem(key);
+    
+    // Check if any key contains pod information
+    if (key.toLowerCase().includes('pod') || key.toLowerCase().includes('user')) {
+      console.log(`Checking key: ${key} = ${value}`);
+      
+      try {
+        const parsedValue = JSON.parse(value);
+        if (parsedValue.podId) {
+          console.log(`✅ Found podId in ${key}:`, parsedValue.podId);
+          return parsedValue.podId;
+        }
+        if (parsedValue.userId && parsedValue.userId.includes('pod_')) {
+          console.log(`✅ Found pod in userId from ${key}:`, parsedValue.userId);
+          return parsedValue.userId;
+        }
+      } catch (e) {
+        // Not JSON, check if it's a direct pod ID
+        if (value.includes('pod_')) {
+          console.log(`✅ Found pod ID in ${key}:`, value);
+          return value;
+        }
+      }
+    }
+    
+    // SPECIAL CHECK: Look for userId key specifically
+    if (key === 'userId' && value.includes('pod_')) {
+      console.log(`✅ Found pod ID in userId key:`, value);
+      return value;
+    }
+  }
+  
+  // Method 4: Check URL parameters (if pod ID is passed in URL)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlPodId = urlParams.get('podId') || urlParams.get('pod');
+  console.log('Method 4 - URL params pod ID:', urlPodId);
+  if (urlPodId) {
+    console.log('✅ Using pod ID from URL:', urlPodId);
+    // Store it for future use
+    sessionStorage.setItem('currentPodId', urlPodId);
+    return urlPodId;
+  }
+  
+  // Last fallback
+  console.log('⚠️ No pod ID found anywhere, falling back to pod_1');
+  return "pod_1";
+}
+
 function isValidNotificationCache() {
   return notificationCache.data && 
          notificationCache.timestamp && 
@@ -34,12 +119,87 @@ function escapeSpecialCharacters(str) { //Function to escape special characters
     return str.replace(/['"\\\n\r\t]/g, (match) => escapeMap[match]);
 }
 
-// Load Stuff on entering window
+// // Load Stuff on entering window
+// window.onload = async () => {
+//    console.log('=== SESSION STORAGE DEBUG ===');
+//   console.log('currentPodId:', sessionStorage.getItem('currentPodId'));
+//   console.log('currentUser:', sessionStorage.getItem('currentUser'));
+//   console.log('All sessionStorage keys:', Object.keys(sessionStorage));
+  
+//   // Print all session storage items
+//   for (let i = 0; i < sessionStorage.length; i++) {
+//     const key = sessionStorage.key(i);
+//     const value = sessionStorage.getItem(key);
+//     console.log(`${key}: ${value}`);
+//   }
+  
+//   const podId = getCurrentPodId();
+//   console.log('getCurrentPodId() returned:', podId);
+//   console.log('=== END DEBUG ===');
+
+//   try {
+//     // Load patient queue
+//     const res = await fetch("/podiatrist-get-appointments-all", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ podId })
+//     });
+  
+//     const data = await res.json();
+//     patientQueue = data.appointments;
+    
+//     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
+//     populateQueueTab(patientQueue);
+    
+//     console.log('✅ Patient queue loaded and sorted by urgency level');
+
+//     //load all patients
+//     const resAll = await fetch("/get-all-appointments", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//     });
+  
+//     const allData = await resAll.json();
+//     allPatients = allData.appointments;
+
+//     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency [Remove comment]
+//     populateAllTab(allPatients);
+    
+//     console.log('✅ Patient queue loaded and sorted by urgency level');
+    
+//     // Load dashboard metrics
+//     await loadDashboardMetrics();
+    
+//     // Load real-time notifications
+//     await loadNotifications();
+    
+//   } catch (err) {
+//     console.error("❌ Failed to fetch data:", err);
+//   }
+// }
+
+// REPLACE your window.onload function with this FIXED version
+
 window.onload = async () => {
-  const podId = "pod_1"; // Simulated logged-in podiatrist
+  // Debug session storage
+  console.log('=== SESSION STORAGE DEBUG ===');
+  console.log('currentPodId:', sessionStorage.getItem('currentPodId'));
+  console.log('currentUser:', sessionStorage.getItem('currentUser'));
+  console.log('All sessionStorage keys:', Object.keys(sessionStorage));
+  
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    const value = sessionStorage.getItem(key);
+    console.log(`${key}: ${value}`);
+  }
+  
+  const podId = getCurrentPodId();
+  console.log('getCurrentPodId() returned:', podId);
+  console.log('=== END DEBUG ===');
 
   try {
-    // Load patient queue
+    // Load patient queue with proper error handling
+    console.log('🔄 Loading patient queue for pod:', podId);
     const res = await fetch("/podiatrist-get-appointments-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,35 +207,74 @@ window.onload = async () => {
     });
   
     const data = await res.json();
-    patientQueue = data.appointments;
+    console.log('📊 API Response for patient queue:', data);
     
-    // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
-    populateQueueTab(patientQueue);
+    // 🔧 CRITICAL FIX: Handle null/undefined appointments
+    patientQueue = data.appointments || [];
     
-    console.log('✅ Patient queue loaded and sorted by urgency level');
+    console.log('📋 Patient queue data:', patientQueue);
+    console.log('📋 Patient queue length:', patientQueue.length);
+    
+    // Only call populateQueueTab if we have valid data (even if empty array)
+    if (Array.isArray(patientQueue)) {
+      populateQueueTab(patientQueue);
+      console.log('✅ Patient queue populated successfully');
+    } else {
+      console.error('❌ Patient queue is not an array:', typeof patientQueue, patientQueue);
+      patientQueue = []; // Reset to empty array
+      populateQueueTab([]); // Populate with empty array
+    }
 
-    //load all patients
+    // Load all patients with proper error handling
+    console.log('🔄 Loading all patients...');
     const resAll = await fetch("/get-all-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
   
     const allData = await resAll.json();
-    allPatients = allData.appointments;
-
-    // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency [Remove comment]
-    populateAllTab(allPatients);
+    console.log('📊 API Response for all patients:', allData);
     
-    console.log('✅ Patient queue loaded and sorted by urgency level');
+    // 🔧 CRITICAL FIX: Handle null/undefined appointments
+    allPatients = allData.appointments || [];
+    
+    console.log('📋 All patients data:', allPatients);
+    console.log('📋 All patients length:', allPatients.length);
+
+    // Only call populateAllTab if we have valid data (even if empty array)
+    if (Array.isArray(allPatients)) {
+      populateAllTab(allPatients);
+      console.log('✅ All patients populated successfully');
+    } else {
+      console.error('❌ All patients is not an array:', typeof allPatients, allPatients);
+      allPatients = []; // Reset to empty array
+      populateAllTab([]); // Populate with empty array
+    }
     
     // Load dashboard metrics
+    console.log('🔄 Loading dashboard metrics...');
     await loadDashboardMetrics();
     
     // Load real-time notifications
+    console.log('🔄 Loading notifications...');
     await loadNotifications();
+    
+    console.log('✅ All data loaded successfully');
     
   } catch (err) {
     console.error("❌ Failed to fetch data:", err);
+    
+    // Set safe defaults in case of error
+    patientQueue = [];
+    allPatients = [];
+    
+    // Populate tables with empty data to prevent errors
+    try {
+      populateQueueTab([]);
+      populateAllTab([]);
+    } catch (populateError) {
+      console.error("❌ Error populating tables with empty data:", populateError);
+    }
   }
 }
 
@@ -84,7 +283,7 @@ window.onload = async () => {
 // ========================================
 
 async function loadDashboardMetrics() {
-  const podId = "pod_1";
+  const podId = getCurrentPodId();;
   
   try {
     console.log('📊 Loading dashboard metrics...');
@@ -166,23 +365,68 @@ function updateDashboardDisplay(metrics) {
 // REAL-TIME NOTIFICATIONS SYSTEM
 // ========================================
 
+// async function loadNotifications() {
+//   const podId = getCurrentPodId();;
+  
+//   try {
+//     // CHECK CACHE FIRST (INSTANT RESPONSE)
+//     if (isValidNotificationCache()) {
+//       console.log('⚡ CACHE HIT: Using cached notifications (INSTANT)');
+//       updateNotificationsDisplay(notificationCache.data.notifications);
+//       return;
+//     }
+    
+//     console.log('🔔 CACHE MISS: Loading fresh notifications...');
+    
+//     const response = await fetch("/get-notifications", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ podiatristId: podId })
+//     });
+    
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
+    
+//     const data = await response.json();
+    
+//     if (data.success) {
+//       // CACHE THE RESULT FOR INSTANT FUTURE REQUESTS
+//       notificationCache.data = data;
+//       notificationCache.timestamp = Date.now();
+      
+//       updateNotificationsDisplay(data.notifications);
+//       console.log('✅ Notifications loaded and cached');
+//     } else {
+//       console.error('❌ Failed to load notifications:', data.error);
+//       showErrorNotifications();
+//     }
+    
+//   } catch (error) {
+//     console.error('❌ Notifications loading error:', error);
+//     showErrorNotifications();
+//   }
+// }
+
+// REPLACE your loadNotifications function with this FIXED version
+
 async function loadNotifications() {
-  const podId = "pod_1";
+  const podId = getCurrentPodId(); // 🔧 FIXED: Use proper function call without semicolons
   
   try {
     // CHECK CACHE FIRST (INSTANT RESPONSE)
     if (isValidNotificationCache()) {
-      console.log('⚡ CACHE HIT: Using cached notifications (INSTANT)');
+      console.log('⚡ CACHE HIT: Using cached notifications (INSTANT) for pod:', podId);
       updateNotificationsDisplay(notificationCache.data.notifications);
       return;
     }
     
-    console.log('🔔 CACHE MISS: Loading fresh notifications...');
+    console.log('🔔 CACHE MISS: Loading fresh notifications for pod:', podId);
     
     const response = await fetch("/get-notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ podiatristId: podId })
+      body: JSON.stringify({ podId: podId }) // 🔧 FIXED: Send podId instead of podiatristId
     });
     
     if (!response.ok) {
@@ -190,21 +434,30 @@ async function loadNotifications() {
     }
     
     const data = await response.json();
+    console.log('📊 Notifications API Response for pod', podId, ':', data);
     
     if (data.success) {
+      // 🔧 FIXED: Handle null/undefined notifications
+      const notifications = data.notifications || [];
+      
+      console.log('🔔 Received', notifications.length, 'notifications for pod:', podId);
+      
       // CACHE THE RESULT FOR INSTANT FUTURE REQUESTS
-      notificationCache.data = data;
+      notificationCache.data = {
+        success: true,
+        notifications: notifications
+      };
       notificationCache.timestamp = Date.now();
       
-      updateNotificationsDisplay(data.notifications);
-      console.log('✅ Notifications loaded and cached');
+      updateNotificationsDisplay(notifications);
+      console.log('✅ Notifications loaded and cached for pod:', podId);
     } else {
-      console.error('❌ Failed to load notifications:', data.error);
+      console.error('❌ Failed to load notifications for pod', podId, ':', data.error);
       showErrorNotifications();
     }
     
   } catch (error) {
-    console.error('❌ Notifications loading error:', error);
+    console.error('❌ Notifications loading error for pod', podId, ':', error);
     showErrorNotifications();
   }
 }
@@ -460,11 +713,42 @@ function scheduleAppointment() {
 // PATIENT QUEUE MANAGEMENT
 // ========================================
 
+// async function refreshPatientQueue() {
+//   try {
+//     console.log('🔄 Refreshing patient queue...');
+    
+//     const podId = getCurrentPodId();;
+//     const res = await fetch("/podiatrist-get-appointments-all", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ podId })
+//     });
+    
+//     const data = await res.json();
+//     patientQueue = data.appointments || [];
+    
+//     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
+//     populateQueueTab(patientQueue);
+    
+//     console.log('✅ Patient queue refreshed and sorted by urgency level');
+//     console.log('📊 Queue order:', patientQueue.map(p => `${p.name} (Level ${p.urgencyLevel})`));
+    
+//     showUpdateNotification('Patient queue updated and sorted by priority');
+    
+//   } catch (err) {
+//     console.error("❌ Failed to refresh patient queue:", err);
+//   }
+// }
+
+// REPLACE your refreshPatientQueue function with this FIXED version
+
 async function refreshPatientQueue() {
   try {
     console.log('🔄 Refreshing patient queue...');
     
-    const podId = "pod_1";
+    const podId = getCurrentPodId();
+    console.log('🔄 Refreshing for pod:', podId);
+    
     const res = await fetch("/podiatrist-get-appointments-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -472,18 +756,39 @@ async function refreshPatientQueue() {
     });
     
     const data = await res.json();
+    console.log('📊 Refresh API Response:', data);
+    
+    // 🔧 CRITICAL FIX: Handle null/undefined appointments
     patientQueue = data.appointments || [];
     
-    // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
-    populateQueueTab(patientQueue);
+    console.log('📋 Refreshed patient queue data:', patientQueue);
+    console.log('📋 Refreshed patient queue length:', patientQueue.length);
     
-    console.log('✅ Patient queue refreshed and sorted by urgency level');
-    console.log('📊 Queue order:', patientQueue.map(p => `${p.name} (Level ${p.urgencyLevel})`));
+    // Only call populateQueueTab if we have valid data (even if empty array)
+    if (Array.isArray(patientQueue)) {
+      populateQueueTab(patientQueue);
+      console.log('✅ Patient queue refreshed and populated successfully');
+      
+      if (patientQueue.length > 0) {
+        console.log('📊 Queue order:', patientQueue.map(p => `${p.name} (Level ${p.urgencyLevel})`));
+      } else {
+        console.log('📋 Patient queue is empty for pod:', podId);
+      }
+    } else {
+      console.error('❌ Refreshed patient queue is not an array:', typeof patientQueue, patientQueue);
+      patientQueue = []; // Reset to empty array
+      populateQueueTab([]); // Populate with empty array
+    }
     
-    showUpdateNotification('Patient queue updated and sorted by priority');
+    showUpdateNotification(`Patient queue updated for ${podId}`);
     
   } catch (err) {
     console.error("❌ Failed to refresh patient queue:", err);
+    
+    // Set safe default and show error notification
+    patientQueue = [];
+    populateQueueTab([]);
+    showUpdateNotification('Error refreshing patient queue');
   }
 }
 
@@ -1076,43 +1381,7 @@ window.onclick = function(event) {
   }
 };
 
-// ========================================
-// AI ASSISTANT FUNCTIONS
-// ========================================
 
-// function toggleAIChat() {
-//   const popup = document.getElementById('aiChatPopup');
-//   const btn = document.getElementById('aiFloatingBtn');
-  
-//   if (popup && btn) {
-//     if (popup.classList.contains('ai-popup-open')) {
-//       popup.classList.remove('ai-popup-open');
-//       btn.classList.remove('ai-btn-active');
-//     } else {
-//       popup.classList.add('ai-popup-open');
-//       btn.classList.add('ai-btn-active');
-//     }
-//   }
-// }
-
-// function toggleAIChat() {
-//   const popup = document.getElementById('aiChatPopup');
-//   const btn = document.getElementById('aiFloatingBtn');
-  
-//   console.log('🤖 Toggle AI Chat called'); // Debug log
-//   console.log('Popup element:', popup); // Debug log
-//   console.log('Button element:', btn); // Debug log
-  
-//   if (popup && btn) {
-//     // Force show the popup
-//     popup.classList.add('ai-popup-open');
-//     btn.classList.add('ai-btn-active');
-    
-//     console.log('✅ AI Chat popup should now be visible'); // Debug log
-//   } else {
-//     console.error('❌ AI Chat elements not found!');
-//   }
-// }
 
 function toggleAIChat() {
   const popup = document.getElementById('aiChatPopup');
@@ -1186,119 +1455,7 @@ Please provide clinical analysis and recommendations for this specific case.`;
   }, 1000);
 }
 
-// // NEW FUNCTION: Handle AI requests from table rows using data attributes
-// function askAIAboutPatientFromRow(buttonElement) {
-//   // Get the table row containing this button
-//   const row = buttonElement.closest('tr');
-  
-//   if (!row) {
-//     console.error('Could not find table row');
-//     return;
-//   }
-  
-//   // Extract patient data from data attributes
-//   const patientData = {
-//     patientId: row.getAttribute('data-patient-id'),
-//     name: row.getAttribute('data-patient-name'),
-//     category: row.getAttribute('data-patient-category'),
-//     initialDiagnosis: row.getAttribute('data-patient-diagnosis'),
-//     date: row.getAttribute('data-patient-date'),
-//     time: row.getAttribute('data-patient-time'),
-//     summary: row.getAttribute('data-patient-summary'),
-//     urgencyLevel: parseInt(row.getAttribute('data-patient-urgency'))
-//   };
-  
-//   console.log('Getting AI analysis for patient from row:', patientData);
-  
-//   toggleAIChat();
-  
-//   setTimeout(() => {
-//     // Build unique message for this specific patient case
-//   const message = `[PATIENT_QUEUE_ANALYSIS] Tell me about this case: 
-//   Patient ID: ${patientData.patientId}
-//   Name: ${patientData.name}
-//   Category: ${patientData.category}  
-//   Diagnosis: ${patientData.initialDiagnosis}
-//   Appointment: ${patientData.date} at ${patientData.time}
-//   Case Summary: ${patientData.summary}
-//   Urgency Level: ${patientData.urgencyLevel}
 
-//   Please provide clinical analysis and recommendations for this specific case.`;
-    
-//     console.log('AI Message for', patientData.patientId, ':', message);
-    
-//     const aiInput = document.getElementById('aiMessage');
-//     if (aiInput) {
-//       aiInput.value = message;
-//       if (window.sendAIMessage) {
-//         window.sendAIMessage();
-//       }
-//     }
-//   }, 1000);
-// }
-
-// function askAIAboutPatientFromRow(buttonElement) {
-//   // Get the table row containing this button
-//   const row = buttonElement.closest('tr');
-  
-//   if (!row) {
-//     console.error('Could not find table row');
-//     return;
-//   }
-  
-//   // Extract patient data from data attributes
-//   const patientData = {
-//     patientId: row.getAttribute('data-patient-id'),
-//     name: row.getAttribute('data-patient-name'),
-//     category: row.getAttribute('data-patient-category'),
-//     initialDiagnosis: row.getAttribute('data-patient-diagnosis'),
-//     date: row.getAttribute('data-patient-date'),
-//     time: row.getAttribute('data-patient-time'),
-//     summary: row.getAttribute('data-patient-summary'),
-//     urgencyLevel: parseInt(row.getAttribute('data-patient-urgency'))
-//   };
-  
-//   console.log('🤖 Getting AI analysis for patient from row:', patientData);
-  
-//   // FORCE SHOW the AI chat popup
-//   const popup = document.getElementById('aiChatPopup');
-//   const btn = document.getElementById('aiFloatingBtn');
-  
-//   if (popup && btn) {
-//     popup.classList.add('ai-popup-open');
-//     btn.classList.add('ai-btn-active');
-//     console.log('✅ AI popup forced open');
-//   }
-  
-//   // Add a longer delay to ensure popup is fully opened
-//   setTimeout(() => {
-//     // Build unique message for this specific patient case
-//     const message = `[PATIENT_QUEUE_ANALYSIS] Tell me about this case: 
-// Patient ID: ${patientData.patientId}
-// Name: ${patientData.name}
-// Category: ${patientData.category}  
-// Diagnosis: ${patientData.initialDiagnosis}
-// Appointment: ${patientData.date} at ${patientData.time}
-// Case Summary: ${patientData.summary}
-// Urgency Level: ${patientData.urgencyLevel}
-
-// Please provide clinical analysis and recommendations for this specific case.`;
-    
-//     console.log('📝 AI Message for', patientData.patientId, ':', message);
-    
-//     const aiInput = document.getElementById('aiMessage');
-//     if (aiInput) {
-//       aiInput.value = message;
-      
-//       // Auto-send the message
-//       if (window.sendAIMessage) {
-//         window.sendAIMessage();
-//       }
-//     } else {
-//       console.error('❌ AI input field not found!');
-//     }
-//   }, 500); // Increased delay from 1000ms to 500ms
-// }
 
 function askAIAboutPatientFromRow(buttonElement) {
   // Get the table row containing this button
@@ -1481,13 +1638,6 @@ async function forceRefreshCalendar() {
 // Export the function globally
 window.forceRefreshCalendar = forceRefreshCalendar;
 
-// // Auto-refresh calendar every 30 seconds to catch any missed updates
-// setInterval(() => {
-//   if (window.podiatristCalendar && window.podiatristCalendar.isInitialized) {
-//     console.log('🔄 AUTO: Periodic calendar refresh...');
-//     window.podiatristCalendar.refreshCalendar();
-//   }
-// }, 30000); // 30 seconds
 
 // ========================================
 // SYSTEM FUNCTIONS
