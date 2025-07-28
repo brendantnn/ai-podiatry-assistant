@@ -708,32 +708,7 @@ getCurrentPodId() {
     alert(`Appointment Details:\n${appointmentInfo}\n\nFeatures coming soon:\n- View patient history\n- Reschedule appointment\n- Add notes`);
   }
 
-  // // Show appointment details with edit option
-  // showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
-  //   const detailsModal = `
-  //     <div id="appointmentDetailsModal" class="edit-modal-overlay">
-  //       <div class="edit-modal-content">
-  //         <div class="edit-modal-header">
-  //           <h3>📋 Appointment Details</h3>
-  //           <button class="edit-modal-close" onclick="closeAppointmentDetailsModal()">✕</button>
-  //         </div>
-  //         <div class="edit-modal-body">
-  //           <div class="appointment-details">
-  //             <p><strong>📅 Appointment:</strong> ${appointmentPatient+": "+appointmentDate+" "+appointmentTime}</p>
-  //             <p><strong>🆔 Patient ID:</strong> ${patientId || 'N/A'}</p>
-  //           </div>
-  //         </div>
-  //         <div class="edit-modal-footer">
-  //           <button class="medical-btn medical-btn-secondary" onclick="closeAppointmentDetailsModal()">❌ Close</button>
-  //           <button class="medical-btn medical-btn-primary" onclick="editAppointment('${appointmentPatient}', '${appointmentDate}', '${appointmentTime}', '${patientId}', '${appointmentId}')">✏️ Edit Appointment</button>
-  //         </div>
-  //       </div>
-  //     </div>
-  //   `;
-    
-    
-  //   document.body.insertAdjacentHTML('beforeend', detailsModal);
-  // }
+
 
 // Show appointment details with edit option
 showAppointmentDetailsWithEdit(appointmentPatient, appointmentDate, appointmentTime, patientId, appointmentId) {
@@ -1446,16 +1421,33 @@ async saveAppointmentChangesNew(appointmentId, originalSlot) {
     if (result.success) {
       console.log('✅ Database update successful:', result);
       
-      // Close modal
+      // // Close modal
+      // this.closeEditAppointmentModal();
+      
+      // // Refresh calendar to show changes
+      // setTimeout(async () => {
+      //   await this.refreshCalendar();
+      //   if (typeof window.refreshPatientQueue === 'function') {
+      //     await window.refreshPatientQueue();
+      //   }
+        
+      //   // Also refresh All Patients tab
+      //   if (typeof window.refreshAllPatients === 'function') {
+      //     await window.refreshAllPatients();
+      //   }
+      // }, 500);
+
+      // 🚀 INSTANT: Close modal immediately
       this.closeEditAppointmentModal();
       
-      // Refresh calendar to show changes
-      setTimeout(async () => {
-        await this.refreshCalendar();
-        if (typeof window.refreshPatientQueue === 'function') {
-          await window.refreshPatientQueue();
-        }
-      }, 500);
+      // 🚀 PARALLEL: Refresh all components at once
+      Promise.all([
+        this.refreshCalendar(),
+        typeof window.refreshPatientQueue === 'function' ? window.refreshPatientQueue() : Promise.resolve(),
+        typeof window.refreshAllPatients === 'function' ? window.refreshAllPatients() : Promise.resolve()
+      ]).then(() => {
+        console.log('✅ Fast refresh completed');
+      });
       
     } else {
       console.error('❌ Database update failed:', result);
@@ -1534,15 +1526,26 @@ async updateAppointmentInDatabase(appointmentId, updateData, originalSlot) {
       console.log('✅ Database update successful:', result);
       
       // IMMEDIATE: Trigger calendar refresh right after successful update
-      setTimeout(async () => {
-        console.log('🔄 IMMEDIATE: Triggering calendar refresh...');
-        await this.refreshCalendar();
+      // setTimeout(async () => {
+      //   console.log('🔄 IMMEDIATE: Triggering calendar refresh...');
+      //   await this.refreshCalendar();
         
-        // Also refresh patient queue if available
-        if (typeof window.refreshPatientQueue === 'function') {
-          await window.refreshPatientQueue();
-        }
-      }, 500); // Short delay to ensure DB update is complete
+      //   // Also refresh patient queue if available
+      //   if (typeof window.refreshPatientQueue === 'function') {
+      //     await window.refreshPatientQueue();
+      //   }
+      // }, 500); // Short delay to ensure DB update is complete
+
+      // 🚀 OPTIMIZED: Run all refreshes in parallel, no delay
+      Promise.all([
+        this.refreshCalendar(),
+        typeof window.refreshPatientQueue === 'function' ? window.refreshPatientQueue() : Promise.resolve(),
+        typeof window.refreshAllPatients === 'function' ? window.refreshAllPatients() : Promise.resolve()
+      ]).then(() => {
+        console.log('✅ All refreshes completed successfully');
+      }).catch(error => {
+        console.error('❌ Error during refresh:', error);
+      });
       
     } else {
       console.error('❌ Database update failed:', result);
@@ -1574,10 +1577,10 @@ showSuccessMessage(message) {
   
   document.body.insertAdjacentHTML('beforeend', successModal);
   
-  // Auto-close after 3 seconds
+// 🚀 FASTER: Auto-close after 1.5 seconds instead of 3
   setTimeout(() => {
     this.closeSuccessModal();
-  }, 3000);
+  }, 1500);
 }
 
 // Close success modal

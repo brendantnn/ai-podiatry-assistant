@@ -119,64 +119,6 @@ function escapeSpecialCharacters(str) { //Function to escape special characters
     return str.replace(/['"\\\n\r\t]/g, (match) => escapeMap[match]);
 }
 
-// // Load Stuff on entering window
-// window.onload = async () => {
-//    console.log('=== SESSION STORAGE DEBUG ===');
-//   console.log('currentPodId:', sessionStorage.getItem('currentPodId'));
-//   console.log('currentUser:', sessionStorage.getItem('currentUser'));
-//   console.log('All sessionStorage keys:', Object.keys(sessionStorage));
-  
-//   // Print all session storage items
-//   for (let i = 0; i < sessionStorage.length; i++) {
-//     const key = sessionStorage.key(i);
-//     const value = sessionStorage.getItem(key);
-//     console.log(`${key}: ${value}`);
-//   }
-  
-//   const podId = getCurrentPodId();
-//   console.log('getCurrentPodId() returned:', podId);
-//   console.log('=== END DEBUG ===');
-
-//   try {
-//     // Load patient queue
-//     const res = await fetch("/podiatrist-get-appointments-all", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ podId })
-//     });
-  
-//     const data = await res.json();
-//     patientQueue = data.appointments;
-    
-//     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
-//     populateQueueTab(patientQueue);
-    
-//     console.log('✅ Patient queue loaded and sorted by urgency level');
-
-//     //load all patients
-//     const resAll = await fetch("/get-all-appointments", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//     });
-  
-//     const allData = await resAll.json();
-//     allPatients = allData.appointments;
-
-//     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency [Remove comment]
-//     populateAllTab(allPatients);
-    
-//     console.log('✅ Patient queue loaded and sorted by urgency level');
-    
-//     // Load dashboard metrics
-//     await loadDashboardMetrics();
-    
-//     // Load real-time notifications
-//     await loadNotifications();
-    
-//   } catch (err) {
-//     console.error("❌ Failed to fetch data:", err);
-//   }
-// }
 
 // REPLACE your window.onload function with this FIXED version
 
@@ -662,8 +604,20 @@ function showErrorNotifications() {
 // Auto-refresh notifications every 5 minutes
 setInterval(loadNotifications, 5 * 60 * 1000); 
 
-// Auto-refresh dashboard metrics every 5 minutes
-setInterval(loadDashboardMetrics, 5 * 60 * 1000);
+// // Auto-refresh dashboard metrics every 5 minutes
+// setInterval(loadDashboardMetrics, 5 * 60 * 1000);
+
+// 🔄 CROSS-PODIATRIST: Auto-refresh All Patients tab every 30 seconds to catch changes from other pods
+setInterval(() => {
+  // Only refresh if the All Patients tab is currently visible
+  const allPatientsTab = document.getElementById('all-patients-tab');
+  if (allPatientsTab && !allPatientsTab.classList.contains('hidden')) {
+    console.log('🔄 CROSS-POD: Auto-refreshing All Patients tab to catch changes from other podiatrists...');
+    if (typeof window.refreshAllPatients === 'function') {
+      window.refreshAllPatients();
+    }
+  }
+}, 30 * 1000); // Every 30 seconds - frequent enough to catch changes quickly
 
 // Export functions for global access
 window.loadNotifications = loadNotifications;
@@ -712,35 +666,6 @@ function scheduleAppointment() {
 // ========================================
 // PATIENT QUEUE MANAGEMENT
 // ========================================
-
-// async function refreshPatientQueue() {
-//   try {
-//     console.log('🔄 Refreshing patient queue...');
-    
-//     const podId = getCurrentPodId();;
-//     const res = await fetch("/podiatrist-get-appointments-all", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ podId })
-//     });
-    
-//     const data = await res.json();
-//     patientQueue = data.appointments || [];
-    
-//     // ✅ IMPORTANT: populateQueueTab will now auto-sort by urgency
-//     populateQueueTab(patientQueue);
-    
-//     console.log('✅ Patient queue refreshed and sorted by urgency level');
-//     console.log('📊 Queue order:', patientQueue.map(p => `${p.name} (Level ${p.urgencyLevel})`));
-    
-//     showUpdateNotification('Patient queue updated and sorted by priority');
-    
-//   } catch (err) {
-//     console.error("❌ Failed to refresh patient queue:", err);
-//   }
-// }
-
-// REPLACE your refreshPatientQueue function with this FIXED version
 
 async function refreshPatientQueue() {
   try {
@@ -791,6 +716,49 @@ async function refreshPatientQueue() {
     showUpdateNotification('Error refreshing patient queue');
   }
 }
+
+// ========================================
+// REFRESH ALL PATIENTS TAB
+// ========================================
+
+async function refreshAllPatients() {
+  try {
+    console.log('🔄 Refreshing all patients tab...');
+    
+    const resAll = await fetch("/get-all-appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  
+    const allData = await resAll.json();
+    console.log('📊 All patients refresh - API Response:', allData);
+    
+    // Use existing logic - handle null/undefined appointments
+    allPatients = allData.appointments || [];
+    
+    console.log('✅ All patients data refreshed, count:', allPatients.length);
+
+    // Use existing populateAllTab function - no changes to original logic
+    if (Array.isArray(allPatients)) {
+      populateAllTab(allPatients);
+      console.log('✅ All patients tab populated successfully');
+    } else {
+      console.error('❌ All patients is not an array:', typeof allPatients, allPatients);
+      allPatients = [];
+      populateAllTab([]);
+    }
+    
+    showUpdateNotification('All patients tab refreshed');
+    
+  } catch (err) {
+    console.error("❌ Failed to refresh all patients:", err);
+    allPatients = [];
+    populateAllTab([]);
+    showUpdateNotification('Error refreshing all patients tab');
+  }
+}
+
+
 
 // ========================================
 // PATIENT FILTERING AND SEARCH LOGIC
