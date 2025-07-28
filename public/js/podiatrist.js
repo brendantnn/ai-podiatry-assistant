@@ -748,7 +748,6 @@ async function refreshAllPatients() {
       populateAllTab([]);
     }
     
-    showUpdateNotification('All patients tab refreshed');
     
   } catch (err) {
     console.error("❌ Failed to refresh all patients:", err);
