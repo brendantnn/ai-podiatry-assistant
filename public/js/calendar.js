@@ -1221,7 +1221,7 @@ async loadBookedSlotsForFiltering() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
-       podiatristId: podId, // 🔧 FIXED: Use dynamic pod ID
+       podiatristId: this.getCurrentPodId(), // 🔧 FIXED: Get podId using the class method
         targetDate: "all",
         cacheBuster: Date.now()
       })

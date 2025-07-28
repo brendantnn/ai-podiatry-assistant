@@ -2037,6 +2037,118 @@ app.post('/podiatrist-update-appointment', async (req, res) => {
   }
 });
 
+// app.post('/podiatrist-cancel-appointment', async (req, res) => {
+//   const { apptId, originalSlot } = req.body;
+//   console.log("🔍 Canceling appointment with SMS notification:", apptId);
+
+//   try {
+//     // Get current appointment with patient details
+//     const appointmentDoc = await db.collection("Appointments").doc(apptId).get();
+    
+//     if (!appointmentDoc.exists) {
+//       return res.json({
+//         success: false,
+//         message: "Appointment not found"
+//       });
+//     }
+
+//     const currentAppointment = appointmentDoc.data();
+//     const oldDateTime = currentAppointment.scheduledDate.toDate();
+//     const patientId = currentAppointment.patientId;
+
+//     // Update the appointment in Firebase
+//     const updates = {
+//       status: 'cancelled',
+//       lastModified: admin.firestore.Timestamp.now()
+//     };
+
+//     await db.collection("Appointments").doc(apptId).update(updates);
+
+//     // Handle availability updates (your existing logic)
+//     if (originalSlot) {
+//       try {
+//         const oldSlotQuery = await db.collection("Availability")
+//           .where("availableDate", "==", admin.firestore.Timestamp.fromDate(new Date(originalSlot)))
+//           .get();
+
+//         if (!oldSlotQuery.empty) {
+//           await oldSlotQuery.docs[0].ref.update({ status: "available" });
+//         }
+//       } catch (availabilityError) {
+//         console.error('⚠️ Availability update failed:', availabilityError);
+//       }
+//     }
+
+//     // Get podiatrist name
+//     let podiatristName = "Doctor";
+//     try {
+//       const podiatristQuery = await db.collection("Users")
+//         .where("userId", "==", currentAppointment.podId)
+//         .limit(1)
+//         .get();
+
+//       if (!podiatristQuery.empty) {
+//         const podiatristData = podiatristQuery.docs[0].data();
+//         podiatristName = `${podiatristData.firstName || ''} ${podiatristData.lastName || ''}`.trim();
+//       }
+//     } catch (podError) {
+//       console.warn('⚠️ Could not fetch podiatrist name:', podError);
+//     }
+
+//     // Format dates for SMS
+//     // const oldDateFormatted = oldDateTime.toLocaleString("en-SG", {
+//     //   weekday: "long",
+//     //   year: "numeric",
+//     //   month: "long",
+//     //   day: "numeric",
+//     //   hour: "2-digit",
+//     //   minute: "2-digit",
+//     //   hour12: true,
+//     //   timeZone: "Asia/Singapore"
+//     // });
+
+//     // // Send SMS notification using SMS service
+//     // const smsResult = await smsService.sendAppointmentUpdateSMS(
+//     //   apptId,
+//     //   patientId,
+//     //   oldDateFormatted,
+//     //   podiatristName
+//     // );
+
+//     // let smsStatus = 'no_phone';
+//     // if (smsResult.success) {
+//     //   smsStatus = 'sent';
+//     // } else if (smsResult.error === 'no_phone') {
+//     //   smsStatus = 'no_phone';
+//     // } else if (smsResult.error === 'disabled') {
+//     //   smsStatus = 'disabled';
+//     // } else {
+//     //   smsStatus = 'failed';
+//     // }
+
+//     // Return enhanced response
+//     return res.json({
+//       success: true,
+//       message: "Appointment cancelled successfully",
+//       appointmentId: apptId,
+//       oldDateTime: oldDateFormatted,
+//       // patientName: smsResult.patientName || 'Unknown',
+//       // smsStatus: smsStatus,
+//       clearCache: true,
+//       timestamp: new Date().toISOString()
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Appointment cancel error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to cancel appointment.",
+//       message: error.message
+//     });
+//   }
+// });
+
+// Get appointments of ALL patients
 app.post('/podiatrist-cancel-appointment', async (req, res) => {
   const { apptId, originalSlot } = req.body;
   console.log("🔍 Canceling appointment with SMS notification:", apptId);
@@ -2095,45 +2207,45 @@ app.post('/podiatrist-cancel-appointment', async (req, res) => {
       console.warn('⚠️ Could not fetch podiatrist name:', podError);
     }
 
-    // Format dates for SMS
-    // const oldDateFormatted = oldDateTime.toLocaleString("en-SG", {
-    //   weekday: "long",
-    //   year: "numeric",
-    //   month: "long",
-    //   day: "numeric",
-    //   hour: "2-digit",
-    //   minute: "2-digit",
-    //   hour12: true,
-    //   timeZone: "Asia/Singapore"
-    // });
+    // 🔧 FIX: Format dates for SMS (UNCOMMENTED)
+    const oldDateFormatted = oldDateTime.toLocaleString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
 
-    // // Send SMS notification using SMS service
-    // const smsResult = await smsService.sendAppointmentUpdateSMS(
-    //   apptId,
-    //   patientId,
-    //   oldDateFormatted,
-    //   podiatristName
-    // );
+    // 🔧 FIX: Send SMS notification using SMS service (UNCOMMENTED)
+    const smsResult = await smsService.sendAppointmentCancellationSMS(
+      apptId,
+      patientId,
+      oldDateFormatted,
+      podiatristName
+    );
 
-    // let smsStatus = 'no_phone';
-    // if (smsResult.success) {
-    //   smsStatus = 'sent';
-    // } else if (smsResult.error === 'no_phone') {
-    //   smsStatus = 'no_phone';
-    // } else if (smsResult.error === 'disabled') {
-    //   smsStatus = 'disabled';
-    // } else {
-    //   smsStatus = 'failed';
-    // }
+    let smsStatus = 'no_phone';
+    if (smsResult.success) {
+      smsStatus = 'sent';
+    } else if (smsResult.error === 'no_phone') {
+      smsStatus = 'no_phone';
+    } else if (smsResult.error === 'disabled') {
+      smsStatus = 'disabled';
+    } else {
+      smsStatus = 'failed';
+    }
 
     // Return enhanced response
     return res.json({
       success: true,
       message: "Appointment cancelled successfully",
       appointmentId: apptId,
-      oldDateTime: oldDateFormatted,
-      // patientName: smsResult.patientName || 'Unknown',
-      // smsStatus: smsStatus,
+      oldDateTime: oldDateFormatted, // 🔧 FIX: Now properly defined
+      patientName: smsResult.patientName || 'Unknown',
+      smsStatus: smsStatus,
       clearCache: true,
       timestamp: new Date().toISOString()
     });
@@ -2148,7 +2260,6 @@ app.post('/podiatrist-cancel-appointment', async (req, res) => {
   }
 });
 
-// Get appointments of ALL patients
 app.post('/get-all-appointments', async (req, res) => {
   console.log("🔍 Fetching all appointments");
   try {
