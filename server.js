@@ -2280,18 +2280,18 @@ app.post('/get-all-appointments', async (req, res) => {
         const appt = doc.data();
         patientIds.push(appt.patientId);
 
-        //Add data to data object
         const appointment = {
-          apptId: doc.id,
-          patientId: appt.patientId,
-          date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
-          time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
-          status: appt.status,
-          urgencyLevel: appt.urgencyLevel,
-          category: appt.category,
-          initialDiagnosis: appt.initialDiagnosis,
-          summary: appt.summary
-        };
+        apptId: doc.id,
+        patientId: appt.patientId,
+        date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
+        time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        status: appt.status,
+        urgencyLevel: appt.urgencyLevel,
+        category: appt.category,
+        initialDiagnosis: appt.initialDiagnosis,
+        summary: appt.summary,
+        podId: appt.podId  // 🔧 ADDED: Include the podId field
+      };
         appointments.push(appointment); //Put data object into appointments list
       });
 
@@ -3462,6 +3462,110 @@ app.post('/test-sms-system', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'SMS test failed',
+      error: error.message
+    });
+  }
+});
+
+// Get podiatrist name by podId
+app.post("/get-podiatrist-name", async (req, res) => {
+  const { podId } = req.body;
+  
+  try {
+    console.log('🔍 [SERVER] Looking up podiatrist name for:', podId);
+    
+    if (!podId || podId === 'unassigned') {
+      console.log('🔍 [SERVER] No podId, returning Unassigned');
+      return res.json({
+        success: true,
+        name: 'Unassigned',
+        podId: podId
+      });
+    }
+    
+    // Query Users collection for podiatrist with this userId
+    console.log('🔍 [SERVER] Querying Users collection where userId ==', podId);
+    
+    const userQuery = await db.collection("Users")
+      .where("userId", "==", podId)
+      .get();
+    
+    console.log('🔍 [SERVER] Query returned', userQuery.size, 'documents');
+    
+    if (!userQuery.empty) {
+      const userData = userQuery.docs[0].data();
+      console.log('🔍 [SERVER] Found user data:', {
+        userId: userData.userId,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role
+      });
+      
+      // Check if it's actually a podiatrist
+    if (userData.role === 'podiatrist') {
+  // 🔧 SMART NAME FORMATTING: Handle cases where title is already included
+    let fullName = '';
+    const firstName = userData.firstName || '';
+    const lastName = userData.lastName || '';
+    
+    // Check if firstName already contains "Dr."
+    if (firstName.toLowerCase().startsWith('dr.') || firstName.toLowerCase().startsWith('doctor')) {
+      // Name already has title, just combine firstName and lastName
+      fullName = `${firstName} ${lastName}`.trim();
+    } else {
+      // Add Dr. prefix
+      fullName = `Dr. ${firstName} ${lastName}`.trim();
+    }
+    
+    // Clean up any double spaces or "undefined"
+    fullName = fullName
+      .replace(/\bundefined\b/g, '')  // Remove "undefined"
+      .replace(/\s+/g, ' ')           // Replace multiple spaces with single space
+      .trim();                        // Remove leading/trailing spaces
+    
+    console.log('✅ [SERVER] Found podiatrist:', fullName);
+    
+    return res.json({
+      success: true,
+      name: fullName,
+      podId: podId,
+      firstName: userData.firstName,
+      lastName: userData.lastName
+    });
+  } else {
+        console.log('⚠️ [SERVER] User found but role is not podiatrist:', userData.role);
+        return res.json({
+          success: false,
+          name: `User ${podId} (${userData.role})`,
+          podId: podId,
+          error: 'User is not a podiatrist'
+        });
+      }
+    } else {
+      console.log('❌ [SERVER] No user found with userId:', podId);
+      
+      // Let's also search without role filter to see if user exists at all
+      const allUserQuery = await db.collection("Users")
+        .where("userId", "==", podId)
+        .get();
+      
+      console.log('🔍 [SERVER] Search without role filter found', allUserQuery.size, 'users');
+      
+      return res.json({
+        success: false,
+        name: `Podiatrist ${podId}`,
+        podId: podId,
+        error: 'Podiatrist not found'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [SERVER] Error fetching podiatrist name:', error);
+    
+    return res.status(500).json({
+      success: false,
+      name: `Podiatrist ${podId}`,
+      podId: podId,
       error: error.message
     });
   }

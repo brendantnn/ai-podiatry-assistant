@@ -14,7 +14,7 @@ let notificationCache = {
   TTL: 60000 // 1 minute cache
 };
 
-// REPLACE your getCurrentPodId function with this FIXED version
+
 
 function getCurrentPodId() {
   console.log('🔍 getCurrentPodId() called');
@@ -97,6 +97,71 @@ function getCurrentPodId() {
   // Last fallback
   console.log('⚠️ No pod ID found anywhere, falling back to pod_1');
   return "pod_1";
+}
+
+
+// ========================================
+// PODIATRIST NAME FROM DATABASE
+// ========================================
+
+// Cache for podiatrist names to avoid repeated API calls
+const podiatristNameCache = new Map();
+
+async function getPodiatristNameFromDB(podId) {
+  // Check cache first
+  if (podiatristNameCache.has(podId)) {
+    console.log('✅ Using cached name for:', podId, podiatristNameCache.get(podId));
+    return podiatristNameCache.get(podId);
+  }
+  
+  // Handle null/undefined/empty podId
+  if (!podId || podId === 'unassigned') {
+    console.log('⚠️ No podId provided, returning Unassigned');
+    return 'Unassigned';
+  }
+  
+  try {
+    console.log('🔍 Fetching podiatrist name for podId:', podId);
+    
+    const response = await fetch("/get-podiatrist-name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
+    });
+    
+    console.log('📡 Server response status:', response.status);
+    
+    if (!response.ok) {
+      console.error('❌ Server response not OK:', response.status, response.statusText);
+      return `Podiatrist ${podId}`;
+    }
+    
+    const result = await response.json();
+    console.log('📊 Server response data:', result);
+    
+    if (result.success && result.name) {
+      const fullName = result.name;
+      console.log('✅ Found podiatrist name:', fullName);
+      // Cache the result
+      podiatristNameCache.set(podId, fullName);
+      return fullName;
+    } else {
+      console.log('⚠️ Podiatrist not found for:', podId, 'Response:', result);
+      return `Podiatrist ${podId}`;
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching podiatrist name:', error);
+    return `Podiatrist ${podId}`;
+  }
+}
+
+// Sync version for immediate display (uses cache)
+function getPodiatristName(podId) {
+  if (podiatristNameCache.has(podId)) {
+    return podiatristNameCache.get(podId);
+  }
+  return 'Loading...'; // Will be updated when async call completes
 }
 
 function isValidNotificationCache() {
@@ -1195,7 +1260,7 @@ function populateAllTab(data = allPatients) {
     <td>${patient.date}</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}')"
+      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}', '${patient.podId || 'unassigned'}')"
       >👁️ View</button>
       <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
@@ -1204,14 +1269,100 @@ function populateAllTab(data = allPatients) {
   });
 }
 
-function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary) {
-  document.getElementById('modalPatientId').innerText = patientId;
-  document.getElementById('modalPatientName').innerText = name;
-  document.getElementById('modalPatientCategory').innerText = category;
-  document.getElementById('modalPatientSymptoms').innerText = symptoms;
-  document.getElementById('modalPatientWaitTime').innerText = time + " on " + date;
-  document.getElementById('modalPatientStatus').innerText = status;
-  document.getElementById('modalPatientCaseSummary').innerText = summary;
+// function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary) {
+//   document.getElementById('modalPatientId').innerText = patientId;
+//   document.getElementById('modalPatientName').innerText = name;
+//   document.getElementById('modalPatientCategory').innerText = category;
+//   document.getElementById('modalPatientSymptoms').innerText = symptoms;
+//   document.getElementById('modalPatientWaitTime').innerText = time + " on " + date;
+//   document.getElementById('modalPatientStatus').innerText = status;
+//   document.getElementById('modalPatientCaseSummary').innerText = summary;
+  
+//   const originalSlot = formatDate(date) + "T" + formatTime(time);
+
+//   function formatDate(dateString) { //Convert Date to HTML Readable 
+//     const [day, month, year] = dateString.split(' ');
+//     const months = {
+//       January: '01', February: '02', March: '03', April: '04',
+//       May: '05', June: '06', July: '07', August: '08',
+//       September: '09', October: '10', November: '11', December: '12'
+//     };
+//     return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
+//   }
+
+//   function formatTime(timeString) { //Convert Date to HTML Readable 
+//     const timeParts = timeString.split(' ');
+//     let [hours, minutes] = timeParts[0].split(':');
+//     if (timeParts[1] === 'pm' && hours !== '12') {
+//       hours = String(Number(hours) + 12);
+//     } else if (timeParts[1] === 'am' && hours === '12') {
+//       hours = '00';
+//     }
+//     return hours+":"+minutes;
+//   }
+//   document.getElementById('patientModal').style.display = 'block';
+
+//   if (tab == 'all' && status != 'cancelled') {//Hide edit button if modal opens from all tab and appointemnt is already scheduled. (Basically only allow edits in all tab if that appointment has no podiatrist assigned)
+//     document.getElementById('modalPatientEditBtn').hidden = true;
+//   }else{
+//     document.getElementById('modalPatientEditBtn').hidden = false;
+//   }
+
+//   if (tab == 'queue' && status != 'cancelled') {//Only show cancel button if at queue tab and appointment now alrd cancelled
+//     document.getElementById('modalPatientCancelBtn').hidden = false;
+//   }else{
+//     document.getElementById('modalPatientCancelBtn').hidden = true;
+//   }
+
+//   document.getElementById('modalPatientEditBtn').onclick = function() {openEditModal(name, date, time, patientId, apptId)};
+//   document.getElementById('modalPatientCancelBtn').onclick = function() {openCancelModal(apptId, originalSlot)};
+// }
+
+function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary, podId) {
+  console.log('🔍 Opening modal with params:', { tab, apptId, patientId, name, podId });
+  
+  // Check if modal elements exist
+  const modal = document.getElementById('patientModal');
+  if (!modal) {
+    console.error('❌ Patient modal not found!');
+    return;
+  }
+  
+  // Set basic patient info
+  const setElementText = (id, text) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.innerText = text || 'N/A';
+    } else {
+      console.warn(`⚠️ Element ${id} not found`);
+    }
+  };
+  
+  setElementText('modalPatientId', patientId);
+  setElementText('modalPatientName', name);
+  setElementText('modalPatientCategory', category);
+  setElementText('modalPatientSymptoms', symptoms);
+  setElementText('modalPatientWaitTime', time + " on " + date);
+  setElementText('modalPatientStatus', status);
+  setElementText('modalPatientCaseSummary', summary);
+  
+  // Set podiatrist name (async)
+  const podiatristElement = document.getElementById('modalAssignedPodiatrist');
+  if (podiatristElement) {
+    podiatristElement.innerText = 'Loading...';
+    
+    // Load podiatrist name asynchronously
+    getPodiatristNameFromDB(podId).then(podiatristName => {
+      if (podiatristElement) { // Check again in case modal was closed
+        podiatristElement.innerText = podiatristName;
+      }
+    }).catch(error => {
+      console.error('Error loading podiatrist name:', error);
+      if (podiatristElement) {
+        podiatristElement.innerText = podId ? `Podiatrist ${podId}` : 'Unassigned';
+      }
+    });
+  }
   
   const originalSlot = formatDate(date) + "T" + formatTime(time);
 
@@ -1235,22 +1386,31 @@ function openModal(tab, apptId, patientId, name, category, symptoms, status, dat
     }
     return hours+":"+minutes;
   }
-  document.getElementById('patientModal').style.display = 'block';
+  
+  // Show the modal
+  modal.style.display = 'block';
 
-  if (tab == 'all' && status != 'cancelled') {//Hide edit button if modal opens from all tab and appointemnt is already scheduled. (Basically only allow edits in all tab if that appointment has no podiatrist assigned)
-    document.getElementById('modalPatientEditBtn').hidden = true;
-  }else{
-    document.getElementById('modalPatientEditBtn').hidden = false;
+  // Handle button visibility
+  const editBtn = document.getElementById('modalPatientEditBtn');
+  const cancelBtn = document.getElementById('modalPatientCancelBtn');
+  
+  if (editBtn) {
+    if (tab == 'all' && status != 'cancelled') {
+      editBtn.hidden = true;
+    } else {
+      editBtn.hidden = false;
+    }
+    editBtn.onclick = function() {openEditModal(name, date, time, patientId, apptId)};
   }
 
-  if (tab == 'queue' && status != 'cancelled') {//Only show cancel button if at queue tab and appointment now alrd cancelled
-    document.getElementById('modalPatientCancelBtn').hidden = false;
-  }else{
-    document.getElementById('modalPatientCancelBtn').hidden = true;
+  if (cancelBtn) {
+    if (tab == 'queue' && status != 'cancelled') {
+      cancelBtn.hidden = false;
+    } else {
+      cancelBtn.hidden = true;
+    }
+    cancelBtn.onclick = function() {openCancelModal(apptId, originalSlot)};
   }
-
-  document.getElementById('modalPatientEditBtn').onclick = function() {openEditModal(name, date, time, patientId, apptId)};
-  document.getElementById('modalPatientCancelBtn').onclick = function() {openCancelModal(apptId, originalSlot)};
 }
 
 function closeModal() {
