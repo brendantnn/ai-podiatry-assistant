@@ -6,6 +6,13 @@ const router = express.Router();
 const { db, admin } = require("./firebase");
 const translate = require('translate-google');
 
+//for image constants
+const multer = require("multer");
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 7 * 1024 * 1024 } // ~7MB
+});
+
 // Declare openai api key here
 const openai = new OpenAI({
   apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
@@ -848,6 +855,74 @@ router.post('/translate', async (req, res) => {
   } catch (error) {
     console.error('Translation error:', error);
     res.json({ translatedText: text });
+  }
+});
+
+
+// ****************************** IMAGE ROUTE HERE *****************************************************************************************
+router.post("/chat-image", upload.single("image"), async (req, res) => {
+  try {
+    const { patientId, language, caption = "" } = req.body;
+    const userLanguage = language || "en";
+
+    if (!req.file) {
+      return res.json({ reply: await translateReply("⚠️ No image received.", userLanguage) });
+    }
+    if (!req.file.mimetype.startsWith("image/")) {
+      return res.json({ reply: await translateReply("⚠️ Please upload a valid image file.", userLanguage) });
+    }
+
+    // Convert the image buffer to a data URL for Vision
+    const b64 = req.file.buffer.toString("base64");
+    const dataUrl = `data:${req.file.mimetype};base64,${b64}`;
+
+    // Vision prompt (concise + triage-oriented)
+    const visionPrompt = `
+You are a podiatry triage assistant. Analyze the uploaded foot image (plus the short caption if provided).
+Identify visible red flags (wound, pus, redness, swelling, warmth, bleeding, obvious ingrown nail, deformity).
+Suggest a high-level bucket: 1) wound care, 2) nail surgery, 3) high risk footcare, 4) MSK.
+Be cautious; use tentative language.
+
+Return two parts separated by "---":
+
+[INTERNAL DATA]
+Category: <1/2/3/4 + name>
+Findings: <bullet points>
+Notes: <uncertainty/limitations>
+
+---
+[DISPLAY MESSAGE]
+Start with:
+- If 1: "You need to see a podiatrist urgently."
+- If 2: "You should see a podiatrist soon."
+- If 3: "This should be checked by a podiatrist."
+- If 4: "This is not urgent, but a podiatrist can help manage the issue."
+Then 1–2 lines describing what the image suggests (tentatively) and 2–3 waiting tips. Use <br> for line breaks.
+`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a careful, empathetic podiatry triage assistant." },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: visionPrompt },
+            ...(caption ? [{ type: "text", text: `Patient caption: ${caption}` }] : []),
+            { type: "image_url", image_url: { url: dataUrl } }
+          ]
+        }
+      ]
+    });
+
+    const full = completion.choices?.[0]?.message?.content || "Sorry, I couldn't analyze that image.";
+    const parts = full.split(/-{3,}/);
+    const display = parts[parts.length - 1]?.replace(/\[DISPLAY MESSAGE\]/i, "").trim() || full;
+
+    return res.json({ reply: await translateReply(display, userLanguage) }); // uses your translate helper :contentReference[oaicite:0]{index=0}
+  } catch (err) {
+    console.error("❌ /chat-image error:", err);
+    return res.json({ reply: "⚠️ Image analysis failed on the server." });
   }
 });
 

@@ -202,6 +202,103 @@ async function sendMessage() {
     }
 }
 
+// ****************************************** IMAGE HANDLING *************************************************************
+
+// Auto-send when a file is selected (single listener)
+document.getElementById("image-file").addEventListener("change", () => sendImage());
+
+async function sendImage() {
+  const chatbox = document.getElementById("chatbox");
+  const fileInput = document.getElementById("image-file");
+  const captionInput = document.getElementById("message");
+  const file = fileInput.files?.[0];
+
+  if (!file) return;
+
+  // Basic guards
+  if (!file.type.startsWith("image/")) {
+    chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Please upload an image file.</div>`;
+    fileInput.value = "";
+    return;
+  }
+  if (file.size > 7 * 1024 * 1024) {
+    chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Image too large (max 7MB).</div>`;
+    fileInput.value = "";
+    return;
+  }
+
+  // Escape caption to prevent XSS
+  const escapeHtml = s =>
+    s.replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+  const rawCaption = captionInput.value || "";
+  const userCaption = rawCaption.trim()
+    ? `<div style="margin-top:4px;">${escapeHtml(rawCaption)}</div>`
+    : "";
+
+  // Show user bubble with thumbnail
+  const url = URL.createObjectURL(file);
+  chatbox.innerHTML += `
+    <div class="user">
+      <b>You:</b>
+      <div style="margin-top:6px;">
+        <img src="${url}" alt="Uploaded photo"
+             style="max-width:180px; max-height:180px; border-radius:10px; display:block;"/>
+        ${userCaption}
+      </div>
+    </div>
+  `;
+  chatbox.scrollTop = chatbox.scrollHeight;
+
+  // Temporary analyzing message
+  const analyzingId = `analyzing-${Date.now()}`;
+  chatbox.innerHTML += `
+    <div id="${analyzingId}" class="bot">
+      <b>🤖 Digital Nurse Assistant:</b><br>Analyzing photo…
+    </div>
+  `;
+  chatbox.scrollTop = chatbox.scrollHeight;
+
+  // Build form data
+  const patientId = sessionStorage.getItem("userId");
+  const selectedLanguage = document.getElementById("language-select")?.value || "en";
+  const form = new FormData();
+  form.append("image", file);
+  form.append("patientId", patientId);
+  form.append("language", selectedLanguage);
+  form.append("caption", rawCaption);
+
+  // Prevent double-picks while sending
+  fileInput.disabled = true;
+
+  try {
+    const res = await fetch("/patient/chat-image", { method: "POST", body: form });
+    const data = await res.json();
+
+    const analyzingEl = document.getElementById(analyzingId);
+    if (analyzingEl) {
+      analyzingEl.outerHTML = `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>${data.reply}</div>`;
+    } else {
+      chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>${data.reply}</div>`;
+    }
+    chatbox.scrollTop = chatbox.scrollHeight;
+  } catch (err) {
+    console.error("❌ Image chat failed:", err);
+    const analyzingEl = document.getElementById(analyzingId);
+    if (analyzingEl) {
+      analyzingEl.outerHTML = `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Image upload failed.</div>`;
+    } else {
+      chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Image upload failed.</div>`;
+    }
+  } finally {
+    URL.revokeObjectURL(url);
+    fileInput.value = "";
+    fileInput.disabled = false;
+  }
+}
+
+
+
+
 // ************** LANGUAGE PREFERENCE HANDLING *****************************
 
 // Show floating notification for language updates
