@@ -94,11 +94,213 @@ Just return one word: "appointment", "triage", or "other".`
   // Store session to s for easy access
   const s = session[userId];
 
+  
+
   console.log("🆕 Incoming message:", message);
   console.log("📦 Session state at start:", s);
 
   try {
     // *************** STEP 2: TRIAGE INTENT *******************
+
+      // ✅ Handle the infection confirmation follow-up from the image flow
+  if (s.state === "confirm_infection_check") {
+    const answer = (message || "").toLowerCase();
+
+    // If the patient says YES → they confirm NO infection signs → proceed with non–wound care plan
+    if (answer.includes("yes")) {
+      const { category, diagnosis, urgencyLevel, summary, display, language } = s.proposed || {};
+      s.category = category || s.category;
+      s.diagnosis = diagnosis || s.diagnosis;
+      s.urgencyLevel = urgencyLevel || s.urgencyLevel || 4;
+      s.summary = summary || s.summary;
+      s.cleanedDisplay = display || s.cleanedDisplay;
+
+      s.state = "idle";
+      s.triageStage = null;
+      delete s.proposed;
+
+      // ===== Reuse your existing availability logic (same as after text classification) =====
+      const now = new Date();
+      let minDate = new Date();
+      let maxDate = new Date();
+      const urgencyLevelFinal = s.urgencyLevel;
+      let cleanedDisplay = s.cleanedDisplay;
+      const lang = language || userLanguage;
+
+      const existingSnap = await db.collection("Appointments")
+        .where("patientId", "==", userId)
+        .where("status", "==", "scheduled")
+        .orderBy("scheduledDate")
+        .get();
+
+      if (!existingSnap.empty) {
+        const existingAppt = existingSnap.docs[0].data();
+        const existingUrgency = existingAppt?.urgencyLevel ?? 4;
+
+        if (existingSnap.size > 1) {
+          cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+                           `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
+        }
+
+        if (urgencyLevelFinal >= existingUrgency) {
+          const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
+
+          const followUpSnap = await db.collection("Availability")
+            .where("status", "==", "available")
+            .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
+            .where("podId", "==", existingAppt.podId)
+            .limit(1)
+            .get();
+
+          if (!followUpSnap.empty) {
+            const slotDoc = followUpSnap.docs[0];
+            const slotData = slotDoc.data();
+            const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+              hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+            });
+
+            s.state = "awaiting_confirmation";
+            s.pendingSlot = slotDoc;
+            s.pendingSlotData = slotData;
+
+            return res.json({
+              reply: await translateReply(
+                `${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                lang
+              )
+            });
+          }
+
+          minDate = new Date(existingAppt.scheduledDate.toDate());
+        }
+      }
+
+      if (urgencyLevelFinal === 1) {
+        minDate.setDate(now.getDate());
+        maxDate.setDate(now.getDate() + 2);
+      } else if (urgencyLevelFinal === 2) {
+        minDate.setDate(now.getDate() + 1);
+        maxDate.setDate(now.getDate() + 7);
+      } else if (urgencyLevelFinal === 3) {
+        minDate.setDate(now.getDate() + 3);
+        maxDate.setDate(now.getDate() + 14);
+      } else {
+        minDate.setDate(now.getDate() + 5);
+        maxDate.setDate(now.getDate() + 21);
+      }
+
+      const slotQuery = await db.collection("Availability")
+        .where("status", "==", "available")
+        .where("availableDate", ">=", minDate)
+        .where("availableDate", "<=", maxDate)
+        .orderBy("availableDate")
+        .limit(1)
+        .get();
+
+      if (slotQuery.empty) {
+        s.state = "idle";
+        return res.json({
+          reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+        });
+      }
+
+      const slotDoc = slotQuery.docs[0];
+      const slotData = slotDoc.data();
+      const formattedDate = new Date(
+        slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+      ).toLocaleString("en-SG", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+      });
+
+      s.state = "awaiting_confirmation";
+      s.pendingSlot = slotDoc;
+      s.pendingSlotData = slotData;
+      s.cleanedDisplay = cleanedDisplay;
+
+      return res.json({
+        reply: await translateReply(
+          `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
+          lang
+        )
+      });
+    }
+
+    // If the patient says NO (i.e., they DO have infection/wound signs) → upgrade to wound care level 1
+    if (answer.includes("no")) {
+      s.state = "idle";
+      s.triageStage = null;
+      s.category = "wound care";
+      s.diagnosis = s.diagnosis || "Possible wound infection";
+      s.urgencyLevel = 1;
+
+      let cleanedDisplay =
+        `⚠️ Since you may have symptoms of a wound or infection, I’ll treat this as urgent wound care.<br>` +
+        `You need to see a podiatrist urgently. Let me find the soonest available slot.`;
+
+      const lang = s.proposed?.language || userLanguage;
+      delete s.proposed;
+
+      // Urgent booking window
+      const now = new Date();
+      let minDate = new Date();
+      let maxDate = new Date();
+      minDate.setDate(now.getDate());
+      maxDate.setDate(now.getDate() + 2);
+
+      const existingSnap = await db.collection("Appointments")
+        .where("patientId", "==", userId)
+        .where("status", "==", "scheduled")
+        .orderBy("scheduledDate")
+        .get();
+
+      if (!existingSnap.empty && existingSnap.size > 1) {
+        cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+                         `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
+      }
+
+      const slotQuery = await db.collection("Availability")
+        .where("status", "==", "available")
+        .where("availableDate", ">=", minDate)
+        .where("availableDate", "<=", maxDate)
+        .orderBy("availableDate")
+        .limit(1)
+        .get();
+
+      if (slotQuery.empty) {
+        s.state = "idle";
+        return res.json({
+          reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+        });
+      }
+
+      const slotDoc = slotQuery.docs[0];
+      const slotData = slotDoc.data();
+      const formattedDate = new Date(
+        slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+      ).toLocaleString("en-SG", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+      });
+
+      s.state = "awaiting_confirmation";
+      s.pendingSlot = slotDoc;
+      s.pendingSlotData = slotData;
+      s.cleanedDisplay = cleanedDisplay;
+
+      return res.json({
+        reply: await translateReply(
+          `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
+          lang
+        )
+      });
+    }
+
+    // Not a clear yes/no
+    return res.json({ reply: await translateReply("❓ Please reply with 'yes' or 'no'.", userLanguage) });
+  }
+
 
     // IF USER WANTS TRIAGE AND NO MESSAGE SENT YET, set state to triage and triageStage to initial_query
     if (intent === "triage" && s.state === "idle") {
@@ -858,12 +1060,12 @@ router.post('/translate', async (req, res) => {
   }
 });
 
-
-// ****************************** IMAGE ROUTE HERE *****************************************************************************************
+// ---------------- IMAGE CHAT ROUTE ----------------
 router.post("/chat-image", upload.single("image"), async (req, res) => {
   try {
     const { patientId, language, caption = "" } = req.body;
     const userLanguage = language || "en";
+    const userId = patientId;
 
     if (!req.file) {
       return res.json({ reply: await translateReply("⚠️ No image received.", userLanguage) });
@@ -872,42 +1074,117 @@ router.post("/chat-image", upload.single("image"), async (req, res) => {
       return res.json({ reply: await translateReply("⚠️ Please upload a valid image file.", userLanguage) });
     }
 
-    // Convert the image buffer to a data URL for Vision
+    // Ensure session exists (same shape as text route)
+    session[userId] = session[userId] || {
+      state: "idle",
+      triageStage: null,
+      messages: [],
+      pendingSlot: null,
+      pendingSlotData: null
+    };
+    const s = session[userId];
+
+    // Convert image to base64 data URL
     const b64 = req.file.buffer.toString("base64");
     const dataUrl = `data:${req.file.mimetype};base64,${b64}`;
 
-    // Vision prompt (concise + triage-oriented)
-    const visionPrompt = `
-You are a podiatry triage assistant. Analyze the uploaded foot image (plus the short caption if provided).
-Identify visible red flags (wound, pus, redness, swelling, warmth, bleeding, obvious ingrown nail, deformity).
-Suggest a high-level bucket: 1) wound care, 2) nail surgery, 3) high risk footcare, 4) MSK.
-Be cautious; use tentative language.
+    // ---- EDGE CASE GATE: ensure it's a clear human foot photo (boolean only) ----
+function safeParseJSON(str) {
+  try { return JSON.parse(str); } catch { return null; }
+}
 
-Return two parts separated by "---":
+const gateMsg = [
+  { type: "text", text: `
+You are an image gatekeeper. Decide if this image is a clear photo of a HUMAN FOOT (or feet) useful for podiatry triage.
+Return ONLY compact JSON like: {"valid": true, "reason": "short reason"}.
+
+Rules for valid=true:
+- At least one human foot visibly in frame (bare or clearly visible even if partly covered).
+- Not excessively blurry/overexposed/too dark.
+- Not a random object/face/animal/landscape/screenshot/document.
+- Foot fills a reasonable portion of the frame.
+
+Examples that must be valid=false: hands, faces, pets, landscapes, shoes-only (no foot), x-rays, memes, screenshots, drawings.
+
+Be strict. No extra text, only JSON.
+`},
+  { type: "image_url", image_url: { url: dataUrl } }
+];
+
+const gate = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  temperature: 0,
+  messages: [
+    { role: "system", content: "Return ONLY JSON with keys {valid:boolean, reason:string} and nothing else." },
+    { role: "user", content: gateMsg }
+  ]
+});
+
+const gateRaw = gate.choices?.[0]?.message?.content?.trim() || "";
+const gateJSON = safeParseJSON(gateRaw) || { valid: false, reason: "unparseable_response" };
+
+if (gateJSON.valid !== true) {
+  console.log(`🛑 Image gate failed (${gateJSON.reason || "no reason"})`);
+  const askForProperPhoto =
+    "⚠️ I can’t clearly see a foot in this photo. " +
+    "Please upload a clear, well-lit photo of the affected foot. " +
+    "Show the area of concern (wound/redness/nail) and avoid socks or heavy filters.";
+  return res.json({ reply: await translateReply(askForProperPhoto, userLanguage) });
+}
+// ---- END EDGE CASE GATE ----
+
+
+
+    // Prompt identical contract (INTERNAL DATA --- DISPLAY MESSAGE)
+    const visionPrompt = `
+You are a podiatry triage assistant. Consider BOTH the patient's conversation history and the uploaded foot image.
+
+Classify their condition into one of:
+- wound care: presence of wound, signs of infection like redness, swelling, pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers
+- nail surgery: ingrown toenail, involuted toenail
+- high risk footcare: callus, corns, warts, pathological toenails
+- MSK: foot pain, footwear issues, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus/bunions, metatarsalgia
+
+Always produce a classification even if the image looks normal. If there is no obvious pathology, state that plainly (e.g., “No visible wound or infection on the photo”), then use MSK (level 4) unless the caption suggests otherwise.
+
+After assessing the category, assign an urgency level:
+wound care (level 1: most urgent), nail surgery (level 2), high risk footcare (level 3), MSK (level 4: least urgent)
+Also determine an Initial diagnosis.
+
+Then produce EXACTLY this format, with three dashes (---) separating sections:
 
 [INTERNAL DATA]
-Category: <1/2/3/4 + name>
-Findings: <bullet points>
-Notes: <uncertainty/limitations>
+Category: <MSK / wound care / nail surgery / high risk footcare>
+Diagnosis: <Short diagnosis>
+Urgency level: <1 to 4>
+Summary: A brief clinical-style note for the podiatrist (what the patient said, duration/severity, infection signs, impression, urgency)
 
 ---
-[DISPLAY MESSAGE]
-Start with:
-- If 1: "You need to see a podiatrist urgently."
-- If 2: "You should see a podiatrist soon."
-- If 3: "This should be checked by a podiatrist."
-- If 4: "This is not urgent, but a podiatrist can help manage the issue."
-Then 1–2 lines describing what the image suggests (tentatively) and 2–3 waiting tips. Use <br> for line breaks.
+
+[DISPLAY MESSAGE, SH]
+Start with the correct first sentence based on urgency:
+- 1 → "You need to see a podiatrist urgently."
+- 2 → "You should see a podiatrist soon."
+- 3 → "This should be checked by a podiatrist."
+- 4 → "This is not urgent, but a podiatrist can help manage the issue."
+<br><br>
+While you wait for your appointment, here's what you should do:<br>
+• Tip 1<br>
+• Tip 2<br>
+• Tip 3<br>
+(Do not display internal data to the patient.)
 `;
 
+    // Call OpenAI (image + optional caption)
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      temperature: 0.2,
       messages: [
         { role: "system", content: "You are a careful, empathetic podiatry triage assistant." },
+        { role: "user", content: [{ type: "text", text: visionPrompt }] },
         {
           role: "user",
           content: [
-            { type: "text", text: visionPrompt },
             ...(caption ? [{ type: "text", text: `Patient caption: ${caption}` }] : []),
             { type: "image_url", image_url: { url: dataUrl } }
           ]
@@ -915,16 +1192,180 @@ Then 1–2 lines describing what the image suggests (tentatively) and 2–3 wait
       ]
     });
 
-    const full = completion.choices?.[0]?.message?.content || "Sorry, I couldn't analyze that image.";
-    const parts = full.split(/-{3,}/);
-    const display = parts[parts.length - 1]?.replace(/\[DISPLAY MESSAGE\]/i, "").trim() || full;
+    const full = completion.choices?.[0]?.message?.content || "";
+    const split = full.trim().split(/-{3,}/);
+    const internal = split.length > 1 ? split[split.length - 2] : "";
+    let display = (split[split.length - 1] || full).replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
 
-    return res.json({ reply: await translateReply(display, userLanguage) }); // uses your translate helper :contentReference[oaicite:0]{index=0}
+    // Parse internal data (same as text route)
+    const category = (internal.match(/Category:\s*(.*)/i)?.[1] || "Unknown").trim();
+    const diagnosis = (internal.match(/Diagnosis:\s*(.*)/i)?.[1] || "Unclear").trim();
+    const urgencyLevel = parseInt(internal.match(/Urgency level:\s*(\d)/i)?.[1]) || 4;
+    const summary = (internal.match(/Summary:\s*([\s\S]*?)$/i)?.[1] || "No summary available.").trim();
+
+    // Save to session so the YES handler creates a complete Appointment
+    s.urgencyLevel = urgencyLevel;
+    s.category = category;
+    s.diagnosis = diagnosis;
+    s.summary = summary;
+    s.cleanedDisplay = display;
+
+    // 🔎 If not wound care (level 1), confirm there are really no infection signs first, go into confirm infection state
+    if (urgencyLevel !== 1) {
+      // park the model's proposed result for later use
+      s.state = "confirm_infection_check";
+
+     s.proposed = { category, diagnosis, urgencyLevel, summary, display, language: userLanguage };
+
+const confirmMsg =
+  `❓ I didn’t detect any open wounds, pus, spreading redness, warmth, or active infection in the photo. ` +
+  `Can you confirm you do not have ANY of these symptoms? (yes/no)`;
+
+return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+
+    }
+
+
+    // Display infomation in console
+    {
+      const clinicianSummary = `Patient uploaded a photo for triage. ${summary}`;
+      const ts = new Date().toISOString();
+      console.log(
+        `[${ts}] TRIAGE: IMAGE | patientId=${userId} | category=${category} | urgency=${urgencyLevel} | diagnosis=${diagnosis}\n` +
+        `SUMMARY: ${clinicianSummary}`
+      );
+    }
+
+    // Availability window (identical to text route)
+    const now = new Date();
+    let minDate = new Date(now);
+    let maxDate = new Date(now);
+
+    // Check existing scheduled appointments first (identical copy)
+    const existingSnap = await db.collection("Appointments")
+      .where("patientId", "==", userId)
+      .where("status", "==", "scheduled")
+      .orderBy("scheduledDate")
+      .get();
+
+    if (!existingSnap.empty) {
+      const existingAppt = existingSnap.docs[0].data();
+      const existingUrgency = existingAppt?.urgencyLevel ?? 4;
+
+      if (existingSnap.size > 1) {
+        display = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+          `Please ensure this new issue is necessary to book.<br><br>` +
+          display;
+      }
+
+      // If new issue is not more urgent → try a follow-up 30 min after existing appt
+      if (urgencyLevel >= existingUrgency) {
+        const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
+
+        const followUpSnap = await db.collection("Availability")
+          .where("status", "==", "available")
+          .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
+          .where("podId", "==", existingAppt.podId)
+          .limit(1)
+          .get();
+
+        if (!followUpSnap.empty) {
+          const slotDoc = followUpSnap.docs[0];
+          const slotData = slotDoc.data();
+
+          const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore"
+          });
+
+          // Put session into awaiting_confirmation (same fields as text route)
+          s.state = "awaiting_confirmation";
+          s.pendingSlot = slotDoc;      // store doc ref
+          s.pendingSlotData = slotData; // store payload
+
+          return res.json({
+            reply: await translateReply(
+              `${display}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+              userLanguage
+            )
+          });
+        }
+
+        // No follow-up slot → push minDate to after current appointment
+        minDate = new Date(existingAppt.scheduledDate.toDate());
+      }
+    }
+
+    // Urgency → booking window (identical to text route)
+    if (urgencyLevel === 1) {
+      minDate.setDate(now.getDate());       // today
+      maxDate.setDate(now.getDate() + 2);   // up to 2 days
+    } else if (urgencyLevel === 2) {
+      minDate.setDate(now.getDate() + 1);   // earliest tomorrow
+      maxDate.setDate(now.getDate() + 7);   // up to 1 week
+    } else if (urgencyLevel === 3) {
+      minDate.setDate(now.getDate() + 3);   // not before 3 days
+      maxDate.setDate(now.getDate() + 14);  // up to 2 weeks
+    } else {
+      minDate.setDate(now.getDate() + 5);   // not before 5 days
+      maxDate.setDate(now.getDate() + 21);  // up to 3 weeks
+    }
+
+    // Availability lookup (identical to text route)
+    const slotQuery = await db.collection("Availability")
+      .where("status", "==", "available")
+      .where("availableDate", ">=", minDate)
+      .where("availableDate", "<=", maxDate)
+      .orderBy("availableDate")
+      .limit(1)
+      .get();
+
+    if (slotQuery.empty) {
+      s.state = "idle";
+      s.triageStage = null;
+      return res.json({
+        reply: await translateReply(`${display}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage)
+      });
+    }
+
+    const slotDoc = slotQuery.docs[0];
+    const slotData = slotDoc.data();
+
+    const formattedDate = new Date(
+      slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+    ).toLocaleString("en-SG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore"
+    });
+
+    // Set awaiting_confirmation (exactly like text route)
+    s.state = "awaiting_confirmation";
+    s.triageStage = null;
+    s.pendingSlot = slotDoc;       // keep the doc ref, used later by .ref.update()
+    s.pendingSlotData = slotData;  // payload
+    s.cleanedDisplay = display;    // for reuse
+
+    const responseMessage = `${display.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
+    return res.json({ reply: await translateReply(responseMessage, userLanguage) });
+
   } catch (err) {
-    console.error("❌ /chat-image error:", err);
+    console.error("❌ /patient/chat-image error:", err);
     return res.json({ reply: "⚠️ Image analysis failed on the server." });
   }
 });
+
 
 
 router.post("/reset-session", (req, res) => {
