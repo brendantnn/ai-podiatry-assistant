@@ -2403,3 +2403,26 @@ input.medical-select[type="text"]::placeholder {
     margin-bottom: 2px;
   }
 }
+
+/* 
+For Responsive mobile design at podiatrists tabs section
+*/
+@media (max-width: 768px) { 
+    .mobile-tab-filter {
+      flex-direction: row;
+      width: 100%; /* Ensure full width */
+    }
+
+    .medical-btn{
+      width: auto; /* Make button take min width on mobile */
+    }
+        
+    .mobile-tab-container {
+      flex-direction: column; /* Stack elements vertically on mobile */
+    }
+
+    .tab-button {
+      padding: var(--space-2) var(--space-4) !important;
+    }
+  }
+/* class="flex items-center" style="gap: var(--space-4);"  */
