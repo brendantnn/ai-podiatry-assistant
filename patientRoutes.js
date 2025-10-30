@@ -21,6 +21,77 @@ const openai = new OpenAI({
 // key = fake session ID (for now, assume 1 user)
 const session = {};
 
+// === Test-case Accuracy Rules (minimal, deterministic) ===
+const WORDS = {
+  nailSurgery: [
+    "ingrown", "ingrown toenail", "paronychia", "granulation", "pincer nail",
+    "nail spike", "onychocryptosis", "nail wedge", "nail surgery", "partial avulsion"
+  ],
+  woundCare: [
+    "ulcer", "open wound", "non-healing", "discharge", "pus", "slough", "eschar",
+    "debride", "infection", "cellulitis", "maceration", "weeping", "exudate"
+  ],
+  highRisk: [
+    "diabetic", "diabetes", "neuropathy", "loss of sensation", "pvd", "ischemia",
+    "poor circulation", "charcot"
+  ],
+  msk: [
+    "plantar fasciitis", "fasciitis", "tendon", "tendinitis", "sprain",
+    "strain", "heel pain", "arch pain", "achilles", "metatarsalgia", "stress fracture"
+  ],
+  redFlags: [
+    "fever", "chills", "red streak", "streaking", "spreading redness", "black tissue",
+    "gangrene", "malodour", "odor", "foul smell", "warmth", "eschar", "boggy",
+    "can't feel", "cannot feel", "numb", "tingling", "loss of sensation", "recent trauma",
+    "post-op", "postoperative", "exposed bone"
+  ]
+};
+
+// simple contains-any
+const hit = (text, list) => {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return list.some(w => t.includes(w));
+};
+
+// Core fixer used by both TEXT and IMAGE flows.
+// Inputs come from your existing model result; returns adjusted label/urgency.
+function applyTriageRules({ category, urgency, summary, freeText, probs }) {
+  let cat = category;
+  let urg = Number(urgency) || 4;
+
+  // 1) Safety before all: red flags or any wound-care probability >= 0.30 => urgency 1
+  const redFlag = hit(freeText, WORDS.redFlags) || hit(summary, WORDS.redFlags);
+  if (redFlag || (probs && (probs["wound care"] || 0) >= 0.30)) urg = Math.min(urg, 1);
+
+  // 2) Diabetes / neuropathy / poor circulation => move to High-Risk unless already wound care + keep high urgency
+  const hiRiskCue = hit(freeText, WORDS.highRisk) || hit(summary, WORDS.highRisk);
+  if (hiRiskCue && cat !== "wound care") {
+    cat = "high risk footcare";
+    urg = Math.min(urg, 2);
+  }
+
+  // 3) Clear nail keywords => Nail Surgery (common false negative in tests)
+  if (hit(freeText, WORDS.nailSurgery) || hit(summary, WORDS.nailSurgery)) {
+    cat = "nail surgery";
+    urg = Math.min(urg, 2);
+  }
+
+  // 4) Clear wound terms => Wound Care (overrides MSK/high-risk mislabels)
+  if (hit(freeText, WORDS.woundCare) || hit(summary, WORDS.woundCare)) {
+    cat = "wound care";
+    urg = Math.min(urg, 1);
+  }
+
+  // 5) MSK cues to MSK if nothing urgent triggered (helps MSK↔️others confusion)
+  if (hit(freeText, WORDS.msk) || hit(summary, WORDS.msk)) {
+    if (urg > 2 && cat !== "wound care") cat = "MSK";
+  }
+
+  return { category: cat, urgency: urg };
+}
+
+
 // Translate helper function
 async function translateReply(text, lang) {
   if (!text || lang === 'en') return text;
@@ -94,7 +165,7 @@ Just return one word: "appointment", "triage", or "other".`
   // Store session to s for easy access
   const s = session[userId];
 
-  
+
 
   console.log("🆕 Incoming message:", message);
   console.log("📦 Session state at start:", s);
@@ -102,204 +173,206 @@ Just return one word: "appointment", "triage", or "other".`
   try {
     // *************** STEP 2: TRIAGE INTENT *******************
 
-      // ✅ Handle the infection confirmation follow-up from the image flow
-  if (s.state === "confirm_infection_check") {
-    const answer = (message || "").toLowerCase();
+    // ✅ Handle the infection confirmation follow-up from the image flow
+    if (s.state === "confirm_infection_check") {
+      const answer = (message || "").toLowerCase();
 
-    // If the patient says YES → they confirm NO infection signs → proceed with non–wound care plan
-    if (answer.includes("yes")) {
-      const { category, diagnosis, urgencyLevel, summary, display, language } = s.proposed || {};
-      s.category = category || s.category;
-      s.diagnosis = diagnosis || s.diagnosis;
-      s.urgencyLevel = urgencyLevel || s.urgencyLevel || 4;
-      s.summary = summary || s.summary;
-      s.cleanedDisplay = display || s.cleanedDisplay;
+      // If the patient says YES → they confirm NO infection signs → proceed with non–wound care plan
+      if (answer.includes("yes")) {
+        const { category, diagnosis, urgencyLevel, summary, display, language } = s.proposed || {};
+        s.category = category || s.category;
+        s.diagnosis = diagnosis || s.diagnosis;
+        s.urgencyLevel = urgencyLevel || s.urgencyLevel || 4;
+        s.summary = summary || s.summary;
+        s.cleanedDisplay = display || s.cleanedDisplay;
 
-      s.state = "idle";
-      s.triageStage = null;
-      delete s.proposed;
+        s.state = "idle";
+        s.triageStage = null;
+        delete s.proposed;
 
-      // ===== Reuse your existing availability logic (same as after text classification) =====
-      const now = new Date();
-      let minDate = new Date();
-      let maxDate = new Date();
-      const urgencyLevelFinal = s.urgencyLevel;
-      let cleanedDisplay = s.cleanedDisplay;
-      const lang = language || userLanguage;
+        // ===== Reuse your existing availability logic (same as after text classification) =====
+        const now = new Date();
+        let minDate = new Date();
+        let maxDate = new Date();
+        const urgencyLevelFinal = s.urgencyLevel;
+        let cleanedDisplay = s.cleanedDisplay;
+        const lang = language || userLanguage;
 
-      const existingSnap = await db.collection("Appointments")
-        .where("patientId", "==", userId)
-        .where("status", "==", "scheduled")
-        .orderBy("scheduledDate")
-        .get();
+        const existingSnap = await db.collection("Appointments")
+          .where("patientId", "==", userId)
+          .where("status", "==", "scheduled")
+          .orderBy("scheduledDate")
+          .get();
 
-      if (!existingSnap.empty) {
-        const existingAppt = existingSnap.docs[0].data();
-        const existingUrgency = existingAppt?.urgencyLevel ?? 4;
+        if (!existingSnap.empty) {
+          const existingAppt = existingSnap.docs[0].data();
+          const existingUrgency = existingAppt?.urgencyLevel ?? 4;
 
-        if (existingSnap.size > 1) {
-          cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
-                           `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
-        }
-
-        if (urgencyLevelFinal >= existingUrgency) {
-          const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
-
-          const followUpSnap = await db.collection("Availability")
-            .where("status", "==", "available")
-            .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
-            .where("podId", "==", existingAppt.podId)
-            .limit(1)
-            .get();
-
-          if (!followUpSnap.empty) {
-            const slotDoc = followUpSnap.docs[0];
-            const slotData = slotDoc.data();
-            const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
-              weekday: "long", year: "numeric", month: "long", day: "numeric",
-              hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
-            });
-
-            s.state = "awaiting_confirmation";
-            s.pendingSlot = slotDoc;
-            s.pendingSlotData = slotData;
-
-            return res.json({
-              reply: await translateReply(
-                `${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
-                lang
-              )
-            });
+          if (existingSnap.size > 1) {
+            cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+              `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
           }
 
-          minDate = new Date(existingAppt.scheduledDate.toDate());
+          if (urgencyLevelFinal >= existingUrgency) {
+            const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
+
+            const followUpSnap = await db.collection("Availability")
+              .where("status", "==", "available")
+              .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
+              .where("podId", "==", existingAppt.podId)
+              .limit(1)
+              .get();
+
+            if (!followUpSnap.empty) {
+              const slotDoc = followUpSnap.docs[0];
+              const slotData = slotDoc.data();
+              const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric",
+                hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+              });
+
+              s.state = "awaiting_confirmation";
+              s.pendingSlot = slotDoc;
+              s.pendingSlotData = slotData;
+
+              return res.json({
+                reply: await translateReply(
+                  `${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                  lang
+                )
+              });
+            }
+
+            minDate = new Date(existingAppt.scheduledDate.toDate());
+          }
         }
+
+        if (urgencyLevelFinal === 1) {
+          minDate.setDate(now.getDate());
+          maxDate.setDate(now.getDate() + 2);
+        } else if (urgencyLevelFinal === 2) {
+          minDate.setDate(now.getDate() + 1);
+          maxDate.setDate(now.getDate() + 7);
+        } else if (urgencyLevelFinal === 3) {
+          minDate.setDate(now.getDate() + 3);
+          maxDate.setDate(now.getDate() + 14);
+        } else {
+          minDate.setDate(now.getDate() + 5);
+          maxDate.setDate(now.getDate() + 21);
+        }
+
+        const slotQuery = await db.collection("Availability")
+          .where("status", "==", "available")
+          .where("availableDate", ">=", minDate)
+          .where("availableDate", "<=", maxDate)
+          .orderBy("availableDate")
+          .limit(1)
+          .get();
+
+        if (slotQuery.empty) {
+          s.state = "idle";
+          return res.json({
+            reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+          });
+        }
+
+        const slotDoc = slotQuery.docs[0];
+        const slotData = slotDoc.data();
+        const formattedDate = new Date(
+          slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+        ).toLocaleString("en-SG", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+          hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+        });
+
+        s.state = "awaiting_confirmation";
+        s.pendingSlot = slotDoc;
+        s.pendingSlotData = slotData;
+        s.cleanedDisplay = cleanedDisplay;
+
+        return res.json({
+          reply: await translateReply(
+            `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
+            lang
+          )
+        });
       }
 
-      if (urgencyLevelFinal === 1) {
+      // If the patient says NO (i.e., they DO have infection/wound signs) → upgrade to wound care level 1
+      if (answer.includes("no")) {
+        s.state = "idle";
+        s.triageStage = null;
+        s.category = "wound care";
+        s.diagnosis = s.diagnosis || "Possible wound infection";
+        s.urgencyLevel = 1;
+        s.summary = s.summary ?? s.proposed?.summary ?? "No summary available.";
+
+
+        let cleanedDisplay =
+          `⚠️ Since you may have symptoms of a wound or infection, I’ll treat this as urgent wound care.<br>` +
+          `You need to see a podiatrist urgently. Let me find the soonest available slot.`;
+
+        const lang = s.proposed?.language || userLanguage;
+        delete s.proposed;
+
+        // Urgent booking window
+        const now = new Date();
+        let minDate = new Date();
+        let maxDate = new Date();
         minDate.setDate(now.getDate());
         maxDate.setDate(now.getDate() + 2);
-      } else if (urgencyLevelFinal === 2) {
-        minDate.setDate(now.getDate() + 1);
-        maxDate.setDate(now.getDate() + 7);
-      } else if (urgencyLevelFinal === 3) {
-        minDate.setDate(now.getDate() + 3);
-        maxDate.setDate(now.getDate() + 14);
-      } else {
-        minDate.setDate(now.getDate() + 5);
-        maxDate.setDate(now.getDate() + 21);
-      }
 
-      const slotQuery = await db.collection("Availability")
-        .where("status", "==", "available")
-        .where("availableDate", ">=", minDate)
-        .where("availableDate", "<=", maxDate)
-        .orderBy("availableDate")
-        .limit(1)
-        .get();
+        const existingSnap = await db.collection("Appointments")
+          .where("patientId", "==", userId)
+          .where("status", "==", "scheduled")
+          .orderBy("scheduledDate")
+          .get();
 
-      if (slotQuery.empty) {
-        s.state = "idle";
+        if (!existingSnap.empty && existingSnap.size > 1) {
+          cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+            `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
+        }
+
+        const slotQuery = await db.collection("Availability")
+          .where("status", "==", "available")
+          .where("availableDate", ">=", minDate)
+          .where("availableDate", "<=", maxDate)
+          .orderBy("availableDate")
+          .limit(1)
+          .get();
+
+        if (slotQuery.empty) {
+          s.state = "idle";
+          return res.json({
+            reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+          });
+        }
+
+        const slotDoc = slotQuery.docs[0];
+        const slotData = slotDoc.data();
+        const formattedDate = new Date(
+          slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+        ).toLocaleString("en-SG", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+          hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+        });
+
+        s.state = "awaiting_confirmation";
+        s.pendingSlot = slotDoc;
+        s.pendingSlotData = slotData;
+        s.cleanedDisplay = cleanedDisplay;
+
         return res.json({
-          reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+          reply: await translateReply(
+            `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
+            lang
+          )
         });
       }
 
-      const slotDoc = slotQuery.docs[0];
-      const slotData = slotDoc.data();
-      const formattedDate = new Date(
-        slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
-      ).toLocaleString("en-SG", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric",
-        hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
-      });
-
-      s.state = "awaiting_confirmation";
-      s.pendingSlot = slotDoc;
-      s.pendingSlotData = slotData;
-      s.cleanedDisplay = cleanedDisplay;
-
-      return res.json({
-        reply: await translateReply(
-          `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
-          lang
-        )
-      });
+      // Not a clear yes/no
+      return res.json({ reply: await translateReply("❓ Please reply with 'yes' or 'no'.", userLanguage) });
     }
-
-    // If the patient says NO (i.e., they DO have infection/wound signs) → upgrade to wound care level 1
-    if (answer.includes("no")) {
-      s.state = "idle";
-      s.triageStage = null;
-      s.category = "wound care";
-      s.diagnosis = s.diagnosis || "Possible wound infection";
-      s.urgencyLevel = 1;
-
-      let cleanedDisplay =
-        `⚠️ Since you may have symptoms of a wound or infection, I’ll treat this as urgent wound care.<br>` +
-        `You need to see a podiatrist urgently. Let me find the soonest available slot.`;
-
-      const lang = s.proposed?.language || userLanguage;
-      delete s.proposed;
-
-      // Urgent booking window
-      const now = new Date();
-      let minDate = new Date();
-      let maxDate = new Date();
-      minDate.setDate(now.getDate());
-      maxDate.setDate(now.getDate() + 2);
-
-      const existingSnap = await db.collection("Appointments")
-        .where("patientId", "==", userId)
-        .where("status", "==", "scheduled")
-        .orderBy("scheduledDate")
-        .get();
-
-      if (!existingSnap.empty && existingSnap.size > 1) {
-        cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
-                         `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
-      }
-
-      const slotQuery = await db.collection("Availability")
-        .where("status", "==", "available")
-        .where("availableDate", ">=", minDate)
-        .where("availableDate", "<=", maxDate)
-        .orderBy("availableDate")
-        .limit(1)
-        .get();
-
-      if (slotQuery.empty) {
-        s.state = "idle";
-        return res.json({
-          reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
-        });
-      }
-
-      const slotDoc = slotQuery.docs[0];
-      const slotData = slotDoc.data();
-      const formattedDate = new Date(
-        slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
-      ).toLocaleString("en-SG", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric",
-        hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
-      });
-
-      s.state = "awaiting_confirmation";
-      s.pendingSlot = slotDoc;
-      s.pendingSlotData = slotData;
-      s.cleanedDisplay = cleanedDisplay;
-
-      return res.json({
-        reply: await translateReply(
-          `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
-          lang
-        )
-      });
-    }
-
-    // Not a clear yes/no
-    return res.json({ reply: await translateReply("❓ Please reply with 'yes' or 'no'.", userLanguage) });
-  }
 
 
     // IF USER WANTS TRIAGE AND NO MESSAGE SENT YET, set state to triage and triageStage to initial_query
@@ -443,7 +516,7 @@ Do not show internal data to the patient.
 
       // Extract Summary field from internal block
       const summaryMatch = lastInternal.match(/Summary:\s*([\s\S]*?)$/i); // capture multiline
-      const summary = summaryMatch?.[1]?.trim() || "No summary available.";
+      let summary = summaryMatch?.[1]?.trim() || "No summary available.";
 
       // Clean display message (remove tag and trim)
       let cleanedDisplay = lastDisplay.replace(/\[DISPLAY MESSAGE.*?\]/i, "").trim();
@@ -453,9 +526,25 @@ Do not show internal data to the patient.
       const diagnosisMatch = lastInternal.match(/Diagnosis:\s*(.*)/i);
       const urgencyMatch = lastInternal.match(/Urgency level:\s*(\d)/i);
 
-      const category = categoryMatch?.[1]?.trim() || "Unknown";
-      const diagnosis = diagnosisMatch?.[1]?.trim() || "Unclear";
-      const urgencyLevel = parseInt(urgencyMatch?.[1]) || 4;
+      let category = categoryMatch?.[1]?.trim() || "Unknown";
+      let diagnosis = diagnosisMatch?.[1]?.trim() || "Unclear";
+      let urgencyLevel = parseInt(urgencyMatch?.[1]) || 4;
+
+      // Test-case correction layer (TEXT)
+      {
+        const fixed = applyTriageRules({
+          category,
+          urgency: urgencyLevel,
+          summary,
+          freeText: fullSymptomHistory, // the text you built just above
+          probs: undefined               // you don't parse probs here; it's fine to omit
+        });
+        category = fixed.category;
+        urgencyLevel = fixed.urgency;
+        summary = fixed.summary ?? summary;
+      }
+
+
 
       // Store to session
       s.urgencyLevel = urgencyLevel;
@@ -650,17 +739,24 @@ Do not show internal data to the patient.
           .where("status", "==", "scheduled")
           .get();
 
+        const summaryToSave = (s.summary ?? s.proposed?.summary ?? "No summary available.");
+        const categoryToSave = (s.category ?? s.proposed?.category ?? "Unknown");
+        const diagnosisToSave = (s.diagnosis ?? s.proposed?.diagnosis ?? "Unclear");
+        const urgencyToSave = (typeof s.urgencyLevel === "number" ? s.urgencyLevel
+          : (s.proposed?.urgencyLevel ?? 4));
+
         const appointmentData = {
           patientId: userId,
           podId: slotData.podId,
           scheduledDate: slotData.availableDate,
           status: "scheduled",
-          urgencyLevel: s.urgencyLevel,
-          category: s.category,
-          initialDiagnosis: s.diagnosis,
-          summary: s.summary,
-          triageDateTime: admin.firestore.Timestamp.now()
+          urgencyLevel: urgencyToSave,
+          category: categoryToSave,
+          initialDiagnosis: diagnosisToSave,
+          summary: summaryToSave,
+          triageDateTime: admin.firestore.Timestamp.now(),
         };
+
 
         // If user has 2 or more appointments, mark this as highlighted
         if (existingAppts.size >= 2) {
@@ -1060,7 +1156,7 @@ router.post('/translate', async (req, res) => {
   }
 });
 
-// ---------------- IMAGE CHAT ROUTE ----------------
+// ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
 router.post("/chat-image", upload.single("image"), async (req, res) => {
   try {
     const { patientId, language, caption = "" } = req.body;
@@ -1068,13 +1164,15 @@ router.post("/chat-image", upload.single("image"), async (req, res) => {
     const userId = patientId;
 
     if (!req.file) {
+      console.log("🛑 [/chat-image] No file in request.");
       return res.json({ reply: await translateReply("⚠️ No image received.", userLanguage) });
     }
-    if (!req.file.mimetype.startsWith("image/")) {
+    if (!req.file.mimetype || !req.file.mimetype.startsWith("image/")) {
+      console.log("🛑 [/chat-image] Uploaded file is not an image. Mimetype:", req.file.mimetype);
       return res.json({ reply: await translateReply("⚠️ Please upload a valid image file.", userLanguage) });
     }
 
-    // Ensure session exists (same shape as text route)
+    // Session (unchanged)
     session[userId] = session[userId] || {
       state: "idle",
       triageStage: null,
@@ -1084,85 +1182,152 @@ router.post("/chat-image", upload.single("image"), async (req, res) => {
     };
     const s = session[userId];
 
-    // Convert image to base64 data URL
+    // Helpers (new small utilities)
+    const VLM_MODEL = "gpt-4o-mini";
+    const GATE_MODEL = "gpt-4o-mini";
+
+    function safeParseJSON(str) {
+      try { return JSON.parse(str); } catch { return null; }
+    }
+
+    function splitInternalAndDisplay(full) {
+      // handle none / one / many '---'
+      const raw = (full || "").trim();
+      if (!raw) return { internal: "", display: "" };
+      const parts = raw.split(/-{3,}/); // one or more dashes line
+      if (parts.length < 2) {
+        // no separator; treat all as display
+        return { internal: "", display: raw.replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim() };
+      }
+      // choose the last two blocks in case the model produced multiple
+      const internal = parts[parts.length - 2] || "";
+      const display = (parts[parts.length - 1] || "").replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
+      return { internal, display };
+    }
+
+    function grabLine(internal, re, fallback) {
+      const m = internal.match(re);
+      return (m && m[1] ? m[1].trim() : fallback);
+    }
+
+    function normalizeCategory(catRaw) {
+      if (!catRaw) return "Unknown";
+      const c = catRaw.toLowerCase().trim();
+      if (c.startsWith("msk")) return "MSK";
+      if (c.includes("wound")) return "wound care";
+      if (c.includes("nail")) return "nail surgery";
+      if (c.includes("high") && c.includes("risk")) return "high risk footcare";
+      if (c.includes("footcare")) return "high risk footcare";
+      return catRaw.trim(); // keep original if unknown
+    }
+
+    function normalizeUrgency(uRaw, cat) {
+      let u = parseInt(uRaw, 10);
+      if (!Number.isFinite(u)) {
+        // fallback from category
+        const c = (cat || "").toLowerCase();
+        if (c.includes("wound")) u = 1;
+        else if (c.includes("nail")) u = 2;
+        else if (c.includes("high")) u = 3;
+        else if (c.includes("msk")) u = 4;
+        else u = 4;
+      }
+      // clamp to 1..4
+      if (u < 1) u = 1;
+      if (u > 4) u = 4;
+      return u;
+    }
+
+    // Convert image → data URL (unchanged)
     const b64 = req.file.buffer.toString("base64");
     const dataUrl = `data:${req.file.mimetype};base64,${b64}`;
 
-    // ---- EDGE CASE GATE: ensure it's a clear human foot photo (boolean only) ----
-function safeParseJSON(str) {
-  try { return JSON.parse(str); } catch { return null; }
-}
-
-const gateMsg = [
-  { type: "text", text: `
-You are an image gatekeeper. Decide if this image is a clear photo of a HUMAN FOOT (or feet) useful for podiatry triage.
+    // ================= 1) IMAGE GATE (same purpose, slightly clearer prompt) =================
+    const gateMsg = [
+      {
+        type: "text", text:
+          `You are an image gatekeeper. Decide if this image is a clear photo of a HUMAN FOOT (or feet) useful for podiatry triage.
 Return ONLY compact JSON like: {"valid": true, "reason": "short reason"}.
 
-Rules for valid=true:
-- At least one human foot visibly in frame (bare or clearly visible even if partly covered).
-- Not excessively blurry/overexposed/too dark.
-- Not a random object/face/animal/landscape/screenshot/document.
+valid=true ONLY IF:
+- A human foot is clearly visible (bare or clearly visible even if partly covered).
+- Image is not excessively blurry/overexposed/too dark.
 - Foot fills a reasonable portion of the frame.
 
-Examples that must be valid=false: hands, faces, pets, landscapes, shoes-only (no foot), x-rays, memes, screenshots, drawings.
+valid=false for: hands, faces, pets/animals, landscapes, documents/screenshots, x-rays, memes, drawings, shoes-only (no visible foot).
 
-Be strict. No extra text, only JSON.
-`},
-  { type: "image_url", image_url: { url: dataUrl } }
-];
+Be strict. Output JSON only.`
+      },
+      { type: "image_url", image_url: { url: dataUrl } }
+    ];
 
-const gate = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  temperature: 0,
-  messages: [
-    { role: "system", content: "Return ONLY JSON with keys {valid:boolean, reason:string} and nothing else." },
-    { role: "user", content: gateMsg }
-  ]
-});
+    const gate = await openai.chat.completions.create({
+      model: GATE_MODEL,
+      temperature: 0,
+      messages: [
+        { role: "system", content: "Return ONLY JSON with keys {valid:boolean, reason:string} and nothing else." },
+        { role: "user", content: gateMsg }
+      ]
+    });
 
-const gateRaw = gate.choices?.[0]?.message?.content?.trim() || "";
-const gateJSON = safeParseJSON(gateRaw) || { valid: false, reason: "unparseable_response" };
+    const gateRaw = gate.choices?.[0]?.message?.content?.trim() || "";
+    const gateJSON = safeParseJSON(gateRaw) || { valid: false, reason: "unparseable_response" };
 
-if (gateJSON.valid !== true) {
-  console.log(`🛑 Image gate failed (${gateJSON.reason || "no reason"})`);
-  const askForProperPhoto =
-    "⚠️ I can’t clearly see a foot in this photo. " +
-    "Please upload a clear, well-lit photo of the affected foot. " +
-    "Show the area of concern (wound/redness/nail) and avoid socks or heavy filters.";
-  return res.json({ reply: await translateReply(askForProperPhoto, userLanguage) });
-}
-// ---- END EDGE CASE GATE ----
+    if (gateJSON.valid !== true) {
+      const askForProperPhoto =
+        "⚠️ I can’t clearly see a foot in this photo. " +
+        "Please upload a clear, well-lit photo of the affected foot. " +
+        "Show the area of concern (wound/redness/nail) and avoid socks or heavy filters.";
+      return res.json({ reply: await translateReply(askForProperPhoto, userLanguage) });
+    }
 
+    // ================= 2) TRIAGE PROMPT (vision) with small retry =================
+    const visionPrompt =
+      `You are a podiatry triage assistant. Consider BOTH the patient's conversation history/caption (if any) and the uploaded foot image.
 
-
-    // Prompt identical contract (INTERNAL DATA --- DISPLAY MESSAGE)
-    const visionPrompt = `
-You are a podiatry triage assistant. Consider BOTH the patient's conversation history and the uploaded foot image.
-
-Classify their condition into one of:
-- wound care: presence of wound, signs of infection like redness, swelling, pain, pus, warm to touch, gangrene, infection, neuropathic / ischaemic / neuroischaemic wounds / ulcers
+Classify into exactly one:
+- wound care: presence of wound, signs of infection (redness, swelling, pain, pus, warmth), gangrene, neuropathic/ischaemic/neuroischaemic wounds/ulcers
 - nail surgery: ingrown toenail, involuted toenail
 - high risk footcare: callus, corns, warts, pathological toenails
 - MSK: foot pain, footwear issues, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus/bunions, metatarsalgia
 
-Always produce a classification even if the image looks normal. If there is no obvious pathology, state that plainly (e.g., “No visible wound or infection on the photo”), then use MSK (level 4) unless the caption suggests otherwise.
+If the photo shows no obvious pathology, state that plainly (e.g., “No visible wound or infection on the photo”), and use MSK (level 4) unless the caption suggests otherwise.
 
-After assessing the category, assign an urgency level:
-wound care (level 1: most urgent), nail surgery (level 2), high risk footcare (level 3), MSK (level 4: least urgent)
-Also determine an Initial diagnosis.
+IMPORTANT: Do NOT set Urgency=1 unless at least ONE of these is visibly/clearly present OR stated by the caption:
+open wound OR drainage/pus OR necrosis/black tissue OR spreading redness (lymphangitic streaks) OR malodour OR fever/chills. 
+General redness/swelling alone is NOT enough for Urgency 1.
 
-Then produce EXACTLY this format, with three dashes (---) separating sections:
+Assign urgency:
+- wound care → 1 (most urgent)
+- nail surgery → 2
+- high risk footcare → 3
+- MSK → 4 (least urgent)
+Also provide an Initial diagnosis.
+
+Return EXACTLY this format with three dashes (---) separating sections:
 
 [INTERNAL DATA]
 Category: <MSK / wound care / nail surgery / high risk footcare>
 Diagnosis: <Short diagnosis>
 Urgency level: <1 to 4>
 Summary: A brief clinical-style note for the podiatrist (what the patient said, duration/severity, infection signs, impression, urgency)
+Evidence:
+  open_wound: <true|false>
+  drainage_pus: <true|false>
+  necrosis_black_tissue: <true|false>
+  spreading_redness: <true|false>
+  general_redness_swelling: <true|false>
+  malodour: <true|false>
+  fever_chills: <true|false>
+RiskFactors:
+  diabetes_neuropathy: <true|false>
+  recent_trauma: <true|false>
+Confidence: <0.0-1.0>
 
 ---
 
 [DISPLAY MESSAGE, SH]
-Start with the correct first sentence based on urgency:
+Start with:
 - 1 → "You need to see a podiatrist urgently."
 - 2 → "You should see a podiatrist soon."
 - 3 → "This should be checked by a podiatrist."
@@ -1172,199 +1337,272 @@ While you wait for your appointment, here's what you should do:<br>
 • Tip 1<br>
 • Tip 2<br>
 • Tip 3<br>
-(Do not display internal data to the patient.)
-`;
+(Do not display internal data to the patient.)`;
 
-    // Call OpenAI (image + optional caption)
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      messages: [
-        { role: "system", content: "You are a careful, empathetic podiatry triage assistant." },
-        { role: "user", content: [{ type: "text", text: visionPrompt }] },
-        {
-          role: "user",
-          content: [
-            ...(caption ? [{ type: "text", text: `Patient caption: ${caption}` }] : []),
-            { type: "image_url", image_url: { url: dataUrl } }
-          ]
-        }
-      ]
-    });
+
+    const triageMsgsBase = [
+      { role: "system", content: "You are a careful, empathetic podiatry triage assistant." },
+      { role: "user", content: [{ type: "text", text: visionPrompt }] }
+    ];
+    const userPayload = [];
+    if (caption && caption.trim()) userPayload.push({ type: "text", text: `Patient caption: ${caption}` });
+    userPayload.push({ type: "image_url", image_url: { url: dataUrl } });
+    triageMsgsBase.push({ role: "user", content: userPayload });
+
+    async function callVLMOnce() {
+      return openai.chat.completions.create({
+        model: VLM_MODEL,
+        temperature: 0.2,
+        messages: triageMsgsBase
+      });
+    }
+    // tiny retry for transient issues
+    let completion, attempt = 0;
+    while (attempt < 2) {
+      try { completion = await callVLMOnce(); break; }
+      catch (e) { attempt++; if (attempt >= 2) throw e; }
+    }
 
     const full = completion.choices?.[0]?.message?.content || "";
-    const split = full.trim().split(/-{3,}/);
-    const internal = split.length > 1 ? split[split.length - 2] : "";
-    let display = (split[split.length - 1] || full).replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
+    const { internal, display: rawDisplay } = splitInternalAndDisplay(full);
 
-    // Parse internal data (same as text route)
-    const category = (internal.match(/Category:\s*(.*)/i)?.[1] || "Unknown").trim();
-    const diagnosis = (internal.match(/Diagnosis:\s*(.*)/i)?.[1] || "Unclear").trim();
-    const urgencyLevel = parseInt(internal.match(/Urgency level:\s*(\d)/i)?.[1]) || 4;
-    const summary = (internal.match(/Summary:\s*([\s\S]*?)$/i)?.[1] || "No summary available.").trim();
+    // Parse internal (more robust)
+    const rawCategory = grabLine(internal, /Category:\s*([^\n\r]+)/i, "Unknown");
+    let category = normalizeCategory(rawCategory);
+    const diagnosis = grabLine(internal, /Diagnosis:\s*([^\n\r]+)/i, "Unclear");
+    let urgencyLevel = normalizeUrgency(grabLine(internal, /Urgency level:\s*(\d)/i, ""), category);
+    let summary = (internal.match(/Summary:\s*([\s\S]*?)$/i)?.[1] || "No summary available.").trim();
 
-    // Save to session so the YES handler creates a complete Appointment
+    // Make sure summary is never undefined or empty
+    if (typeof summary !== "string" || !summary.trim()) {
+      summary = "No summary available.";
+    }
+
+
+    // Clean display safely
+    let display = rawDisplay.replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
+    if (!display) {
+      // if model forgot the section, synthesize a minimal safe message
+      const firstLine =
+        urgencyLevel === 1 ? "You need to see a podiatrist urgently." :
+          urgencyLevel === 2 ? "You should see a podiatrist soon." :
+            urgencyLevel === 3 ? "This should be checked by a podiatrist." :
+              "This is not urgent, but a podiatrist can help manage the issue.";
+      display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>• Keep the area clean and dry<br>• Avoid tight footwear<br>• Reduce load and monitor symptoms`;
+    }
+
+    // ================= 3) RULE SAFETY LAYER (same as yours) =================
+    {
+      const fixed = applyTriageRules({
+        category,
+        urgency: urgencyLevel,
+        summary,
+        freeText: caption,
+        probs: undefined
+      });
+      category = fixed.category;
+      urgencyLevel = fixed.urgency;
+      if (typeof fixed.summary === "string" && fixed.summary) summary = fixed.summary;
+    }
+
+    // --- Evidence flags parsing (NEW) ---
+    function pickFlag(re, src) {
+      const m = src.match(re);
+      if (!m) return false;
+      const v = (m[1] || "").trim().toLowerCase();
+      return v === "true" || v === "yes";
+    }
+
+    const evidence = {
+      openWound: pickFlag(/open_wound:\s*(true|false)/i, internal),
+      drainagePus: pickFlag(/drainage_pus:\s*(true|false)/i, internal),
+      necrosis: pickFlag(/necrosis_black_tissue:\s*(true|false)/i, internal),
+      spreadingRedness: pickFlag(/spreading_redness:\s*(true|false)/i, internal),
+      generalRedness: pickFlag(/general_redness_swelling:\s*(true|false)/i, internal),
+      malodour: pickFlag(/malodour:\s*(true|false)/i, internal),
+      feverChills: pickFlag(/fever_chills:\s*(true|false)/i, internal),
+      diabetesNeuropathy: pickFlag(/diabetes_neuropathy:\s*(true|false)/i, internal),
+      recentTrauma: pickFlag(/recent_trauma:\s*(true|false)/i, internal),
+    };
+
+    const strongInfection =
+      evidence.openWound ||
+      evidence.drainagePus ||
+      evidence.necrosis ||
+      evidence.spreadingRedness ||
+      evidence.malodour ||
+      evidence.feverChills;
+
+    // If the model set level 1 but we don't have strong infection evidence,
+    // don't auto-escalate. Ask the user to confirm like your non-urgent flow.
+    if (urgencyLevel === 1 && !strongInfection) {
+      console.log("🧯 Downgrading Urgency 1 (no strong infection evidence). Evidence:", evidence);
+
+      s.state = "confirm_infection_check";
+      // propose a cautious level 2 by default
+      s.proposed = { category, diagnosis, urgencyLevel: 2, summary, display, language: userLanguage };
+
+      const confirmMsg =
+        "❓ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
+      return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+    }
+
+    // Debug: show what the model 'saw'
+    console.log("🔎 Evidence flags:", evidence, "| strongInfection:", strongInfection);
+
+
+    // Make sure the summary is valid before saving to session
+    if (typeof summary !== "string" || !summary.trim()) {
+      summary = "No summary available.";
+    }
+
     s.urgencyLevel = urgencyLevel;
     s.category = category;
     s.diagnosis = diagnosis;
     s.summary = summary;
     s.cleanedDisplay = display;
 
-    // 🔎 If not wound care (level 1), confirm there are really no infection signs first, go into confirm infection state
+
+    // ===== DEBUG LOGGING =====
+    console.log("🧠 Image triage result:");
+    console.log("Category:", category);
+    console.log("Diagnosis:", diagnosis);
+    console.log("Urgency level:", urgencyLevel);
+    console.log("Summary:", summary);
+    console.log("=========================");
+
+    // ================= 4) Confirm infection if NOT urgent (unchanged behavior) =================
     if (urgencyLevel !== 1) {
-      // park the model's proposed result for later use
       s.state = "confirm_infection_check";
+      s.proposed = { category, diagnosis, urgencyLevel, summary, display, language: userLanguage };
 
-     s.proposed = { category, diagnosis, urgencyLevel, summary, display, language: userLanguage };
+      const confirmMsg =
+        "❓ I don’t clearly see an open wound, pus, black tissue, red streaks, or fever/chills. " +
+        "Can you confirm you do NOT have ANY of these symptoms right now? (yes/no)";
 
-const confirmMsg =
-  `❓ I didn’t detect any open wounds, pus, spreading redness, warmth, or active infection in the photo. ` +
-  `Can you confirm you do not have ANY of these symptoms? (yes/no)`;
-
-return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
-
+      return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
     }
 
-
-    // Display infomation in console
+    // ================= 5) Availability & booking flow (IDENTICAL to yours) =================
     {
-      const clinicianSummary = `Patient uploaded a photo for triage. ${summary}`;
-      const ts = new Date().toISOString();
-      console.log(
-        `[${ts}] TRIAGE: IMAGE | patientId=${userId} | category=${category} | urgency=${urgencyLevel} | diagnosis=${diagnosis}\n` +
-        `SUMMARY: ${clinicianSummary}`
-      );
-    }
+      const now = new Date();
+      let minDate = new Date(now);
+      let maxDate = new Date(now);
 
-    // Availability window (identical to text route)
-    const now = new Date();
-    let minDate = new Date(now);
-    let maxDate = new Date(now);
+      const existingSnap = await db.collection("Appointments")
+        .where("patientId", "==", userId)
+        .where("status", "==", "scheduled")
+        .orderBy("scheduledDate")
+        .get();
 
-    // Check existing scheduled appointments first (identical copy)
-    const existingSnap = await db.collection("Appointments")
-      .where("patientId", "==", userId)
-      .where("status", "==", "scheduled")
-      .orderBy("scheduledDate")
-      .get();
+      if (!existingSnap.empty) {
+        const existingAppt = existingSnap.docs[0].data();
+        const existingUrgency = existingAppt?.urgencyLevel ?? 4;
 
-    if (!existingSnap.empty) {
-      const existingAppt = existingSnap.docs[0].data();
-      const existingUrgency = existingAppt?.urgencyLevel ?? 4;
-
-      if (existingSnap.size > 1) {
-        display = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
-          `Please ensure this new issue is necessary to book.<br><br>` +
-          display;
-      }
-
-      // If new issue is not more urgent → try a follow-up 30 min after existing appt
-      if (urgencyLevel >= existingUrgency) {
-        const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
-
-        const followUpSnap = await db.collection("Availability")
-          .where("status", "==", "available")
-          .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
-          .where("podId", "==", existingAppt.podId)
-          .limit(1)
-          .get();
-
-        if (!followUpSnap.empty) {
-          const slotDoc = followUpSnap.docs[0];
-          const slotData = slotDoc.data();
-
-          const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Singapore"
-          });
-
-          // Put session into awaiting_confirmation (same fields as text route)
-          s.state = "awaiting_confirmation";
-          s.pendingSlot = slotDoc;      // store doc ref
-          s.pendingSlotData = slotData; // store payload
-
-          return res.json({
-            reply: await translateReply(
-              `${display}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
-              userLanguage
-            )
-          });
+        if (existingSnap.size > 1) {
+          display = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+            `Please ensure this new issue is necessary to book.<br><br>` +
+            display;
         }
 
-        // No follow-up slot → push minDate to after current appointment
-        minDate = new Date(existingAppt.scheduledDate.toDate());
+        if (urgencyLevel >= existingUrgency) {
+          const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
+
+          const followUpSnap = await db.collection("Availability")
+            .where("status", "==", "available")
+            .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
+            .where("podId", "==", existingAppt.podId)
+            .limit(1)
+            .get();
+
+          if (!followUpSnap.empty) {
+            const slotDoc = followUpSnap.docs[0];
+            const slotData = slotDoc.data();
+
+            const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+              hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+            });
+
+            s.state = "awaiting_confirmation";
+            s.pendingSlot = slotDoc;
+            s.pendingSlotData = slotData;
+
+            return res.json({
+              reply: await translateReply(
+                `${display}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                userLanguage
+              )
+            });
+          }
+
+          minDate = new Date(existingAppt.scheduledDate.toDate());
+        }
       }
-    }
 
-    // Urgency → booking window (identical to text route)
-    if (urgencyLevel === 1) {
-      minDate.setDate(now.getDate());       // today
-      maxDate.setDate(now.getDate() + 2);   // up to 2 days
-    } else if (urgencyLevel === 2) {
-      minDate.setDate(now.getDate() + 1);   // earliest tomorrow
-      maxDate.setDate(now.getDate() + 7);   // up to 1 week
-    } else if (urgencyLevel === 3) {
-      minDate.setDate(now.getDate() + 3);   // not before 3 days
-      maxDate.setDate(now.getDate() + 14);  // up to 2 weeks
-    } else {
-      minDate.setDate(now.getDate() + 5);   // not before 5 days
-      maxDate.setDate(now.getDate() + 21);  // up to 3 weeks
-    }
+      // Urgency → window (same mapping)
+      if (urgencyLevel === 1) {
+        minDate.setDate(now.getDate());
+        maxDate.setDate(now.getDate() + 2);
+      } else if (urgencyLevel === 2) {
+        minDate.setDate(now.getDate() + 1);
+        maxDate.setDate(now.getDate() + 7);
+      } else if (urgencyLevel === 3) {
+        minDate.setDate(now.getDate() + 3);
+        maxDate.setDate(now.getDate() + 14);
+      } else {
+        minDate.setDate(now.getDate() + 5);
+        maxDate.setDate(now.getDate() + 21);
+      }
 
-    // Availability lookup (identical to text route)
-    const slotQuery = await db.collection("Availability")
-      .where("status", "==", "available")
-      .where("availableDate", ">=", minDate)
-      .where("availableDate", "<=", maxDate)
-      .orderBy("availableDate")
-      .limit(1)
-      .get();
+      const slotQuery = await db.collection("Availability")
+        .where("status", "==", "available")
+        .where("availableDate", ">=", minDate)
+        .where("availableDate", "<=", maxDate)
+        .orderBy("availableDate")
+        .limit(1)
+        .get();
 
-    if (slotQuery.empty) {
-      s.state = "idle";
-      s.triageStage = null;
-      return res.json({
-        reply: await translateReply(`${display}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage)
+      if (slotQuery.empty) {
+        s.state = "idle";
+        s.triageStage = null;
+        return res.json({
+          reply: await translateReply(`${display}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage)
+        });
+      }
+
+      const slotDoc = slotQuery.docs[0];
+      const slotData = slotDoc.data();
+
+      const formattedDate = new Date(
+        slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+      ).toLocaleString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
       });
+
+      s.state = "awaiting_confirmation";
+      s.triageStage = null;
+      s.pendingSlot = slotDoc;
+      s.pendingSlotData = slotData;
+      s.cleanedDisplay = display;
+
+      const responseMessage = `${display.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
+      return res.json({ reply: await translateReply(responseMessage, userLanguage) });
     }
-
-    const slotDoc = slotQuery.docs[0];
-    const slotData = slotDoc.data();
-
-    const formattedDate = new Date(
-      slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
-    ).toLocaleString("en-SG", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Singapore"
-    });
-
-    // Set awaiting_confirmation (exactly like text route)
-    s.state = "awaiting_confirmation";
-    s.triageStage = null;
-    s.pendingSlot = slotDoc;       // keep the doc ref, used later by .ref.update()
-    s.pendingSlotData = slotData;  // payload
-    s.cleanedDisplay = display;    // for reuse
-
-    const responseMessage = `${display.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
-    return res.json({ reply: await translateReply(responseMessage, userLanguage) });
 
   } catch (err) {
     console.error("❌ /patient/chat-image error:", err);
     return res.json({ reply: "⚠️ Image analysis failed on the server." });
   }
 });
+
 
 
 
