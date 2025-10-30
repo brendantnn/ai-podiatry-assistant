@@ -283,6 +283,7 @@ window.onload = async () => {
       console.error("❌ Error populating tables with empty data:", populateError);
     }
   }
+  updateDayNames();
 }
 
 // ========================================
@@ -1714,6 +1715,17 @@ function showUpdateNotification(message) {
   }, 3000);
 }
 
+function updateDayNames() { //Shorten calendar day names if in smaller screen
+  const isSmallScreen = window.innerWidth <= 768;
+  document.querySelectorAll('.calendar-day-header').forEach((header, index) => {
+      if (isSmallScreen) {
+          header.textContent = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index];
+      } else {
+          header.textContent = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][index];
+      }
+  });
+}
+
 
 // ========================================
 // AUTO-REFRESH FUNCTIONS FOR REAL-TIME UPDATES
@@ -1793,6 +1805,8 @@ document.addEventListener('DOMContentLoaded', function() {
 window.addEventListener('resize', function() {
   // Responsive handling if needed
 });
+
+window.addEventListener('resize', updateDayNames);
 
 // ========================================
 // GLOBAL FUNCTION EXPORTS

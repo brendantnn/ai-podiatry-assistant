@@ -121,10 +121,11 @@
         </div>
 
         <!-- Patient Queue Tab -->
+        <!-- Make Mobile Responsive -->
         <div id="patients-tab" class="tab-content">
-          <div class="flex justify-between items-center mb-lg">
+          <div class="flex flex-wrap justify-between items-center mb-lg mobile-tab-container">
             <h3 class="medical-card-title">👥 Patient Queue (Severity-Based Priority)</h3>
-            <div class="flex items-center" style="gap: var(--space-4);">
+            <div class="flex items-center mobile-tab-filter" style="gap: var(--space-4); flex-wrap: wrap;">
               <select id="filterCategory" class="medical-select" style="width: auto; min-width: 180px;">
                 <option value="">🔍 All Categories</option>
                 <option value="wound care">🩹 Wound Care</option>
@@ -166,9 +167,10 @@
 
         <!-- Schedule Tab - IMPROVED VERSION with proper today highlighting -->
         <div id="schedule-tab" class="tab-content hidden">
-          <div class="flex justify-between items-center mb-lg">
+
+          <div class="flex flex-wrap justify-between items-center mb-lg mobile-tab-container">
             <h3 class="medical-card-title">📅 Appointment Calendar</h3>
-            <div class="flex items-center" style="gap: var(--space-4);">
+            <div class="flex items-center mobile-tab-filter" style="gap: var(--space-4); flex-wrap: wrap;">
               <select class="medical-select" id="monthSelector" style="width: auto; min-width: 140px;">
                 <option value="0">January</option>
                 <option value="1">February</option>
@@ -230,9 +232,9 @@
 
         <!-- All Appointments Tab -->
         <div id="all-patients-tab" class="tab-content hidden">
-          <div class="flex justify-between items-center mb-lg">
+          <div class="flex flex-wrap justify-between items-center mb-lg mobile-tab-container">
             <h3 class="medical-card-title">👥 All Patients</h3>
-            <div class="flex items-center" style="gap: var(--space-4);">
+            <div class="flex items-center mobile-tab-filter" style="gap: var(--space-4); flex-wrap: wrap;">
               <select id="filterCategoryAll" class="medical-select" style="width: auto; min-width: 180px;">
                 <option value="">🔍 All Categories</option>
                 <option value="wound care">🩹 Wound Care</option>
