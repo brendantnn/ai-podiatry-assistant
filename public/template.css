@@ -2426,3 +2426,510 @@ For Responsive mobile design at podiatrists tabs section
     }
   }
 /* class="flex items-center" style="gap: var(--space-4);"  */
+
+/* 
+COMPREHENSIVE MOBILE FIXES FOR PODIATRIST DASHBOARD
+*/
+
+@media (max-width: 768px) { 
+    /* Filter section fixes */
+    .mobile-tab-filter {
+      flex-direction: column !important;
+      width: 100% !important;
+      gap: var(--space-3) !important;
+    }
+
+    .mobile-tab-filter > * {
+      width: 100% !important;
+      min-width: 100% !important;
+    }
+
+    .mobile-tab-filter .medical-btn,
+    .mobile-tab-filter .medical-select {
+      width: 100% !important;
+      min-width: 100% !important;
+    }
+        
+    .mobile-tab-container {
+      flex-direction: column !important;
+      gap: var(--space-3) !important;
+    }
+
+    .tab-button {
+      padding: var(--space-2) var(--space-3) !important;
+      font-size: 0.7rem !important;
+    }
+
+    /* CALENDAR MOBILE FIXES */
+    .calendar-grid {
+      grid-auto-rows: minmax(110px, auto) !important;
+      gap: 0 !important;
+    }
+
+    .calendar-cell {
+      min-height: 110px !important;
+      padding: var(--space-2) !important;
+      font-size: 0.7rem !important;
+    }
+
+    .calendar-date {
+      font-size: 0.75rem !important;
+      margin-bottom: var(--space-1) !important;
+    }
+
+    .calendar-event {
+      font-size: 0.6rem !important;
+      padding: 2px 4px !important;
+      margin-bottom: 2px !important;
+      line-height: 1.2 !important;
+      white-space: normal !important;
+      word-wrap: break-word !important;
+    }
+
+    .calendar-day-header {
+      padding: var(--space-2) 2px !important;
+      font-size: 0.6rem !important;
+    }
+
+    .calendar-month-header {
+      padding: var(--space-4) var(--space-4) !important;
+    }
+
+    .calendar-header-title {
+      font-size: 1.1rem !important;
+    }
+
+    /* AI CHAT MOBILE FIXES - Better proportions */
+    .ai-chat-popup {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      bottom: auto !important;
+      right: auto !important;
+      width: 90vw !important;
+      max-width: 500px !important;
+      height: 70vh !important;
+      max-height: 600px !important;
+      border-radius: var(--radius-xl) !important;
+    }
+
+    .ai-chat-popup.ai-popup-open {
+      transform: translate(-50%, -50%) scale(1) !important;
+    }
+
+    .ai-chatbox {
+      max-height: calc(70vh - 180px) !important;
+      min-height: 300px !important;
+      font-size: 0.9rem !important;
+      padding: var(--space-4) !important;
+      overflow-y: auto !important;
+    }
+
+    .ai-chatbox .message-bot,
+    .ai-chatbox .message-user {
+      font-size: 0.9rem !important;
+      padding: var(--space-4) !important;
+      margin-bottom: var(--space-3) !important;
+      line-height: 1.5 !important;
+    }
+
+    .ai-chat-header {
+      padding: var(--space-4) !important;
+      font-size: 1rem !important;
+    }
+
+    .ai-title {
+      font-size: 1rem !important;
+    }
+
+    .ai-input-group {
+      padding: var(--space-4) !important;
+      gap: var(--space-3) !important;
+      flex-wrap: nowrap !important;
+    }
+
+    .ai-input {
+      font-size: 0.9rem !important;
+      padding: var(--space-3) var(--space-4) !important;
+      flex: 1 !important;
+    }
+
+    .ai-send-btn {
+      padding: var(--space-3) var(--space-4) !important;
+      min-width: 60px !important;
+      font-size: 0.9rem !important;
+    }
+
+    /* Buttons in AI chat */
+    .ai-chatbox button {
+      font-size: 0.85rem !important;
+      padding: var(--space-3) var(--space-4) !important;
+    }
+
+    /* Dashboard and spacing fixes */
+    .medical-card {
+      margin-bottom: var(--space-4) !important;
+      padding: var(--space-4) !important;
+    }
+
+    .dashboard-widget {
+      margin-bottom: 0 !important;
+      padding: var(--space-4) !important;
+    }
+
+    /* Header responsiveness */
+    .medical-card .flex.justify-between {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: var(--space-3) !important;
+    }
+
+    .medical-card .flex.items-center {
+      width: 100% !important;
+      justify-content: space-between !important;
+      flex-wrap: wrap !important;
+    }
+
+    .medical-card-title {
+      font-size: 1.1rem !important;
+    }
+
+    .medical-card-subtitle {
+      font-size: 0.8rem !important;
+    }
+
+    .medical-badge {
+      font-size: 0.7rem !important;
+      padding: var(--space-1) var(--space-2) !important;
+    }
+
+    /* Dashboard metrics */
+    .metric-number {
+      font-size: 1.5rem !important;
+    }
+
+    .metric-label {
+      font-size: 0.75rem !important;
+    }
+
+    /* Quick Actions & Resources section */
+    .medical-dashboard.mt-xl {
+      margin-top: var(--space-6) !important;
+    }
+
+    .widget-header {
+      margin-bottom: var(--space-3) !important;
+    }
+
+    .widget-title {
+      font-size: 0.95rem !important;
+    }
+
+    /* Select dropdowns on mobile */
+    .medical-select {
+      font-size: 0.8rem !important;
+    }
+
+    /* Month/Year selector spacing */
+    #schedule-tab .flex.items-center {
+      flex-wrap: wrap !important;
+      gap: var(--space-2) !important;
+    }
+
+    #schedule-tab .medical-select {
+      width: 100% !important;
+    }
+
+    /* Text sizes */
+    .text-muted {
+      font-size: 0.75rem !important;
+    }
+
+    /* Buttons */
+    .medical-btn {
+      font-size: 0.8rem !important;
+    }
+
+    .medical-btn-sm {
+      font-size: 0.7rem !important;
+    }
+}
+
+/* Very small screens (< 480px) */
+@media (max-width: 480px) {
+    .calendar-grid {
+      grid-auto-rows: minmax(90px, auto) !important;
+    }
+
+    .calendar-cell {
+      min-height: 90px !important;
+      padding: var(--space-1) !important;
+    }
+
+    .calendar-date {
+      font-size: 0.7rem !important;
+    }
+
+    .calendar-event {
+      font-size: 0.55rem !important;
+      padding: 1px 2px !important;
+    }
+
+    .calendar-day-header {
+      font-size: 0.55rem !important;
+      padding: var(--space-1) 1px !important;
+    }
+
+    .calendar-header-title {
+      font-size: 1rem !important;
+    }
+
+    /* AI chat for small phones */
+    .ai-chat-popup {
+      width: 95vw !important;
+      height: 75vh !important;
+      max-height: 650px !important;
+    }
+
+    .ai-chatbox {
+      font-size: 0.85rem !important;
+      max-height: calc(75vh - 180px) !important;
+      padding: var(--space-3) !important;
+    }
+
+    .ai-chatbox .message-bot,
+    .ai-chatbox .message-user {
+      font-size: 0.85rem !important;
+      padding: var(--space-3) !important;
+    }
+
+    .ai-input {
+      font-size: 0.85rem !important;
+    }
+
+    .ai-send-btn {
+      font-size: 0.85rem !important;
+      min-width: 50px !important;
+    }
+
+    .medical-card-title {
+      font-size: 1rem !important;
+    }
+
+    .medical-card-subtitle {
+      font-size: 0.75rem !important;
+    }
+
+    .ai-floating-btn {
+      bottom: 0.5rem !important;
+      right: 0.5rem !important;
+    }
+
+    .tab-button {
+      font-size: 0.65rem !important;
+      padding: var(--space-1) var(--space-2) !important;
+    }
+
+    .widget-title {
+      font-size: 0.9rem !important;
+    }
+
+    .medical-btn {
+      font-size: 0.75rem !important;
+    }
+
+    .medical-btn-sm {
+      font-size: 0.65rem !important;
+    }
+
+    .medical-select {
+      font-size: 0.75rem !important;
+    }
+
+    .metric-number {
+      font-size: 1.25rem !important;
+    }
+
+    .metric-label {
+      font-size: 0.7rem !important;
+    }
+}
+
+/* 
+PATIENT PORTAL MOBILE FIXES
+*/
+
+@media (max-width: 768px) {
+    /* Patient header responsiveness */
+    .medical-card .flex.justify-between {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: var(--space-4) !important;
+    }
+
+    .medical-card .flex.items-center {
+      width: 100% !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: var(--space-3) !important;
+    }
+
+    /* Language selector on mobile */
+    #language-select {
+      width: 100% !important;
+      min-width: 100% !important;
+    }
+
+    .medical-card .flex.items-center > div {
+      width: 100% !important;
+    }
+
+    .medical-card .flex.items-center > div label {
+      display: block !important;
+      margin-bottom: var(--space-2) !important;
+    }
+
+    /* Logout button full width on mobile */
+    .medical-card .medical-btn-danger {
+      width: 100% !important;
+      margin-left: 0 !important;
+    }
+
+    /* Chat interface mobile fixes */
+    .medical-chatbox {
+      max-height: 400px !important;
+      min-height: 300px !important;
+      font-size: 0.9rem !important;
+    }
+
+    .medical-chatbox .message-bot,
+    .medical-chatbox .message-user {
+      font-size: 0.9rem !important;
+      padding: var(--space-3) !important;
+      max-width: 85% !important;
+    }
+
+    /* Chat input group mobile */
+    .medical-input-group {
+      flex-wrap: wrap !important;
+      gap: var(--space-2) !important;
+    }
+
+    .medical-input-group .medical-input {
+      flex: 1 1 100% !important;
+      width: 100% !important;
+      margin-bottom: var(--space-2) !important;
+      font-size: 0.9rem !important;
+    }
+
+    .medical-input-group button,
+    .medical-input-group label {
+      flex: 1 !important;
+      margin-left: 0 !important;
+      font-size: 0.85rem !important;
+    }
+
+    /* Appointment cards mobile */
+    .dashboard-widget {
+      padding: var(--space-4) !important;
+    }
+
+    #appointment-list > div {
+      padding: var(--space-3) !important;
+    }
+
+    /* Emergency contacts mobile */
+    .medical-dashboard {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Card titles */
+    .medical-card-title {
+      font-size: 1.1rem !important;
+    }
+
+    .medical-card-subtitle {
+      font-size: 0.85rem !important;
+    }
+
+    .widget-title {
+      font-size: 0.95rem !important;
+    }
+
+    /* Appointment display */
+    #appointment {
+      font-size: 0.9rem !important;
+    }
+
+    /* Contact info */
+    .medical-dashboard .flex.items-center span {
+      font-size: 0.85rem !important;
+    }
+
+    /* Text muted */
+    .text-muted {
+      font-size: 0.8rem !important;
+    }
+}
+
+/* Very small screens for patient portal (< 480px) */
+@media (max-width: 480px) {
+    .medical-header h1 {
+      font-size: 1.5rem !important;
+    }
+
+    .medical-card-title {
+      font-size: 1rem !important;
+    }
+
+    .medical-card-subtitle {
+      font-size: 0.8rem !important;
+    }
+
+    .widget-title {
+      font-size: 0.9rem !important;
+    }
+
+    .medical-chatbox {
+      max-height: 350px !important;
+      min-height: 250px !important;
+      font-size: 0.85rem !important;
+    }
+
+    .medical-chatbox .message-bot,
+    .medical-chatbox .message-user {
+      font-size: 0.85rem !important;
+      padding: var(--space-2) var(--space-3) !important;
+    }
+
+    .medical-input-group .medical-input {
+      font-size: 0.85rem !important;
+    }
+
+    .medical-input-group button,
+    .medical-input-group label {
+      font-size: 0.8rem !important;
+      padding: var(--space-2) !important;
+    }
+
+    #appointment {
+      font-size: 0.85rem !important;
+    }
+
+    .medical-dashboard .flex.items-center span {
+      font-size: 0.8rem !important;
+    }
+
+    .text-muted {
+      font-size: 0.75rem !important;
+    }
+
+    .dashboard-widget {
+      padding: var(--space-3) !important;
+    }
+
+    .medical-card {
+      padding: var(--space-3) !important;
+    }
+}
