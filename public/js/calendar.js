@@ -179,7 +179,7 @@ class PodiatristCalendar {
     try {
       console.log('📅 Loading appointments for calendar, pod:', podId);
 
-      const res = await fetch("/podiatrist-get-appointments-scheduled", {
+      const res = await fetch("/api/podiatrist-get-appointments-scheduled", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ podId })
@@ -232,7 +232,7 @@ class PodiatristCalendar {
   async loadAvailabilities() {//If need can add the pre edit datetime as argument to put in list as a default
     const podId = this.getCurrentPodId();//TODO: Make Id not fixed
     try {
-      const res = await fetch("/podiatrist-get-availability", { // Get patient queue
+      const res = await fetch("/api/podiatrist-get-availability", { // Get patient queue
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ podId }) // Ensure podId is defined
@@ -1296,7 +1296,7 @@ class PodiatristCalendar {
       const podId = this.getCurrentPodId();
       console.log("🔍 Checking slot availability for current podiatrist:", podId);
 
-      const response = await fetch("/get-schedule-by-date", {
+      const response = await fetch("/api/get-schedule-by-date", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1341,7 +1341,7 @@ class PodiatristCalendar {
       const podId = this.getCurrentPodId();
       console.log("🔄 Fallback: Loading booked slots for current podiatrist:", podId);
 
-      const response = await fetch("/podiatrist-get-appointments-scheduled", {
+      const response = await fetch("/api/podiatrist-get-appointments-scheduled", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ podId })
@@ -1649,7 +1649,7 @@ class PodiatristCalendar {
     saveBtn.disabled = true;
 
     try {
-      const response = await fetch("/podiatrist-update-appointment", {
+      const response = await fetch("/api/podiatrist-update-appointment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1757,7 +1757,7 @@ class PodiatristCalendar {
   async updateAppointmentInDatabase(appointmentId, updateData, originalSlot) {
     //Send update request to server
     try {
-      const res = await fetch("/podiatrist-update-appointment", {
+      const res = await fetch("/api/podiatrist-update-appointment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ "apptId": appointmentId, "updateData": updateData, "originalSlot": originalSlot })
@@ -1911,7 +1911,7 @@ class PodiatristCalendar {
       // Add cache busting parameter
       const cacheBuster = Date.now();
 
-      const res = await fetch(`/podiatrist-get-appointments-scheduled?cb=${cacheBuster}`, {
+      const res = await fetch(`/api/podiatrist-get-appointments-scheduled?cb=${cacheBuster}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ podId })
