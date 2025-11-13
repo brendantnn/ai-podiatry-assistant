@@ -3,7 +3,7 @@ const cors = require("cors");
 const { OpenAI } = require("openai");
 const path = require("path");
 const router = express.Router();
-const { db, admin } = require("./firebase");
+const { db, admin, bucket } = require("./firebase");
 const translate = require('translate-google');
 const translationCache = new Map();
 const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes
@@ -768,6 +768,8 @@ Do not show internal data to the patient.
           initialDiagnosis: diagnosisToSave,
           summary: summaryToSave,
           triageDateTime: admin.firestore.Timestamp.now(),
+          imageUrl: s.imageUrl || null,        // ← ADD THIS
+          imageCaption: null,        // ← ADD THIS
         };
 
 
@@ -1419,6 +1421,33 @@ router.post("/chat-image", upload.single("image"), async (req, res) => {
     // Convert image → data URL (unchanged)
     const b64 = req.file.buffer.toString("base64");
     const dataUrl = `data:${req.file.mimetype};base64,${b64}`;
+
+    // ================= UPLOAD IMAGE TO FIREBASE STORAGE =================
+    let imageUrl = null;
+    try {
+      const timestamp = Date.now();
+      const fileExtension = req.file.mimetype.split('/')[1];
+      const fileName = `patient_images/${userId}_${timestamp}.${fileExtension}`;
+      const file = bucket.file(fileName);
+
+      await file.save(req.file.buffer, {
+        metadata: {
+          contentType: req.file.mimetype,
+          metadata: {
+            patientId: userId,
+            uploadedAt: new Date().toISOString(),
+            caption: caption || ''
+          }
+        }
+      });
+
+      await file.makePublic();
+      imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      s.imageUrl = imageUrl;
+      console.log("✅ Image uploaded:", imageUrl);
+    } catch (err) {
+      console.error("⚠️ Storage upload failed:", err);
+    }
 
     // ================= 1) IMAGE GATE (same purpose, slightly clearer prompt) =================
     const gateMsg = [

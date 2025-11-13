@@ -1202,7 +1202,7 @@ function populateQueueTab(data = patientQueue) {
     <td>${patient.date} (Status: ${patient.status})</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('queue', '${patient.apptId}', '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}')"
+      onclick="openModal('queue', '${patient.apptId}', '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}', '${patient.podId || ''}', '${patient.imageUrl || ''}', '${escapeSpecialCharacters(patient.imageCaption || '')}')"
       >👁️ View</button>
       <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
@@ -1297,7 +1297,7 @@ function populateAllTab(data = allPatients) {
     <td>${patient.date}</td>
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}', '${patient.podId || 'unassigned'}')"
+      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}', '${patient.podId || 'unassigned'}', '${patient.imageUrl || ''}', '${escapeSpecialCharacters(patient.imageCaption || '')}')"
       >👁️ View</button>
       <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
@@ -1306,56 +1306,8 @@ function populateAllTab(data = allPatients) {
   });
 }
 
-// function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary) {
-//   document.getElementById('modalPatientId').innerText = patientId;
-//   document.getElementById('modalPatientName').innerText = name;
-//   document.getElementById('modalPatientCategory').innerText = category;
-//   document.getElementById('modalPatientSymptoms').innerText = symptoms;
-//   document.getElementById('modalPatientWaitTime').innerText = time + " on " + date;
-//   document.getElementById('modalPatientStatus').innerText = status;
-//   document.getElementById('modalPatientCaseSummary').innerText = summary;
-  
-//   const originalSlot = formatDate(date) + "T" + formatTime(time);
 
-//   function formatDate(dateString) { //Convert Date to HTML Readable 
-//     const [day, month, year] = dateString.split(' ');
-//     const months = {
-//       January: '01', February: '02', March: '03', April: '04',
-//       May: '05', June: '06', July: '07', August: '08',
-//       September: '09', October: '10', November: '11', December: '12'
-//     };
-//     return `${year}-${months[month]}-${String(day).padStart(2, '0')}`;
-//   }
-
-//   function formatTime(timeString) { //Convert Date to HTML Readable 
-//     const timeParts = timeString.split(' ');
-//     let [hours, minutes] = timeParts[0].split(':');
-//     if (timeParts[1] === 'pm' && hours !== '12') {
-//       hours = String(Number(hours) + 12);
-//     } else if (timeParts[1] === 'am' && hours === '12') {
-//       hours = '00';
-//     }
-//     return hours+":"+minutes;
-//   }
-//   document.getElementById('patientModal').style.display = 'block';
-
-//   if (tab == 'all' && status != 'cancelled') {//Hide edit button if modal opens from all tab and appointemnt is already scheduled. (Basically only allow edits in all tab if that appointment has no podiatrist assigned)
-//     document.getElementById('modalPatientEditBtn').hidden = true;
-//   }else{
-//     document.getElementById('modalPatientEditBtn').hidden = false;
-//   }
-
-//   if (tab == 'queue' && status != 'cancelled') {//Only show cancel button if at queue tab and appointment now alrd cancelled
-//     document.getElementById('modalPatientCancelBtn').hidden = false;
-//   }else{
-//     document.getElementById('modalPatientCancelBtn').hidden = true;
-//   }
-
-//   document.getElementById('modalPatientEditBtn').onclick = function() {openEditModal(name, date, time, patientId, apptId)};
-//   document.getElementById('modalPatientCancelBtn').onclick = function() {openCancelModal(apptId, originalSlot)};
-// }
-
-function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary, podId) {
+function openModal(tab, apptId, patientId, name, category, symptoms, status, date, time, summary, podId, imageUrl, imageCaption) {
   console.log('🔍 Opening modal with params:', { tab, apptId, patientId, name, podId });
   
   // Check if modal elements exist
@@ -1382,6 +1334,26 @@ function openModal(tab, apptId, patientId, name, category, symptoms, status, dat
   setElementText('modalPatientWaitTime', time + " on " + date);
   setElementText('modalPatientStatus', status);
   setElementText('modalPatientCaseSummary', summary);
+
+  // Display patient image if available
+  const imageContainer = document.getElementById('modalPatientImage');
+  if (imageContainer) {
+    if (imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined') {
+      imageContainer.innerHTML = `
+        <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+          <p><strong>📷 Patient Submitted Image:</strong></p>
+          <img src="${imageUrl}" 
+               alt="Patient foot image" 
+               style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+               onclick="window.open('${imageUrl}', '_blank')">
+          ${imageCaption && imageCaption !== 'null' ? `<p style="margin-top: 10px; font-style: italic; color: #666;">Caption: ${imageCaption}</p>` : ''}
+          <p style="font-size: 12px; color: #888; margin-top: 5px;">Click image to view full size</p>
+        </div>
+      `;
+    } else {
+      imageContainer.innerHTML = ''; // Clear if no image
+    }
+  }
   
   // Set podiatrist name (async)
   const podiatristElement = document.getElementById('modalAssignedPodiatrist');

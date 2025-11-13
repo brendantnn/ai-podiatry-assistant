@@ -1799,7 +1799,9 @@ app.post('/podiatrist-get-appointments-all', async (req, res) => {
           urgencyLevel: appt.urgencyLevel,
           category: appt.category,
           initialDiagnosis: appt.initialDiagnosis,
-          summary: appt.summary
+          summary: appt.summary,
+          imageUrl: appt.imageUrl || null,        // ← ADD THIS
+          imageCaption: null  // ← ADD THIS
         };
         appointments.push(appointment); //Put data object into appointments list
       });
@@ -1868,7 +1870,9 @@ app.post('/podiatrist-get-appointments-scheduled', async (req, res) => {
           urgencyLevel: appt.urgencyLevel || 3,
           category: appt.category || 'General',
           initialDiagnosis: appt.initialDiagnosis || 'Assessment pending',
-          summary: appt.summary || 'No case summary available'
+          summary: appt.summary || 'No case summary available',
+          imageUrl: appt.imageUrl || null,        // ← ADD THIS
+          imageCaption: null  // ← ADD THIS
         };
         appointments.push(appointment); //Put data object into appointments list
       });
@@ -2291,6 +2295,7 @@ app.post('/get-all-appointments', async (req, res) => {
         initialDiagnosis: appt.initialDiagnosis,
         summary: appt.summary,
         podId: appt.podId  // 🔧 ADDED: Include the podId field
+        
       };
         appointments.push(appointment); //Put data object into appointments list
       });
