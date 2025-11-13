@@ -16,9 +16,20 @@ const upload = multer({
 });
 
 // Declare openai api key here
-const openai = new OpenAI({
+/**const openai = new OpenAI({
   apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
+});**/ // remove hardcoded apikey
+// patientRoutes.js
+
+// Use real key in Cloud Functions (from secrets), but a dummy string during local deploy
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "dummy-openai-key",
 });
+
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("⚠️ OPENAI_API_KEY is not set. OpenAI calls will fail until the secret is configured in Cloud Functions.");
+}
+
 
 // key = fake session ID (for now, assume 1 user)
 const session = {};

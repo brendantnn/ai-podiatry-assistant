@@ -277,7 +277,7 @@ async startAppointmentEdit() {
   try {
     const currentPodId = this.getCurrentPodId(); // 🔧 FIXED: Get current pod ID
     
-    const response = await fetch("/get-upcoming-appointments", {
+    const response = await fetch("/api/get-upcoming-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -315,7 +315,7 @@ async startAppointmentEdit() {
     console.log('🗓️ Suggested date/time:', suggestedDateTime);
     
     // Fetch appointments for this specific patient
-    const response = await fetch("/get-patient-appointments", {
+    const response = await fetch("/api/get-patient-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -789,7 +789,7 @@ async submitAppointmentEditFixed(patientId, appointmentId, patientName) {
     `;
     
     // Send edit request to server with CORRECT appointment ID
-    const response = await fetch("/podiatrist-update-appointment", {
+    const response = await fetch("/api/podiatrist-update-appointment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1343,7 +1343,7 @@ async submitAppointmentEdit(patientId, appointmentId, patientName) {
     `;
     
     // Send edit request to server
-    const response = await fetch("/edit-appointment", {
+    const response = await fetch("/api/edit-appointment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1497,7 +1497,7 @@ async loadBookedSlotsForFiltering() {
     console.log("🔍 Loading booked slots for filtering...");
     
     // Get all scheduled appointments to know what's booked
-    const response = await fetch("/get-schedule-by-date", {
+    const response = await fetch("/api/get-schedule-by-date", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -1543,7 +1543,7 @@ async loadBookedSlotsForFiltering() {
 async loadBookedSlotsFromAppointments() {
   try {
     const podId = getCurrentPodId();
-    const response = await fetch("/podiatrist-get-calendar", {
+    const response = await fetch("/api/podiatrist-get-calendar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })
@@ -1884,7 +1884,7 @@ parseEditRequest(message) {
       const appointmentData = this.selectedAppointment || { patientId };
       
       // Send edit request to server
-      const response = await fetch("/edit-appointment", {
+      const response = await fetch("/api/edit-appointment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2037,7 +2037,7 @@ async sendMessage(message) {
       this.updateLoadingMessage(thinkingDiv, 'Fetching fresh schedule data...');
       
       // Fetch schedule for specific date
-      const scheduleResponse = await fetch("/get-schedule-by-date", {
+      const scheduleResponse = await fetch("/api/get-schedule-by-date", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -2082,7 +2082,7 @@ ${index + 1}. **${apt.scheduledTime}** - ${apt.patientName} (${apt.patientId})
 Please provide a comprehensive overview including workload analysis, priority cases, and clinical recommendations.`;
 
           // Get AI analysis
-          const aiResponse = await fetch("/podiatrist-chat", {
+          const aiResponse = await fetch("/api/podiatrist-chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -2105,7 +2105,7 @@ Please provide a comprehensive overview including workload analysis, priority ca
     }
 
     // REGULAR AI CHAT (no schedule query detected)
-    const response = await fetch("/podiatrist-chat", {
+    const response = await fetch("/api/podiatrist-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -2322,7 +2322,7 @@ async sendQuickQuery(query, specificDate = null) {
         needsDatabase = true;
         
         try {
-          const scheduleResponse = await fetch("/get-schedule-by-date", {
+          const scheduleResponse = await fetch("/api/get-schedule-by-date", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -2424,7 +2424,7 @@ Focus on clinical priorities and workflow optimization.`;
     console.log('🚨 Fetching urgent cases from database...');
     const currentPodId = this.getCurrentPodId(); // 🔧 FIXED: Use dynamic pod ID
     
-    const urgentResponse = await fetch("/get-urgent-cases", {
+    const urgentResponse = await fetch("/api/get-urgent-cases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -2523,7 +2523,7 @@ Focus on clinical priorities and workflow optimization.`;
       console.log('📝 Fetching upcoming case summaries...');
       const currentPodId = this.getCurrentPodId(); // 🔧 FIXED: Use dynamic pod ID
       
-      const summariesResponse = await fetch("/get-upcoming-case-summaries", {
+      const summariesResponse = await fetch("/api/get-upcoming-case-summaries", {
         method: "POST", 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -2572,7 +2572,7 @@ Focus on clinical priorities and workflow optimization.`;
     // Update loading message to show AI is thinking
     this.updateLoadingMessage(loadingDiv, 'AI is analyzing your request...');
     
-   const response = await fetch("/podiatrist-chat", {
+   const response = await fetch("/api/podiatrist-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
@@ -2808,7 +2808,7 @@ Focus on clinical priorities and workflow optimization.`;
     this.addMessageToChat(`Tell me about Patient ${patientId}: ${question}`, 'user', chatbox);
     
     try {
-      const response = await fetch("/podiatrist-chat", {
+      const response = await fetch("/api/podiatrist-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 

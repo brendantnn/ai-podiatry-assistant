@@ -3,7 +3,7 @@
 const admin = require("firebase-admin");
 
 // Path to your Firebase service account key JSON
-const serviceAccount = require("./config/serviceAccountKey.json");
+const serviceAccount = require("../config/serviceAccountKey.json");
 
 // Initialize Firebase Admin
 admin.initializeApp({

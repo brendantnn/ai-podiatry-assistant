@@ -123,7 +123,7 @@ async function getPodiatristNameFromDB(podId) {
   try {
     console.log('🔍 Fetching podiatrist name for podId:', podId);
     
-    const response = await fetch("/get-podiatrist-name", {
+    const response = await fetch("/api/get-podiatrist-name", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })
@@ -207,56 +207,60 @@ window.onload = async () => {
   try {
     // Load patient queue with proper error handling
     console.log('🔄 Loading patient queue for pod:', podId);
-    const res = await fetch("/podiatrist-get-appointments-all", {
+    const res = await fetch("/api/podiatrist-get-appointments-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })
     });
   
+    if (!res.ok) {
+      throw new Error(`Patient queue API returned ${res.status}`);
+    }
+    
     const data = await res.json();
     console.log('📊 API Response for patient queue:', data);
     
-    // 🔧 CRITICAL FIX: Handle null/undefined appointments
-    patientQueue = data.appointments || [];
+    // Handle the response safely
+    if (data && data.success !== false) {
+      patientQueue = Array.isArray(data.appointments) ? data.appointments : [];
+    } else {
+      console.error('❌ API returned error:', data);
+      patientQueue = [];
+    }
     
     console.log('📋 Patient queue data:', patientQueue);
     console.log('📋 Patient queue length:', patientQueue.length);
     
-    // Only call populateQueueTab if we have valid data (even if empty array)
-    if (Array.isArray(patientQueue)) {
-      populateQueueTab(patientQueue);
-      console.log('✅ Patient queue populated successfully');
-    } else {
-      console.error('❌ Patient queue is not an array:', typeof patientQueue, patientQueue);
-      patientQueue = []; // Reset to empty array
-      populateQueueTab([]); // Populate with empty array
-    }
+    populateQueueTab(patientQueue);
+    console.log('✅ Patient queue populated successfully');
 
     // Load all patients with proper error handling
     console.log('🔄 Loading all patients...');
-    const resAll = await fetch("/get-all-appointments", {
+    const resAll = await fetch("/api/get-all-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
   
+    if (!resAll.ok) {
+      throw new Error(`All patients API returned ${resAll.status}`);
+    }
+    
     const allData = await resAll.json();
     console.log('📊 API Response for all patients:', allData);
     
-    // 🔧 CRITICAL FIX: Handle null/undefined appointments
-    allPatients = allData.appointments || [];
+    // Handle the response safely
+    if (allData && allData.success !== false) {
+      allPatients = Array.isArray(allData.appointments) ? allData.appointments : [];
+    } else {
+      console.error('❌ API returned error:', allData);
+      allPatients = [];
+    }
     
     console.log('📋 All patients data:', allPatients);
     console.log('📋 All patients length:', allPatients.length);
 
-    // Only call populateAllTab if we have valid data (even if empty array)
-    if (Array.isArray(allPatients)) {
-      populateAllTab(allPatients);
-      console.log('✅ All patients populated successfully');
-    } else {
-      console.error('❌ All patients is not an array:', typeof allPatients, allPatients);
-      allPatients = []; // Reset to empty array
-      populateAllTab([]); // Populate with empty array
-    }
+    populateAllTab(allPatients);
+    console.log('✅ All patients populated successfully');
     
     // Load dashboard metrics
     console.log('🔄 Loading dashboard metrics...');
@@ -272,17 +276,21 @@ window.onload = async () => {
     console.error("❌ Failed to fetch data:", err);
     
     // Set safe defaults in case of error
-    patientQueue = [];
-    allPatients = [];
+    patientQueue = patientQueue || [];
+    allPatients = allPatients || [];
     
-    // Populate tables with empty data to prevent errors
+    // Populate tables with whatever data we have
     try {
-      populateQueueTab([]);
-      populateAllTab([]);
+      populateQueueTab(patientQueue);
+      populateAllTab(allPatients);
     } catch (populateError) {
-      console.error("❌ Error populating tables with empty data:", populateError);
+      console.error("❌ Error populating tables:", populateError);
     }
+    
+    // Show error notification to user
+    showUpdateNotification('⚠️ Error loading some data. Please refresh the page.');
   }
+  
   updateDayNames();
 }
 
@@ -296,7 +304,7 @@ async function loadDashboardMetrics() {
   try {
     console.log('📊 Loading dashboard metrics...');
     
-    const response = await fetch("/get-dashboard-metrics", {
+    const response = await fetch("/api/get-dashboard-metrics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podiatristId: podId })
@@ -431,7 +439,7 @@ async function loadNotifications() {
     
     console.log('🔔 CACHE MISS: Loading fresh notifications for pod:', podId);
     
-    const response = await fetch("/get-notifications", {
+    const response = await fetch("/api/get-notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId: podId }) // 🔧 FIXED: Send podId instead of podiatristId
@@ -701,7 +709,7 @@ window.loadDashboardMetrics = loadDashboardMetrics;
 // TAB SWITCHING
 // ========================================
 
-function showTab(tabName) {
+/**function showTab(tabName) {
   const tabs = document.querySelectorAll('.tab-content');
   tabs.forEach(tab => tab.classList.add('hidden'));
   
@@ -715,6 +723,34 @@ function showTab(tabName) {
   
   event.target.classList.add('active');
   event.target.style.borderBottomColor = 'var(--blue-600)';
+}**/
+
+function showTab(tabName, event) {
+  const tabs = document.querySelectorAll('.tab-content');
+  tabs.forEach(tab => tab.classList.add('hidden'));
+  
+  const buttons = document.querySelectorAll('.tab-button');
+  buttons.forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.borderBottomColor = 'transparent';
+  });
+  
+  const targetTab = document.getElementById(tabName + '-tab');
+  if (targetTab) {
+    targetTab.classList.remove('hidden');
+  }
+  
+  if (event && event.target) {
+    event.target.classList.add('active');
+    event.target.style.borderBottomColor = 'var(--blue-600)';
+  } else {
+    buttons.forEach(btn => {
+      if (btn.getAttribute('onclick')?.includes(tabName)) {
+        btn.classList.add('active');
+        btn.style.borderBottomColor = 'var(--blue-600)';
+      }
+    });
+  }
 }
 
 // ========================================
@@ -740,7 +776,7 @@ async function refreshPatientQueue() {
     const podId = getCurrentPodId();
     console.log('🔄 Refreshing for pod:', podId);
     
-    const res = await fetch("/podiatrist-get-appointments-all", {
+    const res = await fetch("/api/podiatrist-get-appointments-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ podId })
@@ -791,7 +827,7 @@ async function refreshAllPatients() {
   try {
     console.log('🔄 Refreshing all patients tab...');
     
-    const resAll = await fetch("/get-all-appointments", {
+    const resAll = await fetch("/api/get-all-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -1465,7 +1501,7 @@ async function cancelAppointment(appointmentId, originalSlot) {
 
   //Update in database
   try {
-    const res = await fetch("/podiatrist-cancel-appointment", {
+    const res = await fetch("/api/podiatrist-cancel-appointment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ "apptId": appointmentId, "originalSlot": originalSlot })
