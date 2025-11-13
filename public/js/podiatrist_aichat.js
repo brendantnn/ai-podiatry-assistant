@@ -2082,7 +2082,7 @@ ${index + 1}. **${apt.scheduledTime}** - ${apt.patientName} (${apt.patientId})
 Please provide a comprehensive overview including workload analysis, priority cases, and clinical recommendations.`;
 
           // Get AI analysis
-          const aiResponse = await fetch("/api/podiatrist-chat", {
+          const aiResponse = await fetch("/podiatrist-chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -2105,7 +2105,7 @@ Please provide a comprehensive overview including workload analysis, priority ca
     }
 
     // REGULAR AI CHAT (no schedule query detected)
-    const response = await fetch("/api/podiatrist-chat", {
+    const response = await fetch("/podiatrist-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
@@ -2572,7 +2572,7 @@ Focus on clinical priorities and workflow optimization.`;
     // Update loading message to show AI is thinking
     this.updateLoadingMessage(loadingDiv, 'AI is analyzing your request...');
     
-   const response = await fetch("/api/podiatrist-chat", {
+   const response = await fetch("/podiatrist-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
@@ -2808,7 +2808,7 @@ Focus on clinical priorities and workflow optimization.`;
     this.addMessageToChat(`Tell me about Patient ${patientId}: ${question}`, 'user', chatbox);
     
     try {
-      const response = await fetch("/api/podiatrist-chat", {
+      const response = await fetch("/podiatrist-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
