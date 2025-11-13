@@ -152,22 +152,27 @@ class PodiatristCalendar {
   async init() {
     console.log('🗓️ Initializing Podiatrist Calendar...');
 
-    if (this.isInitialized) {
-      console.log('⚠️ Calendar already initialized');
-      return;
-    }
+    if (this.isInitialized) return;
 
     try {
       await this.loadAppointments();
-      // await this.loadAvailabilities();
+
+      // ⭐ FIX: wait for cells to generate before placing events
+      await new Promise(res => setTimeout(res, 100));
+
       this.setupEventListeners();
       this.setInitialState();
+
+      // ⭐ FIX: force-refresh calendar with appointments
+      this.generateCalendarForMonth(this.currentDate.getMonth(), this.currentDate.getFullYear());
+
       this.isInitialized = true;
-      console.log('✅ Calendar initialization completed successfully');
-    } catch (error) {
-      console.error('❌ Calendar initialization failed:', error);
+      console.log('✅ Calendar initialized');
+    } catch (e) {
+      console.error("❌ Calendar init failed:", e);
     }
   }
+
 
   async loadAppointments() {
     const podId = this.getCurrentPodId();
