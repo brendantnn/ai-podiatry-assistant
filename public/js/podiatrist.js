@@ -1284,7 +1284,7 @@ function populateAllTab(data = allPatients) {
         rowBgColor = 'background-color: #f9fafb; border-left: 4px solid #6b7280;'; // Gray
         break;
     }
-    
+   //hello 
     row.style.cssText = rowBgColor;
 
     row.innerHTML = `
