@@ -3,7 +3,7 @@
 // ========================================
 const express = require("express");
 const router = express.Router();
-const { db, admin, bucket } = require("./firebase");
+const { db, admin } = require("./firebase");
 
 function normalizeAppointment(doc) {
   const data = doc.data();
@@ -20,8 +20,6 @@ function normalizeAppointment(doc) {
     urgencyLevel: data.urgencyLevel || 4,
     status: data.status || "scheduled",
     podId: data.podId || "",
-    imageUrl: appt.imageUrl || null,        // ← ADD THIS
-    imageCaption: null  // ← ADD THIS
   };
 }
 
@@ -87,9 +85,7 @@ router.post("/podiatrist-get-appointments-all", async (req, res) => {
         urgencyLevel: data.urgencyLevel || 4,
         summary: data.summary || "No summary available",
         podId: data.podId,
-        sortableDate: sortableDate,
-        imageUrl: appt.imageUrl || null,        // ← ADD THIS
-        imageCaption: null  // ← ADD THIS
+        sortableDate: sortableDate
       });
     }
 
@@ -178,9 +174,7 @@ router.post("/get-all-appointments", async (req, res) => {
         urgencyLevel: data.urgencyLevel || 4,
         summary: data.summary || "No summary available",
         podId: data.podId || "unassigned",
-        sortableDate: sortableDate, // For sorting
-        imageUrl: appt.imageUrl || null,        // ← ADD THIS
-        imageCaption: appt.imageCaption || null  // ← ADD THIS
+        sortableDate: sortableDate // For sorting
       });
     }
 
