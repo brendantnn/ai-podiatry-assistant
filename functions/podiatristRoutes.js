@@ -85,6 +85,8 @@ router.post("/podiatrist-get-appointments-all", async (req, res) => {
         urgencyLevel: data.urgencyLevel || 4,
         summary: data.summary || "No summary available",
         podId: data.podId,
+        imageUrl: data.imageUrl || null,           // ← ADD THIS
+        imageCaption: null,   // ← ADD THIS
         sortableDate: sortableDate
       });
     }
@@ -174,6 +176,8 @@ router.post("/get-all-appointments", async (req, res) => {
         urgencyLevel: data.urgencyLevel || 4,
         summary: data.summary || "No summary available",
         podId: data.podId || "unassigned",
+        imageUrl: data.imageUrl || null,           // ← ADD THIS
+        imageCaption: null,   // ← ADD THIS
         sortableDate: sortableDate // For sorting
       });
     }
