@@ -10,11 +10,10 @@
 // module.exports = { admin, db, auth };
 
 const admin = require("firebase-admin");
-const serviceAccount = require("./config/serviceAccountKey.json");
+//const serviceAccount = require("./config/serviceAccountKey.json");
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
     storageBucket: "itp-grp21.firebasestorage.app"  // ← USE THIS
   });
 }
