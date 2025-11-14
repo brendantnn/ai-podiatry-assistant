@@ -5,14 +5,6 @@ const express = require("express");
 const router = express.Router();
 const { db, admin } = require("./firebase");
 const { OpenAI } = require("openai");
-const SMSService = require('./smsService');
-const { setupSMSRoutes, setupPatientSMSRoutes } = require('./smsRoutes');
-
-// Initialize SMS Service
-const smsService = new SMSService(db, admin);
-
-// Setup SMS routes
-app.use('/sms', setupSMSRoutes(smsService));
 
 // ========================================
 // CRITICAL HELPER FUNCTIONS & CACHE
@@ -796,201 +788,147 @@ router.post("/get-urgent-cases", async (req, res) => {
   }
 });
 
-// /* ============================================================
-//    12) GET UPCOMING CASE SUMMARIES (AI QUICK QUERY)
-//    ============================================================ */
-// router.post("/get-upcoming-case-summaries", async (req, res) => {
-//   const { podiatristId, podId } = req.body;
-//   const targetPodId = podId || podiatristId;
-  
-//   console.log('📝 Fetching upcoming case summaries for pod:', targetPodId);
-
-//   if (!targetPodId) {
-//     return res.status(400).json({
-//       success: false,
-//       error: "No podId provided",
-//       caseSummaries: [],
-//       totalCount: 0
-//     });
-//   }
-
-//   try {
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-    
-//     const oneWeekFromNow = new Date(today);
-//     oneWeekFromNow.setDate(today.getDate() + 7);
-//     oneWeekFromNow.setHours(23, 59, 59, 999);
-
-//     const caseSummariesQuery = await db.collection("Appointments")
-//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(today))
-//       .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(oneWeekFromNow))
-//       .where("status", "==", "scheduled")
-//       .where("podId", "==", targetPodId)
-//       .orderBy("scheduledDate", "asc")
-//       .get();
-
-//     console.log(`📊 Found ${caseSummariesQuery.size} appointments in next 7 days for pod ${targetPodId}`);
-
-//     if (caseSummariesQuery.empty) {
-//       return res.json({
-//         success: true,
-//         caseSummaries: [],
-//         totalCount: 0,
-//         podId: targetPodId,
-//         message: `No appointments scheduled in the next 7 days`
-//       });
-//     }
-
-//     const caseSummaries = [];
-
-//     for (const appointmentDoc of caseSummariesQuery.docs) {
-//       const appointment = appointmentDoc.data();
-//       const appointmentDate = appointment.scheduledDate.toDate();
-
-//       const timeDiff = appointmentDate - today;
-//       const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-//       let patientInfo = {
-//         name: appointment.patientId,
-//         phone: "N/A",
-//         email: "N/A"
-//       };
-
-//       try {
-//         const patientQuery = await db.collection("Users")
-//           .where("userId", "==", appointment.patientId)
-//           .limit(1)
-//           .get();
-
-//         if (!patientQuery.empty) {
-//           const patientData = patientQuery.docs[0].data();
-//           patientInfo = {
-//             name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
-//             phone: patientData.phone || "N/A",
-//             email: patientData.email || "N/A"
-//           };
-//         }
-//       } catch (patientError) {
-//         console.log(`⚠️ Patient lookup failed:`, patientError.message);
-//       }
-
-//       const getUrgencyText = (level) => {
-//         switch (level) {
-//           case 1: return "🚨 Urgent - Wound Care";
-//           case 2: return "⚠️ High - Nail Surgery";
-//           case 3: return "📋 Medium - High Risk Footcare";
-//           case 4: return "📝 Low - MSK";
-//           default: return "📋 Standard";
-//         }
-//       };
-
-//       const caseSummary = {
-//         id: appointmentDoc.id,
-//         patientId: appointment.patientId,
-//         patientName: patientInfo.name,
-//         patientPhone: patientInfo.phone,
-//         patientEmail: patientInfo.email,
-//         scheduledDate: appointmentDate.toLocaleDateString('en-SG', { 
-//           year: 'numeric', 
-//           month: 'long', 
-//           day: 'numeric',
-//           timeZone: 'Asia/Singapore'
-//         }),
-//         scheduledTime: appointmentDate.toLocaleTimeString('en-SG', { 
-//           hour: '2-digit', 
-//           minute: '2-digit', 
-//           hour12: true,
-//           timeZone: 'Asia/Singapore'
-//         }),
-//         daysUntil: daysUntil,
-//         urgencyLevel: appointment.urgencyLevel || 3,
-//         urgencyText: getUrgencyText(appointment.urgencyLevel || 3),
-//         category: appointment.category || 'General',
-//         initialDiagnosis: appointment.initialDiagnosis || 'Assessment pending',
-//         summary: appointment.summary || 'No case summary available',
-//         status: appointment.status,
-//         triageDate: appointment.triageDateTime ? 
-//           appointment.triageDateTime.toDate().toLocaleDateString('en-SG', { timeZone: 'Asia/Singapore' }) : 'N/A',
-//         podId: appointment.podId
-//       };
-
-//       caseSummaries.push(caseSummary);
-//     }
-
-//     console.log(`📝 Processed ${caseSummaries.length} case summaries for pod ${targetPodId}`);
-
-//     return res.json({
-//       success: true,
-//       caseSummaries: caseSummaries,
-//       totalCount: caseSummaries.length,
-//       podId: targetPodId,
-//       message: `Found ${caseSummaries.length} upcoming appointments`
-//     });
-
-//   } catch (error) {
-//     console.error("❌ Error fetching case summaries:", error);
-//     return res.status(500).json({
-//       success: false,
-//       error: "Failed to fetch case summaries",
-//       message: error.message,
-//       caseSummaries: [],
-//       totalCount: 0
-//     });
-//   }
-// });
-
-
-/* ===========================================================
-   FIX FOR IMAGE 4: GET UPCOMING CASE SUMMARIES (CRITICAL FOR AI)
+/* ============================================================
+   12) GET UPCOMING CASE SUMMARIES (AI QUICK QUERY)
    ============================================================ */
 router.post("/get-upcoming-case-summaries", async (req, res) => {
-  const { podiatristId } = req.body;
+  const { podiatristId, podId } = req.body;
+  const targetPodId = podId || podiatristId;
   
+  console.log('📝 Fetching upcoming case summaries for pod:', targetPodId);
+
+  if (!targetPodId) {
+    return res.status(400).json({
+      success: false,
+      error: "No podId provided",
+      caseSummaries: [],
+      totalCount: 0
+    });
+  }
+
   try {
-    console.log('🧠 Fetching case summaries for AI chat...');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // Define the future time window for "upcoming" (e.g., next 7 days or all future appointments)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0); 
-    
-    const appointmentsQuery = await db.collection("Appointments")
-      .where("podId", "==", podiatristId)
+    const oneWeekFromNow = new Date(today);
+    oneWeekFromNow.setDate(today.getDate() + 7);
+    oneWeekFromNow.setHours(23, 59, 59, 999);
+
+    const caseSummariesQuery = await db.collection("Appointments")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(today))
+      .where("scheduledDate", "<=", admin.firestore.Timestamp.fromDate(oneWeekFromNow))
       .where("status", "==", "scheduled")
-      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(tomorrow))
+      .where("podId", "==", targetPodId)
       .orderBy("scheduledDate", "asc")
-      .limit(10) // Limit the number of cases to process for the AI context window
       .get();
-      
-    let caseSummaries = [];
-    
-    for (const doc of appointmentsQuery.docs) {
-      const appointment = doc.data();
-      const scheduledDate = appointment.scheduledDate.toDate();
-      
-      // NOTE: getPatientName and getUrgencyText must be defined for this to work.
-      const patientName = await getPatientName(appointment.patientId, db);
-      const summary = {
-        appointmentId: doc.id,
-        patientName: patientName,
-        scheduledDate: scheduledDate.toLocaleDateString("en-SG"),
-        scheduledTime: scheduledDate.toLocaleTimeString("en-SG"),
-        category: appointment.category || "General Footcare",
-        urgency: getUrgencyText(appointment.urgencyLevel),
-        patientNotes: appointment.notes || "None provided by patient.",
-        initialDiagnosis: appointment.initialDiagnosis || "Pending."
-      };
-      
-      caseSummaries.push(summary);
+
+    console.log(`📊 Found ${caseSummariesQuery.size} appointments in next 7 days for pod ${targetPodId}`);
+
+    if (caseSummariesQuery.empty) {
+      return res.json({
+        success: true,
+        caseSummaries: [],
+        totalCount: 0,
+        podId: targetPodId,
+        message: `No appointments scheduled in the next 7 days`
+      });
     }
-    
-    console.log(`✅ Sent ${caseSummaries.length} case summaries for AI.`);
-    return res.json({ success: true, summaries: caseSummaries });
+
+    const caseSummaries = [];
+
+    for (const appointmentDoc of caseSummariesQuery.docs) {
+      const appointment = appointmentDoc.data();
+      const appointmentDate = appointment.scheduledDate.toDate();
+
+      const timeDiff = appointmentDate - today;
+      const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+      let patientInfo = {
+        name: appointment.patientId,
+        phone: "N/A",
+        email: "N/A"
+      };
+
+      try {
+        const patientQuery = await db.collection("Users")
+          .where("userId", "==", appointment.patientId)
+          .limit(1)
+          .get();
+
+        if (!patientQuery.empty) {
+          const patientData = patientQuery.docs[0].data();
+          patientInfo = {
+            name: `${patientData.firstName || ''} ${patientData.lastName || ''}`.trim(),
+            phone: patientData.phone || "N/A",
+            email: patientData.email || "N/A"
+          };
+        }
+      } catch (patientError) {
+        console.log(`⚠️ Patient lookup failed:`, patientError.message);
+      }
+
+      const getUrgencyText = (level) => {
+        switch (level) {
+          case 1: return "🚨 Urgent - Wound Care";
+          case 2: return "⚠️ High - Nail Surgery";
+          case 3: return "📋 Medium - High Risk Footcare";
+          case 4: return "📝 Low - MSK";
+          default: return "📋 Standard";
+        }
+      };
+
+      const caseSummary = {
+        id: appointmentDoc.id,
+        patientId: appointment.patientId,
+        patientName: patientInfo.name,
+        patientPhone: patientInfo.phone,
+        patientEmail: patientInfo.email,
+        scheduledDate: appointmentDate.toLocaleDateString('en-SG', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          timeZone: 'Asia/Singapore'
+        }),
+        scheduledTime: appointmentDate.toLocaleTimeString('en-SG', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true,
+          timeZone: 'Asia/Singapore'
+        }),
+        daysUntil: daysUntil,
+        urgencyLevel: appointment.urgencyLevel || 3,
+        urgencyText: getUrgencyText(appointment.urgencyLevel || 3),
+        category: appointment.category || 'General',
+        initialDiagnosis: appointment.initialDiagnosis || 'Assessment pending',
+        summary: appointment.summary || 'No case summary available',
+        status: appointment.status,
+        triageDate: appointment.triageDateTime ? 
+          appointment.triageDateTime.toDate().toLocaleDateString('en-SG', { timeZone: 'Asia/Singapore' }) : 'N/A',
+        podId: appointment.podId
+      };
+
+      caseSummaries.push(caseSummary);
+    }
+
+    console.log(`📝 Processed ${caseSummaries.length} case summaries for pod ${targetPodId}`);
+
+    return res.json({
+      success: true,
+      caseSummaries: caseSummaries,
+      totalCount: caseSummaries.length,
+      podId: targetPodId,
+      message: `Found ${caseSummaries.length} upcoming appointments`
+    });
 
   } catch (error) {
-    console.error("❌ Error fetching case summaries for AI:", error);
-    return res.status(500).json({ success: false, error: error.message || "Failed to fetch AI summaries" });
+    console.error("❌ Error fetching case summaries:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to fetch case summaries",
+      message: error.message,
+      caseSummaries: [],
+      totalCount: 0
+    });
   }
 });
 
