@@ -239,6 +239,7 @@ window.onload = async () => {
     const resAll = await fetch("/api/get-all-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId })
     });
   
     if (!resAll.ok) {
@@ -830,6 +831,8 @@ async function refreshAllPatients() {
     const resAll = await fetch("/api/get-all-appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId }) 
+      
     });
   
     const allData = await resAll.json();
