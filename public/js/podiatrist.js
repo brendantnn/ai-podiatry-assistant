@@ -679,10 +679,7 @@ function showErrorNotifications() {
 // Auto-refresh notifications every 5 minutes
 setInterval(loadNotifications, 5 * 60 * 1000); 
 
-// // Auto-refresh dashboard metrics every 5 minutes
-// setInterval(loadDashboardMetrics, 5 * 60 * 1000);
 
-// 🔄 CROSS-PODIATRIST: Auto-refresh All Patients tab every 30 seconds to catch changes from other pods
 setInterval(() => {
   // Only refresh if the All Patients tab is currently visible
   const allPatientsTab = document.getElementById('all-patients-tab');
@@ -705,26 +702,6 @@ window.refreshDashboardMetrics = async function() {
   }
 };
 window.loadDashboardMetrics = loadDashboardMetrics;
-
-// ========================================
-// TAB SWITCHING
-// ========================================
-
-/**function showTab(tabName) {
-  const tabs = document.querySelectorAll('.tab-content');
-  tabs.forEach(tab => tab.classList.add('hidden'));
-  
-  const buttons = document.querySelectorAll('.tab-button');
-  buttons.forEach(btn => {
-    btn.classList.remove('active');
-    btn.style.borderBottomColor = 'transparent';
-  });
-  
-  document.getElementById(tabName + '-tab').classList.remove('hidden');
-  
-  event.target.classList.add('active');
-  event.target.style.borderBottomColor = 'var(--blue-600)';
-}**/
 
 function showTab(tabName, event) {
   const tabs = document.querySelectorAll('.tab-content');
@@ -825,9 +802,12 @@ async function refreshPatientQueue() {
 // ========================================
 
 async function refreshAllPatients() {
+
   try {
-    const podId = getCurrentPodId();
+    
     console.log('🔄 Refreshing all patients tab...');
+
+    const podId = getCurrentPodId();
     
     const resAll = await fetch("/api/get-all-appointments", {
       method: "POST",
