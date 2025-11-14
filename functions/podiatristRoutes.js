@@ -6,6 +6,13 @@ const router = express.Router();
 const { db, admin } = require("./firebase");
 const { OpenAI } = require("openai");
 
+// ==============================
+// SMS SERVICE IMPORT
+// ==============================
+const { SMSService } = require("./smsService");
+const smsService = new SMSService(db, admin);
+
+
 // Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "REMOVED_OPENAI_API_KEY"
@@ -1238,25 +1245,6 @@ router.post('/podiatrist-get-appointments-scheduled', async (req, res) => {
 /* ============================================================
    9) UPDATE APPOINTMENT - FIXED
    ============================================================ */
-// router.post('/podiatrist-update-appointment', async (req, res) => {
-//   let { appointmentId, apptId, newDate, newTime, updateData, originalSlot } = req.body;
-  
-//   const finalApptId = appointmentId || apptId;
-  
-//   console.log("✏️ Updating appointment:", finalApptId);
-
-//   if (updateData && typeof updateData === 'string') {
-//     const [datePart, timePart] = updateData.split('T');
-//     newDate = datePart;
-//     newTime = timePart;
-//   }
-
-//   if (!finalApptId || !newDate || !newTime) {
-//     return res.status(400).json({ 
-//       success: false, 
-//       error: "Missing required parameters" 
-//     });
-//   }
 
 router.post('/podiatrist-update-appointment', async (req, res) => {
   let { appointmentId, apptId, newDate, newTime, updateData, originalSlot } = req.body;
@@ -1303,22 +1291,6 @@ router.post('/podiatrist-update-appointment', async (req, res) => {
     });
   }
 
-  // try {
-  //   const appointmentRef = db.collection("Appointments").doc(finalApptId);
-  //   const appointmentDoc = await appointmentRef.get();
-
-  //   if (!appointmentDoc.exists) {
-  //     return res.status(404).json({ success: false, error: "Appointment not found" });
-  //   }
-
-  //   const [year, month, day] = newDate.split('-');
-  //   const [hours, minutes] = newTime.split(':');
-  //   const newDateTime = new Date(year, month - 1, day, hours, minutes);
-
-  //   await appointmentRef.update({
-  //     scheduledDate: admin.firestore.Timestamp.fromDate(newDateTime),
-  //     updatedAt: admin.firestore.Timestamp.now()
-  //   });
 
   try {
     const appointmentRef = db.collection("Appointments").doc(finalApptId);
@@ -1349,6 +1321,57 @@ router.post('/podiatrist-update-appointment', async (req, res) => {
       updatedAt: admin.firestore.Timestamp.now()
     });
 
+        // ========================================
+    // SEND SMS: APPOINTMENT UPDATED
+    // ========================================
+    try {
+        // Format old / new time for SMS
+        const oldDateTimeString = oldDate.toLocaleString("en-SG", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore",
+        });
+
+        const newDateTimeString = newDateTime.toLocaleString("en-SG", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore",
+        });
+
+        // Fetch podiatrist name
+        const podSnap = await db.collection("Users")
+            .where("userId", "==", updatedPodId)
+            .limit(1)
+            .get();
+        let podiatristName = "Podiatrist";
+        if (!podSnap.empty) {
+            const pod = podSnap.docs[0].data();
+            podiatristName = `${pod.firstName || ""} ${pod.lastName || ""}`.trim();
+        }
+
+        console.log("📩 Sending SMS update...");
+        const smsResult = await smsService.sendAppointmentUpdateSMS(
+            apptId,
+            patientId,
+            oldDateTimeString,
+            newDateTimeString,
+            podiatristName
+        );
+        console.log("📲 SMS update result:", smsResult);
+
+    } catch (smsErr) {
+        console.error("❌ Failed to send appointment-update SMS:", smsErr);
+    }
+
+
     console.log("✅ Appointment updated successfully");
     res.json({ success: true, message: "Appointment updated successfully" });
 
@@ -1377,6 +1400,55 @@ router.post('/podiatrist-cancel-appointment', async (req, res) => {
       status: "cancelled",
       cancelledAt: admin.firestore.Timestamp.now()
     });
+
+        // ========================================
+    // SEND SMS: APPOINTMENT CANCELLED
+    // ========================================
+    try {
+        // Format date/time for SMS
+        const oldDateString = oldDate.toLocaleString("en-SG", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Singapore",
+        });
+
+        // Fetch podiatrist name
+        const podSnap = await db.collection("Users")
+            .where("userId", "==", podId)
+            .limit(1).get();
+        let podiatristName = "Podiatrist";
+        if (!podSnap.empty) {
+            const pod = podSnap.docs[0].data();
+            podiatristName = `${pod.firstName || ""} ${pod.lastName || ""}`.trim();
+        }
+
+        console.log("📩 Sending cancellation SMS...");
+        const smsMessage = smsService.generateAppointmentCancellationSMS(
+            patientName,
+            oldDateString,
+            podiatristName
+        );
+
+        const smsResult = await smsService.sendSMS(patientPhone, smsMessage);
+        console.log("📲 SMS cancellation result:", smsResult);
+
+        await smsService.logAppointmentNotification(
+            apptId,
+            patientId,
+            "sms",
+            "appointment_cancelled",
+            smsMessage,
+            smsResult.success ? "sent" : "failed"
+        );
+
+    } catch (smsErr) {
+        console.error("❌ Failed to send appointment-cancellation SMS:", smsErr);
+    }
+
 
     console.log("✅ Appointment cancelled successfully");
     res.json({ success: true, message: "Appointment cancelled successfully" });
