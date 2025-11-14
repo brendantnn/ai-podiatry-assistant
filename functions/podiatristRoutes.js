@@ -9,7 +9,7 @@ const { OpenAI } = require("openai");
 // ==============================
 // SMS SERVICE IMPORT
 // ==============================
-const { SMSService } = require("./smsService");
+const SMSService = require("./smsService");
 const smsService = new SMSService(db, admin);
 
 
