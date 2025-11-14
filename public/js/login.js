@@ -299,8 +299,23 @@ async function createSecureSession(userData, userCredential) {
     sessionStorage.setItem(key, sessionData[key]);
   });
 
+   // Store currentPodId separately for easy access
+  sessionStorage.setItem('currentPodId', userData.podId || userData.userId);
+
+  // Store complete user object as JSON
+  sessionStorage.setItem('currentUser', JSON.stringify({
+    uid: userCredential.user.uid,
+    email: userData.email,
+    role: userData.role,
+    userId: userData.userId,
+    firstName: userData.firstName,
+    lastName: userData.lastName,
+    podId: userData.podId || userData.userId
+  }));
+
   console.log("✅ Secure session created successfully");
   return sessionData;
+
 }
 
 async function getUserIP() {
