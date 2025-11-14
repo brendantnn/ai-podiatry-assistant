@@ -826,6 +826,7 @@ async function refreshPatientQueue() {
 
 async function refreshAllPatients() {
   try {
+    const podId = getCurrentPodId();
     console.log('🔄 Refreshing all patients tab...');
     
     const resAll = await fetch("/api/get-all-appointments", {
@@ -1232,6 +1233,27 @@ function debugPatientQueue() {
 // Call debug function when queue is refreshed
 window.debugQueue = debugPatientQueue;
 
+function formatSGDateTime(dateString) {
+  const dateObj = new Date(dateString);
+
+  const sgDate = dateObj.toLocaleDateString("en-SG", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Asia/Singapore"
+  });
+
+  const sgTime = dateObj.toLocaleTimeString("en-SG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Singapore"
+  });
+
+  return { date: sgDate, time: sgTime };
+}
+
+
 //Function to populate All Patients tab
 function populateAllTab(data = allPatients) {
   const tableBody = document.getElementById("patientAll");
@@ -1296,10 +1318,12 @@ function populateAllTab(data = allPatients) {
     <td>${patient.category}</td>
     <td>${patient.initialDiagnosis}</td>
     <td>${patient.status}</td>
-    <td>${patient.date}</td>
+    <td>${formatSGDateTime(patient.date).date}</td>
+
     <td>
       <button class="medical-btn medical-btn-primary medical-btn-sm"
-      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${patient.date}', '${patient.time}', '${escapeSpecialCharacters(patient.summary)}', '${patient.podId || 'unassigned'}', '${patient.imageUrl || ''}', '${escapeSpecialCharacters(patient.imageCaption || '')}')"
+      onclick="openModal('all', '${patient.apptId}',  '${patient.patientId}', '${patient.name}', '${patient.category}', '${escapeSpecialCharacters(patient.initialDiagnosis)}', '${patient.status}', '${formatSGDateTime(patient.date).date}'
+  , '${patient.time}', '${escapeSpecialCharacters(patient.summary)}', '${patient.podId || 'unassigned'}', '${patient.imageUrl || ''}', '${escapeSpecialCharacters(patient.imageCaption || '')}')"
       >👁️ View</button>
       <button class="medical-btn medical-btn-secondary medical-btn-sm ml-sm" onclick="askAIAboutPatientFromRow(this)">🤖 Ask AI</button>
     </td>
