@@ -1034,6 +1034,7 @@ router.post("/get-all-appointments", async (req, res) => {
         const appointment = {
           apptId: doc.id,
           patientId: appt.patientId,
+          scheduledDate: appt.scheduledDate.toDate().toISOString(),
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { 
             year: 'numeric', 
             month: 'long', 
@@ -1053,7 +1054,7 @@ router.post("/get-all-appointments", async (req, res) => {
           summary: appt.summary,
           imageUrl: appt.imageUrl || null,
           imageCaption: appt.imageCaption || null,
-          podId: appt.podId || "unassigned"
+          podId: appt.podId
         };
         appointments.push(appointment);
       });
@@ -1117,6 +1118,8 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
         const appointment = {
           apptId: doc.id,
           patientId: appt.patientId,
+          podId: appt.podId,
+          scheduledDate: appt.scheduledDate.toDate().toISOString(),
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
           status: appt.status,
@@ -1186,6 +1189,8 @@ router.post('/podiatrist-get-appointments-scheduled', async (req, res) => {
         const appointment = {
           apptId: doc.id,
           patientId: appt.patientId,
+          podId: appt.podId,
+          scheduledDate: appt.scheduledDate.toDate().toISOString(),
           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' }),
           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true }),
           urgencyLevel: appt.urgencyLevel || 3,

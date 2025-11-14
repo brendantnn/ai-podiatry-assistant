@@ -198,10 +198,40 @@ class PodiatristCalendar {
         return;
       }
 
+      // // Process appointments to include all needed fields
+      // this.appointments = (data.appointments || []).map(apt => {
+      //   // Parse the ISO date string
+      //   const dateObj = new Date(apt.scheduledDate);
+
+      //   return {
+      //     apptId: apt.apptId,
+      //     patientId: apt.patientId,
+      //     patient: apt.patientId, // Add patient field for calendar display
+      //     category: apt.category || 'general',
+      //     urgencyLevel: apt.urgencyLevel || 4,
+      //     date: dateObj, // Store as Date object
+      //     time: dateObj.toLocaleTimeString("en-SG", {
+      //       hour: "2-digit",
+      //       minute: "2-digit",
+      //       hour12: true
+      //     }),
+      //     initialDiagnosis: apt.initialDiagnosis || 'Assessment pending',
+      //     summary: apt.summary || 'No summary available'
+      //   };
+      // });
+
       // Process appointments to include all needed fields
       this.appointments = (data.appointments || []).map(apt => {
-        // Parse the ISO date string
+        // ✅ FIX: Use the ISO string directly from server to preserve correct timezone
         const dateObj = new Date(apt.scheduledDate);
+        
+        // ✅ FIX: Convert to Singapore time explicitly
+        const sgTimeString = dateObj.toLocaleString('en-SG', {
+          timeZone: 'Asia/Singapore',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
 
         return {
           apptId: apt.apptId,
@@ -210,11 +240,7 @@ class PodiatristCalendar {
           category: apt.category || 'general',
           urgencyLevel: apt.urgencyLevel || 4,
           date: dateObj, // Store as Date object
-          time: dateObj.toLocaleTimeString("en-SG", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true
-          }),
+          time: sgTimeString,  // ✅ FIX: Use explicitly converted Singapore time
           initialDiagnosis: apt.initialDiagnosis || 'Assessment pending',
           summary: apt.summary || 'No summary available'
         };
