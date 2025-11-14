@@ -1233,25 +1233,87 @@ router.post('/podiatrist-get-appointments-scheduled', async (req, res) => {
 /* ============================================================
    9) UPDATE APPOINTMENT - FIXED
    ============================================================ */
+// router.post('/podiatrist-update-appointment', async (req, res) => {
+//   let { appointmentId, apptId, newDate, newTime, updateData, originalSlot } = req.body;
+  
+//   const finalApptId = appointmentId || apptId;
+  
+//   console.log("✏️ Updating appointment:", finalApptId);
+
+//   if (updateData && typeof updateData === 'string') {
+//     const [datePart, timePart] = updateData.split('T');
+//     newDate = datePart;
+//     newTime = timePart;
+//   }
+
+//   if (!finalApptId || !newDate || !newTime) {
+//     return res.status(400).json({ 
+//       success: false, 
+//       error: "Missing required parameters" 
+//     });
+//   }
+
 router.post('/podiatrist-update-appointment', async (req, res) => {
   let { appointmentId, apptId, newDate, newTime, updateData, originalSlot } = req.body;
   
   const finalApptId = appointmentId || apptId;
   
   console.log("✏️ Updating appointment:", finalApptId);
+  console.log("📦 Received parameters:", { appointmentId, apptId, newDate, newTime, updateData });
 
+  // Handle different parameter formats
   if (updateData && typeof updateData === 'string') {
-    const [datePart, timePart] = updateData.split('T');
-    newDate = datePart;
-    newTime = timePart;
+    // Format 1: "YYYY-MM-DDTHH:mm" (ISO format with T)
+    if (updateData.includes('T')) {
+      const [datePart, timePart] = updateData.split('T');
+      newDate = datePart;
+      newTime = timePart;
+    }
+    // Format 2: "YYYY-MM-DD HH:mm" (with space)
+    else if (updateData.includes(' ')) {
+      const [datePart, timePart] = updateData.split(' ');
+      newDate = datePart;
+      newTime = timePart;
+    }
+    // Format 3: Just a date string
+    else {
+      newDate = updateData;
+    }
   }
 
-  if (!finalApptId || !newDate || !newTime) {
+  console.log("📅 Parsed date and time:", { newDate, newTime });
+
+  if (!finalApptId) {
     return res.status(400).json({ 
       success: false, 
-      error: "Missing required parameters" 
+      error: "Missing appointment ID" 
     });
   }
+
+  if (!newDate || !newTime) {
+    return res.status(400).json({ 
+      success: false, 
+      error: "Missing date or time. Please provide both date and time.",
+      received: { newDate, newTime, updateData }
+    });
+  }
+
+  // try {
+  //   const appointmentRef = db.collection("Appointments").doc(finalApptId);
+  //   const appointmentDoc = await appointmentRef.get();
+
+  //   if (!appointmentDoc.exists) {
+  //     return res.status(404).json({ success: false, error: "Appointment not found" });
+  //   }
+
+  //   const [year, month, day] = newDate.split('-');
+  //   const [hours, minutes] = newTime.split(':');
+  //   const newDateTime = new Date(year, month - 1, day, hours, minutes);
+
+  //   await appointmentRef.update({
+  //     scheduledDate: admin.firestore.Timestamp.fromDate(newDateTime),
+  //     updatedAt: admin.firestore.Timestamp.now()
+  //   });
 
   try {
     const appointmentRef = db.collection("Appointments").doc(finalApptId);
@@ -1261,9 +1323,21 @@ router.post('/podiatrist-update-appointment', async (req, res) => {
       return res.status(404).json({ success: false, error: "Appointment not found" });
     }
 
+    // Parse date and time with Singapore timezone
     const [year, month, day] = newDate.split('-');
     const [hours, minutes] = newTime.split(':');
-    const newDateTime = new Date(year, month - 1, day, hours, minutes);
+    
+    // Create date in Singapore timezone (UTC+8)
+    // Format: YYYY-MM-DDTHH:mm:ss+08:00
+    const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:00+08:00`;
+    const newDateTime = new Date(dateTimeString);
+    
+    console.log("🕐 Parsed DateTime:", {
+      input: { newDate, newTime },
+      dateTimeString: dateTimeString,
+      newDateTime: newDateTime.toISOString(),
+      localString: newDateTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+    });
 
     await appointmentRef.update({
       scheduledDate: admin.firestore.Timestamp.fromDate(newDateTime),
@@ -1595,6 +1669,37 @@ router.post("/get-dashboard-metrics", async (req, res) => {
 /* ============================================================
    15) GET NOTIFICATIONS
    ============================================================ */
+// router.post("/get-notifications", async (req, res) => {
+//   const { podId } = req.body;
+//   console.log("🔔 Fetching notifications for pod:", podId);
+
+//   try {
+//     const snapshot = await db.collection("Appointments")
+//       .where("podId", "==", podId)
+//       .where("status", "==", "scheduled")
+//       .orderBy("scheduledDate", "asc")
+//       .limit(5)
+//       .get();
+
+//     const notifications = snapshot.docs.map(doc => {
+//       const data = doc.data();
+//       return {
+//         id: doc.id,
+//         patientId: data.patientId,
+//         date: data.scheduledDate.toDate().toLocaleDateString('en-SG'),
+//         time: data.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }),
+//         urgency: data.urgencyLevel
+//       };
+//     });
+
+//     res.json({ success: true, notifications });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching notifications:", error);
+//     res.status(500).json({ success: false, error: "Failed to fetch notifications" });
+//   }
+// });
+
 router.post("/get-notifications", async (req, res) => {
   const { podId } = req.body;
   console.log("🔔 Fetching notifications for pod:", podId);
@@ -1607,16 +1712,68 @@ router.post("/get-notifications", async (req, res) => {
       .limit(5)
       .get();
 
-    const notifications = snapshot.docs.map(doc => {
+    // Get patient names for notifications
+    const notifications = [];
+    
+    for (const doc of snapshot.docs) {
       const data = doc.data();
-      return {
+      const scheduledDate = data.scheduledDate.toDate();
+      
+      // Get patient name
+      let patientName = data.patientId;
+      try {
+        const userQuery = await db.collection("Users")
+          .where("userId", "==", data.patientId)
+          .limit(1)
+          .get();
+        
+        if (!userQuery.empty) {
+          const userData = userQuery.docs[0].data();
+          patientName = `${userData.firstName} ${userData.lastName}`.trim();
+        }
+      } catch (e) {
+        console.log('Could not fetch patient name for notification');
+      }
+      
+      // Determine notification type based on urgency and time
+      const now = new Date();
+      const timeDiff = scheduledDate - now;
+      const hoursDiff = timeDiff / (1000 * 60 * 60);
+      
+      let type = 'reminder';
+      if (data.urgencyLevel === 1 || data.urgencyLevel === 2) {
+        type = 'urgent';
+      } else if (hoursDiff < 24 && hoursDiff > 0) {
+        type = 'upcoming';
+      }
+      
+      // Format message
+      const dateStr = scheduledDate.toLocaleDateString('en-SG', { 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: 'Asia/Singapore'
+      });
+      const timeStr = scheduledDate.toLocaleTimeString('en-SG', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Singapore'
+      });
+      
+      const message = `${patientName} - ${dateStr} at ${timeStr}`;
+      
+      notifications.push({
         id: doc.id,
+        appointmentId: doc.id,
         patientId: data.patientId,
-        date: data.scheduledDate.toDate().toLocaleDateString('en-SG'),
-        time: data.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }),
+        message: message,
+        type: type,
+        timestamp: scheduledDate.toISOString(),
+        date: dateStr,
+        time: timeStr,
         urgency: data.urgencyLevel
-      };
-    });
+      });
+    }
 
     res.json({ success: true, notifications });
 
