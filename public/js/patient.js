@@ -444,7 +444,25 @@ async function sendImage() {
 
   try {
     const res = await fetch("/patient/chat-image", { method: "POST", body: form });
-    const data = await res.json();
+
+const contentType = res.headers.get("content-type") || "";
+
+// If HTTP status is not OK, log the raw text so you can see the server error page
+if (!res.ok) {
+  const text = await res.text();
+  console.error("Server /patient/chat-image error:", res.status, text);
+  throw new Error(`Server responded with ${res.status}`);
+}
+
+let data;
+if (contentType.includes("application/json")) {
+  data = await res.json();
+} else {
+  const text = await res.text();
+  console.error("Expected JSON but got:", text);
+  throw new Error("Server did not return JSON");
+}
+
 
     const analyzingEl = document.getElementById(analyzingId);
     if (analyzingEl) {
