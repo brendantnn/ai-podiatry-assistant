@@ -1321,56 +1321,62 @@ router.post('/podiatrist-update-appointment', async (req, res) => {
       updatedAt: admin.firestore.Timestamp.now()
     });
 
-        // ========================================
-    // SEND SMS: APPOINTMENT UPDATED
-    // ========================================
-    try {
-        // Format old / new time for SMS
-        const oldDateTimeString = oldDate.toLocaleString("en-SG", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Singapore",
-        });
+      // ========================================
+  // SEND SMS: APPOINTMENT UPDATED
+  // ========================================
+  try {
+      const apptData = appointmentDoc.data();
 
-        const newDateTimeString = newDateTime.toLocaleString("en-SG", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "Asia/Singapore",
-        });
+      // Old appointment date
+      const oldDate = apptData.scheduledDate.toDate();
+      const oldDateTimeString = oldDate.toLocaleString("en-SG", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore",
+      });
 
-        // Fetch podiatrist name
-        const podSnap = await db.collection("Users")
-            .where("userId", "==", updatedPodId)
-            .limit(1)
-            .get();
-        let podiatristName = "Podiatrist";
-        if (!podSnap.empty) {
-            const pod = podSnap.docs[0].data();
-            podiatristName = `${pod.firstName || ""} ${pod.lastName || ""}`.trim();
-        }
+      // New appointment date
+      const newDateTimeString = newDateTime.toLocaleString("en-SG", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Singapore",
+      });
 
-        console.log("📩 Sending SMS update...");
-        const smsResult = await smsService.sendAppointmentUpdateSMS(
-            apptId,
-            patientId,
-            oldDateTimeString,
-            newDateTimeString,
-            podiatristName
-        );
-        console.log("📲 SMS update result:", smsResult);
+      // Fetch podiatrist name
+      const podSnap = await db.collection("Users")
+          .where("userId", "==", apptData.podId)
+          .limit(1)
+          .get();
 
-    } catch (smsErr) {
-        console.error("❌ Failed to send appointment-update SMS:", smsErr);
-    }
+      let podiatristName = "Podiatrist";
+      if (!podSnap.empty) {
+          const pod = podSnap.docs[0].data();
+          podiatristName = `${pod.firstName || ""} ${pod.lastName || ""}`.trim();
+      }
 
+      // Send SMS
+      console.log("📩 Sending SMS update...");
+      const smsResult = await smsService.sendAppointmentUpdateSMS(
+          finalApptId,               // correct ID
+          apptData.patientId,        // correct patient id
+          oldDateTimeString,
+          newDateTimeString,
+          podiatristName
+      );
+
+      console.log("📲 SMS update result:", smsResult);
+
+  } catch (smsErr) {
+      console.error("❌ Failed to send appointment-update SMS:", smsErr);
+  }
 
     console.log("✅ Appointment updated successfully");
     res.json({ success: true, message: "Appointment updated successfully" });
