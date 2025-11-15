@@ -1331,6 +1331,7 @@ router.post('/translate', async (req, res) => {
 
 // ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
 router.post("/chat-image", upload.single("image"), async (req, res) => {
+        console.log("Entered chat image route!!!!!!!!!");
   try {
     const { patientId, language, caption = "" } = req.body;
     const userLanguage = language || "en";

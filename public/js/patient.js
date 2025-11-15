@@ -443,6 +443,8 @@ async function sendImage() {
   fileInput.disabled = true;
 
   try {
+    console.log("SENGIN POST REQUEST TO chat image route!!!!!!!!!");
+
     const res = await fetch("/patient/chat-image", { method: "POST", body: form });
 
 const contentType = res.headers.get("content-type") || "";
@@ -450,7 +452,7 @@ const contentType = res.headers.get("content-type") || "";
 // If HTTP status is not OK, log the raw text so you can see the server error page
 if (!res.ok) {
   const text = await res.text();
-  console.error("Server /patient/chat-image error:", res.status, text);
+  console.error("Error in patient.js, Server /patient/chat-image error:", res.status, text);
   throw new Error(`Server responded with ${res.status}`);
 }
 
