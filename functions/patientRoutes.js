@@ -1522,17 +1522,61 @@ Be strict. Output JSON only.`,
       }
 
       // ================= 2) TRIAGE PROMPT (vision) =================
-      const visionPrompt = `You are an image gatekeeper. Decide if this image is a clear photo of a HUMAN FOOT (or feet) useful for podiatry triage.
-Return ONLY compact JSON like: {"valid": true, "reason": "short reason"}.
+      const visionPrompt = `You are a podiatry triage assistant. Consider BOTH the patient's conversation history/caption (if any) and the uploaded foot image.
 
-valid=true ONLY IF:
-- A human foot is clearly visible (bare or clearly visible even if partly covered).
-- Image is not excessively blurry/overexposed/too dark.
-- Foot fills a reasonable portion of the frame.
+Classify into exactly one:
+- wound care: presence of wound, signs of infection (redness, swelling, pain, pus, warmth), gangrene, neuropathic/ischaemic/neuroischaemic wounds/ulcers
+- nail surgery: ingrown toenail, involuted toenail
+- high risk footcare: callus, corns, warts, pathological toenails
+- MSK: foot pain, footwear issues, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus/bunions, metatarsalgia
 
-valid=false for: hands, faces, pets/animals, landscapes, documents/screenshots, x-rays, memes, drawings, shoes-only (no visible foot).
+If the photo shows no obvious pathology, state that plainly (e.g., “No visible wound or infection on the photo”), and use MSK (level 4) unless the caption suggests otherwise.
 
-Be strict. Output JSON only.`; 
+IMPORTANT: Do NOT set Urgency=1 unless at least ONE of these is visibly/clearly present OR stated by the caption:
+open wound OR drainage/pus OR necrosis/black tissue OR spreading redness (lymphangitic streaks) OR malodour OR fever/chills. 
+General redness/swelling alone is NOT enough for Urgency 1.
+
+Assign urgency:
+- wound care → 1 (most urgent)
+- nail surgery → 2
+- high risk footcare → 3
+- MSK → 4 (least urgent)
+Also provide an Initial diagnosis.
+
+Return EXACTLY this format with three dashes (---) separating sections:
+
+[INTERNAL DATA]
+Category: <MSK / wound care / nail surgery / high risk footcare>
+Diagnosis: <Short diagnosis>
+Urgency level: <1 to 4>
+Summary: A brief clinical-style note for the podiatrist (what the patient said, duration/severity, infection signs, impression, urgency)
+Evidence:
+  open_wound: <true|false>
+  drainage_pus: <true|false>
+  necrosis_black_tissue: <true|false>
+  spreading_redness: <true|false>
+  general_redness_swelling: <true|false>
+  malodour: <true|false>
+  fever_chills: <true|false>
+RiskFactors:
+  diabetes_neuropathy: <true|false>
+  recent_trauma: <true|false>
+Confidence: <0.0-1.0>
+
+---
+
+[DISPLAY MESSAGE, SH]
+Start with:
+- 1 → "You need to see a podiatrist urgently."
+- 2 → "You should see a podiatrist soon."
+- 3 → "This should be checked by a podiatrist."
+- 4 → "This is not urgent, but a podiatrist can help manage the issue."
+<br><br>
+While you wait for your appointment, here's what you should do:<br>
+• Tip 1<br>
+• Tip 2<br>
+• Tip 3<br>
+(Do not display internal data to the patient.)`; 
 
       const triageMsgsBase = [
         { role: "system", content: "You are a careful, empathetic podiatry triage assistant." },
