@@ -1329,8 +1329,27 @@ router.post('/translate', async (req, res) => {
   }
 });
 
+function chatImageMulterWrapper(req, res, next) {
+  console.log("🔥 Hit /patient/chat-image BEFORE multer. Content-Type:", req.headers["content-type"]);
+
+  // Run multer manually so we can catch errors
+  upload.single("image")(req, res, function (err) {
+    if (err) {
+      console.error("💥 MULTER ERROR in /chat-image:", err);
+      return res.status(400).json({
+        reply: "⚠️ Multer failed: " + err.message
+      });
+    }
+    next();
+  });
+}
+
+
 // ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
-router.post("/chat-image", upload.single("image"), async (req, res) => {
+router.post("/chat-image", chatImageMulterWrapper, async (req, res) => {
+  console.log("🎯 Entered /chat-image AFTER multer");
+  console.log("📸 multer file:", req.file ? "YES" : "NO FILE");
+  console.log("📝 body:", req.body);
         console.log("Entered chat image route!!!!!!!!!");
   try {
     const { patientId, language, caption = "" } = req.body;
