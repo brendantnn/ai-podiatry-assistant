@@ -8,12 +8,7 @@ const translate = require('translate-google');
 const translationCache = new Map();
 const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes
 
-//for image constants
-const multer = require("multer");
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 7 * 1024 * 1024 } // ~7MB
-});
+const Busboy = require("busboy");
 
 // Use real key in Cloud Functions (from secrets), but a dummy string during local deploy
 const openai = new OpenAI({
@@ -1329,24 +1324,529 @@ router.post('/translate', async (req, res) => {
   }
 });
 
-function chatImageMulterWrapper(req, res, next) {
-  console.log("🔥 Hit /patient/chat-image BEFORE multer. Content-Type:", req.headers["content-type"]);
-
-  // Run multer manually so we can catch errors
-  upload.single("image")(req, res, function (err) {
-    if (err) {
-      console.error("💥 MULTER ERROR in /chat-image:", err);
-      return res.status(400).json({
-        reply: "⚠️ Multer failed: " + err.message
-      });
-    }
-    next();
-  });
-}
-
 
 // ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
-router.post("/chat-image", chatImageMulterWrapper, async (req, res) => {
+router.post("/chat-image", (req, res) => {
+  console.log("🔥 Hit /patient/chat-image (Busboy version). Content-Type:", req.headers["content-type"]);
+
+  const contentType = req.headers["content-type"] || "";
+  if (!contentType.startsWith("multipart/form-data")) {
+    return res.status(400).json({ error: "Expected multipart/form-data" });
+  }
+
+  // Values we’ll fill from Busboy
+  let imageBuffer = null;
+  let imageMime = "";
+  let caption = "";
+  let patientId = "";
+  let language = "en";
+
+  const busboy = Busboy({ headers: req.headers });
+
+  // ---- FILE FIELD ----
+  busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
+    console.log("📷 Busboy got file field:", fieldname, filename, mimetype);
+
+    if (fieldname !== "image") {
+      // Ignore any other file fields
+      file.resume();
+      return;
+    }
+
+    imageMime = mimetype;
+    const chunks = [];
+
+    file.on("data", (data) => {
+      chunks.push(data);
+    });
+
+    file.on("end", () => {
+      imageBuffer = Buffer.concat(chunks);
+      console.log("✅ Finished reading image, size:", imageBuffer.length);
+    });
+  });
+
+  // ---- NORMAL FIELDS ----
+  busboy.on("field", (fieldname, val) => {
+    console.log("✏️ Busboy field:", fieldname, "=", val);
+    if (fieldname === "caption") caption = val;
+    if (fieldname === "patientId") patientId = val;
+    if (fieldname === "language") language = val || "en";
+  });
+
+  busboy.on("error", (err) => {
+    console.error("❌ Busboy error in /chat-image:", err);
+    return res.status(500).json({ error: "Upload error" });
+  });
+
+  // ---- WHEN ALL PARTS ARE READ ----
+  busboy.on("finish", async () => {
+    console.log("🎯 Entered /chat-image AFTER busboy");
+
+    try {
+      const userLanguage = language || "en";
+      const userId = patientId;
+
+      if (!imageBuffer) {
+        console.log("🛑 [/chat-image] No file in request.");
+        return res.json({
+          reply: await translateReply("⚠️ No image received.", userLanguage),
+        });
+      }
+      if (!imageMime || !imageMime.startsWith("image/")) {
+        console.log("🛑 [/chat-image] Uploaded file is not an image. Mimetype:", imageMime);
+        return res.json({
+          reply: await translateReply("⚠️ Please upload a valid image file.", userLanguage),
+        });
+      }
+
+      // Session (unchanged)
+      session[userId] = session[userId] || {
+        state: "idle",
+        triageStage: null,
+        messages: [],
+        pendingSlot: null,
+        pendingSlotData: null,
+      };
+      const s = session[userId];
+
+      // Helpers (same as before)
+      const VLM_MODEL = "gpt-4o-mini";
+      const GATE_MODEL = "gpt-4o-mini";
+
+      function safeParseJSON(str) {
+        try {
+          return JSON.parse(str);
+        } catch {
+          return null;
+        }
+      }
+
+      function splitInternalAndDisplay(full) {
+        const raw = (full || "").trim();
+        if (!raw) return { internal: "", display: "" };
+        const parts = raw.split(/-{3,}/);
+        if (parts.length < 2) {
+          return {
+            internal: "",
+            display: raw.replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim(),
+          };
+        }
+        const internal = parts[parts.length - 2] || "";
+        const display = (parts[parts.length - 1] || "")
+          .replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "")
+          .trim();
+        return { internal, display };
+      }
+
+      function grabLine(internal, re, fallback) {
+        const m = internal.match(re);
+        return m && m[1] ? m[1].trim() : fallback;
+      }
+
+      function normalizeCategory(catRaw) {
+        if (!catRaw) return "Unknown";
+        const c = catRaw.toLowerCase().trim();
+        if (c.startsWith("msk")) return "MSK";
+        if (c.includes("wound")) return "wound care";
+        if (c.includes("nail")) return "nail surgery";
+        if (c.includes("high") && c.includes("risk")) return "high risk footcare";
+        if (c.includes("footcare")) return "high risk footcare";
+        return catRaw.trim();
+      }
+
+      function normalizeUrgency(uRaw, cat) {
+        let u = parseInt(uRaw, 10);
+        if (!Number.isFinite(u)) {
+          const c = (cat || "").toLowerCase();
+          if (c.includes("wound")) u = 1;
+          else if (c.includes("nail")) u = 2;
+          else if (c.includes("high")) u = 3;
+          else if (c.includes("msk")) u = 4;
+          else u = 4;
+        }
+        if (u < 1) u = 1;
+        if (u > 4) u = 4;
+        return u;
+      }
+
+      // ===== Convert image to data URL (uses imageBuffer/imageMime now) =====
+      const b64 = imageBuffer.toString("base64");
+      const dataUrl = `data:${imageMime};base64,${b64}`;
+
+      // ================= 1) IMAGE GATE =================
+      const gateMsg = [
+        {
+          type: "text",
+          text: `You are an image gatekeeper. Decide if this image is a clear photo of a HUMAN FOOT (or feet) useful for podiatry triage.
+Return ONLY compact JSON like: {"valid": true, "reason": "short reason"}.
+
+valid=true ONLY IF:
+- A human foot is clearly visible (bare or clearly visible even if partly covered).
+- Image is not excessively blurry/overexposed/too dark.
+- Foot fills a reasonable portion of the frame.
+
+valid=false for: hands, faces, pets/animals, landscapes, documents/screenshots, x-rays, memes, drawings, shoes-only (no visible foot).
+
+Be strict. Output JSON only.`,
+        },
+        { type: "image_url", image_url: { url: dataUrl } },
+      ];
+
+      const gate = await openai.chat.completions.create({
+        model: GATE_MODEL,
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Return ONLY JSON with keys {valid:boolean, reason:string} and nothing else.",
+          },
+          { role: "user", content: gateMsg },
+        ],
+      });
+
+      const gateRaw = gate.choices?.[0]?.message?.content?.trim() || "";
+      const gateJSON = safeParseJSON(gateRaw) || {
+        valid: false,
+        reason: "unparseable_response",
+      };
+
+      if (gateJSON.valid !== true) {
+        const askForProperPhoto =
+          "⚠️ I can’t clearly see a foot in this photo. Please upload a clear, well-lit photo of the affected foot. " +
+          "Show the area of concern (wound/redness/nail) and avoid socks or heavy filters.";
+        return res.json({
+          reply: await translateReply(askForProperPhoto, userLanguage),
+        });
+      }
+
+      // ================= 2) TRIAGE PROMPT (vision) =================
+      const visionPrompt = `You are an image gatekeeper. Decide if this image is a clear photo of a HUMAN FOOT (or feet) useful for podiatry triage.
+Return ONLY compact JSON like: {"valid": true, "reason": "short reason"}.
+
+valid=true ONLY IF:
+- A human foot is clearly visible (bare or clearly visible even if partly covered).
+- Image is not excessively blurry/overexposed/too dark.
+- Foot fills a reasonable portion of the frame.
+
+valid=false for: hands, faces, pets/animals, landscapes, documents/screenshots, x-rays, memes, drawings, shoes-only (no visible foot).
+
+Be strict. Output JSON only.`; 
+
+      const triageMsgsBase = [
+        { role: "system", content: "You are a careful, empathetic podiatry triage assistant." },
+        { role: "user", content: [{ type: "text", text: visionPrompt }] },
+      ];
+
+      const userPayload = [];
+      if (caption && caption.trim())
+        userPayload.push({ type: "text", text: `Patient caption: ${caption}` });
+      userPayload.push({ type: "image_url", image_url: { url: dataUrl } });
+      triageMsgsBase.push({ role: "user", content: userPayload });
+
+      async function callVLMOnce() {
+        return openai.chat.completions.create({
+          model: VLM_MODEL,
+          temperature: 0.2,
+          messages: triageMsgsBase,
+        });
+      }
+
+      let completion,
+        attempt = 0;
+      while (attempt < 2) {
+        try {
+          completion = await callVLMOnce();
+          break;
+        } catch (e) {
+          attempt++;
+          if (attempt >= 2) throw e;
+        }
+      }
+
+      const full = completion.choices?.[0]?.message?.content || "";
+      const { internal, display: rawDisplay } = splitInternalAndDisplay(full);
+
+      // Parse internal (same as before)
+      const rawCategory = grabLine(internal, /Category:\s*([^\n\r]+)/i, "Unknown");
+      let category = normalizeCategory(rawCategory);
+      const diagnosis = grabLine(internal, /Diagnosis:\s*([^\n\r]+)/i, "Unclear");
+      let urgencyLevel = normalizeUrgency(
+        grabLine(internal, /Urgency level:\s*(\d)/i, ""),
+        category
+      );
+      let summary =
+        (internal.match(/Summary:\s*([\s\S]*?)$/i)?.[1] || "No summary available.").trim();
+      if (typeof summary !== "string" || !summary.trim()) {
+        summary = "No summary available.";
+      }
+
+      let display = rawDisplay.replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
+      if (!display) {
+        const firstLine =
+          urgencyLevel === 1
+            ? "You need to see a podiatrist urgently."
+            : urgencyLevel === 2
+            ? "You should see a podiatrist soon."
+            : urgencyLevel === 3
+            ? "This should be checked by a podiatrist."
+            : "This is not urgent, but a podiatrist can help manage the issue.";
+        display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>• Keep the area clean and dry<br>• Avoid tight footwear<br>• Reduce load and monitor symptoms`;
+      }
+
+      // ================= 3) RULE SAFETY LAYER (unchanged) =================
+      {
+        const fixed = applyTriageRules({
+          category,
+          urgency: urgencyLevel,
+          summary,
+          freeText: caption,
+          probs: undefined,
+        });
+        category = fixed.category;
+        urgencyLevel = fixed.urgency;
+        if (typeof fixed.summary === "string" && fixed.summary) summary = fixed.summary;
+      }
+
+      function pickFlag(re, src) {
+        const m = src.match(re);
+        if (!m) return false;
+        const v = (m[1] || "").trim().toLowerCase();
+        return v === "true" || v === "yes";
+      }
+
+      const evidence = {
+        openWound: pickFlag(/open_wound:\s*(true|false)/i, internal),
+        drainagePus: pickFlag(/drainage_pus:\s*(true|false)/i, internal),
+        necrosis: pickFlag(/necrosis_black_tissue:\s*(true|false)/i, internal),
+        spreadingRedness: pickFlag(/spreading_redness:\s*(true|false)/i, internal),
+        generalRedness: pickFlag(/general_redness_swelling:\s*(true|false)/i, internal),
+        malodour: pickFlag(/malodour:\s*(true|false)/i, internal),
+        feverChills: pickFlag(/fever_chills:\s*(true|false)/i, internal),
+        diabetesNeuropathy: pickFlag(/diabetes_neuropathy:\s*(true|false)/i, internal),
+        recentTrauma: pickFlag(/recent_trauma:\s*(true|false)/i, internal),
+      };
+
+      const strongInfection =
+        evidence.openWound ||
+        evidence.drainagePus ||
+        evidence.necrosis ||
+        evidence.spreadingRedness ||
+        evidence.malodour ||
+        evidence.feverChills;
+
+      if (urgencyLevel === 1 && !strongInfection) {
+        console.log(
+          "🧯 Downgrading Urgency 1 (no strong infection evidence). Evidence:",
+          evidence
+        );
+
+        s.state = "confirm_infection_check";
+        s.proposed = {
+          category,
+          diagnosis,
+          urgencyLevel: 2,
+          summary,
+          display,
+          language: userLanguage,
+        };
+
+        const confirmMsg =
+          "❓ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
+        return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+      }
+
+      console.log("🔎 Evidence flags:", evidence, "| strongInfection:", strongInfection);
+
+      if (typeof summary !== "string" || !summary.trim()) {
+        summary = "No summary available.";
+      }
+
+      s.urgencyLevel = urgencyLevel;
+      s.category = category;
+      s.diagnosis = diagnosis;
+      s.summary = summary;
+      s.cleanedDisplay = display;
+
+      console.log("🧠 Image triage result:");
+      console.log("Category:", category);
+      console.log("Diagnosis:", diagnosis);
+      console.log("Urgency level:", urgencyLevel);
+      console.log("Summary:", summary);
+      console.log("=========================");
+
+      // ================= UPLOAD IMAGE TO FIREBASE STORAGE =================
+      let imageUrl = null;
+      try {
+        const timestamp = Date.now();
+        const fileExtension = imageMime.split("/")[1];
+        const fileName = `patient_images/${userId}_${timestamp}.${fileExtension}`;
+        const file = bucket.file(fileName);
+
+        await file.save(imageBuffer, {
+          metadata: {
+            contentType: imageMime,
+            metadata: {
+              patientId: userId,
+              uploadedAt: new Date().toISOString(),
+              caption: caption || "",
+            },
+          },
+        });
+
+        await file.makePublic();
+        imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+        s.imageUrl = imageUrl;
+        console.log("✅ Image uploaded:", imageUrl);
+      } catch (err) {
+        console.error("⚠️ Storage upload failed:", err);
+      }
+
+      // ================= 4) Confirm infection if NOT urgent (unchanged behavior) =================
+    if (urgencyLevel !== 1) {
+      s.state = "confirm_infection_check";
+      s.proposed = { category, diagnosis, urgencyLevel, summary, display, language: userLanguage };
+
+      const confirmMsg =
+        "❓ I don’t clearly see an open wound, pus, black tissue, red streaks, or fever/chills. " +
+        "Can you confirm you do NOT have ANY of these symptoms right now? (yes/no)";
+
+      return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+    }
+
+    // ================= 5) Availability & booking flow (IDENTICAL to yours) =================
+    {
+      const now = new Date();
+      let minDate = new Date(now);
+      let maxDate = new Date(now);
+
+      const existingSnap = await db.collection("Appointments")
+        .where("patientId", "==", userId)
+        .where("status", "==", "scheduled")
+        .orderBy("scheduledDate")
+        .get();
+
+      if (!existingSnap.empty) {
+        const existingAppt = existingSnap.docs[0].data();
+        const existingUrgency = existingAppt?.urgencyLevel ?? 4;
+
+        if (existingSnap.size > 1) {
+          display = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+            `Please ensure this new issue is necessary to book.<br><br>` +
+            display;
+        }
+
+        if (urgencyLevel >= existingUrgency) {
+          const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
+
+          const followUpSnap = await db.collection("Availability")
+            .where("status", "==", "available")
+            .where("availableDate", "==", admin.firestore.Timestamp.fromDate(nextHalfHour))
+            .where("podId", "==", existingAppt.podId)
+            .limit(1)
+            .get();
+
+          if (!followUpSnap.empty) {
+            const slotDoc = followUpSnap.docs[0];
+            const slotData = slotDoc.data();
+
+            const formattedDate = new Date(slotData.availableDate.toDate()).toLocaleString("en-SG", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+              hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
+            });
+
+            s.state = "awaiting_confirmation";
+            s.pendingSlot = slotDoc;
+            s.pendingSlotData = slotData;
+
+            return res.json({
+              reply: await translateReply(
+                `${display}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                userLanguage
+              )
+            });
+          }
+
+          minDate = new Date(existingAppt.scheduledDate.toDate());
+        }
+      }
+
+      // Urgency → window (same mapping)
+      if (urgencyLevel === 1) {
+        minDate.setDate(now.getDate());
+        maxDate.setDate(now.getDate() + 2);
+      } else if (urgencyLevel === 2) {
+        minDate.setDate(now.getDate() + 1);
+        maxDate.setDate(now.getDate() + 7);
+      } else if (urgencyLevel === 3) {
+        minDate.setDate(now.getDate() + 3);
+        maxDate.setDate(now.getDate() + 14);
+      } else {
+        minDate.setDate(now.getDate() + 5);
+        maxDate.setDate(now.getDate() + 21);
+      }
+
+      const slotQuery = await db.collection("Availability")
+        .where("status", "==", "available")
+        .where("availableDate", ">=", minDate)
+        .where("availableDate", "<=", maxDate)
+        .orderBy("availableDate")
+        .limit(1)
+        .get();
+
+      if (slotQuery.empty) {
+        s.state = "idle";
+        s.triageStage = null;
+        return res.json({
+          reply: await translateReply(`${display}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage)
+        });
+      }
+
+      const slotDoc = slotQuery.docs[0];
+      const slotData = slotDoc.data();
+
+      const formattedDate = new Date(
+        slotData.availableDate.toDate ? slotData.availableDate.toDate() : slotData.availableDate
+      ).toLocaleString("en-SG", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Singapore"
+      });
+
+      s.state = "awaiting_confirmation";
+      s.triageStage = null;
+      s.pendingSlot = slotDoc;
+      s.pendingSlotData = slotData;
+      s.cleanedDisplay = display;
+
+      const responseMessage = `${display.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
+      return res.json({ reply: await translateReply(responseMessage, userLanguage) });
+    }
+
+    } catch (err) {
+      console.error("❌ /patient/chat-image error:", err);
+      return res.json({ reply: "⚠️ Image analysis failed on the server." });
+    }
+  });
+
+  // On Firebase Functions, body is in req.rawBody
+  if (req.rawBody) {
+    busboy.end(req.rawBody);
+  } else {
+    // Local dev fallback
+    req.pipe(busboy);
+  }
+});
+
+/*
+// ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
+router.post("/chat-image", async (req, res) => {
   console.log("🎯 Entered /chat-image AFTER multer");
   console.log("📸 multer file:", req.file ? "YES" : "NO FILE");
   console.log("📝 body:", req.body);
@@ -1825,7 +2325,7 @@ While you wait for your appointment, here's what you should do:<br>
   }
 });
 
-
+*/
 
 
 router.post("/reset-session", (req, res) => {
