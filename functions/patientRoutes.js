@@ -8,19 +8,12 @@ const translate = require('translate-google');
 const translationCache = new Map();
 const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes
 
-
 //for image constants
 const multer = require("multer");
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 7 * 1024 * 1024 } // ~7MB
 });
-
-// Declare openai api key here
-/**const openai = new OpenAI({
-  apiKey: "REMOVED_OPENAI_API_KEY", // Replace with actual OpenAI key
-});**/ // remove hardcoded apikey
-// patientRoutes.js
 
 // Use real key in Cloud Functions (from secrets), but a dummy string during local deploy
 const openai = new OpenAI({
@@ -30,7 +23,6 @@ const openai = new OpenAI({
 if (!process.env.OPENAI_API_KEY) {
   console.warn("⚠️ OPENAI_API_KEY is not set. OpenAI calls will fail until the secret is configured in Cloud Functions.");
 }
-
 
 // key = fake session ID (for now, assume 1 user)
 const session = {};
@@ -1423,32 +1415,7 @@ router.post("/chat-image", upload.single("image"), async (req, res) => {
     const b64 = req.file.buffer.toString("base64");
     const dataUrl = `data:${req.file.mimetype};base64,${b64}`;
 
-    // ================= UPLOAD IMAGE TO FIREBASE STORAGE =================
-    let imageUrl = null;
-    try {
-      const timestamp = Date.now();
-      const fileExtension = req.file.mimetype.split('/')[1];
-      const fileName = `patient_images/${userId}_${timestamp}.${fileExtension}`;
-      const file = bucket.file(fileName);
-
-      await file.save(req.file.buffer, {
-        metadata: {
-          contentType: req.file.mimetype,
-          metadata: {
-            patientId: userId,
-            uploadedAt: new Date().toISOString(),
-            caption: caption || ''
-          }
-        }
-      });
-
-      await file.makePublic();
-      imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-      s.imageUrl = imageUrl;
-      console.log("✅ Image uploaded:", imageUrl);
-    } catch (err) {
-      console.error("⚠️ Storage upload failed:", err);
-    }
+   
 
     // ================= 1) IMAGE GATE (same purpose, slightly clearer prompt) =================
     const gateMsg = [
@@ -1678,6 +1645,33 @@ While you wait for your appointment, here's what you should do:<br>
     console.log("Urgency level:", urgencyLevel);
     console.log("Summary:", summary);
     console.log("=========================");
+
+     // ================= UPLOAD IMAGE TO FIREBASE STORAGE =================
+    let imageUrl = null;
+    try {
+      const timestamp = Date.now();
+      const fileExtension = req.file.mimetype.split('/')[1];
+      const fileName = `patient_images/${userId}_${timestamp}.${fileExtension}`;
+      const file = bucket.file(fileName);
+
+      await file.save(req.file.buffer, {
+        metadata: {
+          contentType: req.file.mimetype,
+          metadata: {
+            patientId: userId,
+            uploadedAt: new Date().toISOString(),
+            caption: caption || ''
+          }
+        }
+      });
+
+      await file.makePublic();
+      imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      s.imageUrl = imageUrl;
+      console.log("✅ Image uploaded:", imageUrl);
+    } catch (err) {
+      console.error("⚠️ Storage upload failed:", err);
+    }
 
     // ================= 4) Confirm infection if NOT urgent (unchanged behavior) =================
     if (urgencyLevel !== 1) {
