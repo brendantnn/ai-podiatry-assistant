@@ -1344,27 +1344,29 @@ router.post("/chat-image", (req, res) => {
   const busboy = Busboy({ headers: req.headers });
 
   // ---- FILE FIELD ----
-  busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
-    console.log("📷 Busboy got file field:", fieldname, filename, mimetype);
+  busboy.on("file", (fieldname, file, info) => {
+  const { filename, encoding, mimeType } = info;
+  console.log("📷 Busboy got file field:", fieldname, filename, mimeType);
 
-    if (fieldname !== "image") {
-      // Ignore any other file fields
-      file.resume();
-      return;
-    }
+  if (fieldname !== "image") {
+    // Ignore any other file fields
+    file.resume();
+    return;
+  }
 
-    imageMime = mimetype;
-    const chunks = [];
+  imageMime = mimeType || "";
+  const chunks = [];
 
-    file.on("data", (data) => {
-      chunks.push(data);
-    });
-
-    file.on("end", () => {
-      imageBuffer = Buffer.concat(chunks);
-      console.log("✅ Finished reading image, size:", imageBuffer.length);
-    });
+  file.on("data", (data) => {
+    chunks.push(data);
   });
+
+  file.on("end", () => {
+    imageBuffer = Buffer.concat(chunks);
+    console.log("✅ Finished reading image, size:", imageBuffer.length);
+  });
+});
+
 
   // ---- NORMAL FIELDS ----
   busboy.on("field", (fieldname, val) => {
