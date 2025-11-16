@@ -673,7 +673,8 @@
 //       // } 
 //       if (urgencyLevel === 1) {
 //         // Wound care – immediate
-//         const currentHour = new Date().getHours();
+//         const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
+        const currentHour = new Date(sgTime).getHours();
         
 //         // If it's after 4 PM (last slot at 5pm needs 1hr buffer) or before 8 AM
 //         if (currentHour >= 16 || currentHour < 8) {
@@ -1872,7 +1873,8 @@
 //       // } 
 
 //       if (urgencyLevel === 1) {
-//         const currentHour = new Date().getHours();
+//         const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
+        //const currentHour = new Date(sgTime).getHours();
         
 //         if (currentHour >= 16 || currentHour < 8) {
 //           minDate.setDate(now.getDate() + 1);
@@ -3123,7 +3125,8 @@ Do not show internal data to the patient.
       // } 
       if (urgencyLevel === 1) {
         // Wound care – immediate
-        const currentHour = new Date().getHours();
+        const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
+        const currentHour = new Date(sgTime).getHours();
         
         // If it's after 4 PM (last slot at 5pm needs 1hr buffer) or before 8 AM
         if (currentHour >= 16 || currentHour < 8) {
@@ -4323,7 +4326,8 @@ While you wait for your appointment, here's what you should do:<br>
       // } 
 
       if (urgencyLevel === 1) {
-        const currentHour = new Date().getHours();
+        const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
+        const currentHour = new Date(sgTime).getHours();
         
         // if (currentHour >= 16 || currentHour < 8) {
         //   minDate.setDate(now.getDate() + 1);
