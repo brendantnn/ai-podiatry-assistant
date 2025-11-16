@@ -1120,12 +1120,29 @@ function getUrgencyText(urgencyLevel) {
   }
 }
 
-function populateQueueTab(data = patientQueue) {
+// function populateQueueTab(data = patientQueue) {
+//   const tableBody = document.getElementById("patientQueue");
+//   tableBody.innerHTML = "";
+
+//   // ✅ CRITICAL FIX: Sort by urgency level BEFORE displaying
+//   const sortedData = [...data].sort((a, b) => {
+
+  function populateQueueTab(data = patientQueue) {
   const tableBody = document.getElementById("patientQueue");
   tableBody.innerHTML = "";
 
+  // ✅ FILTER OUT PAST APPOINTMENTS - Only show today and future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of today
+  
+  const filteredData = data.filter(appointment => {
+    const apptDate = new Date(appointment.scheduledDate || appointment.date);
+    apptDate.setHours(0, 0, 0, 0); // Set to start of appointment day
+    return apptDate >= today; // Only show today or future appointments
+  });
+
   // ✅ CRITICAL FIX: Sort by urgency level BEFORE displaying
-  const sortedData = [...data].sort((a, b) => {
+  const sortedData = [...filteredData].sort((a, b) => {
     // Sort by urgency level: 1 (most urgent) to 4 (least urgent)
     if (a.urgencyLevel !== b.urgencyLevel) {
       return a.urgencyLevel - b.urgencyLevel; // 1, 2, 3, 4
@@ -1234,13 +1251,30 @@ function formatSGDateTime(dateString) {
 }
 
 
-//Function to populate All Patients tab
-function populateAllTab(data = allPatients) {
+// //Function to populate All Patients tab
+// function populateAllTab(data = allPatients) {
+//   const tableBody = document.getElementById("patientAll");
+//   tableBody.innerHTML = "";
+
+//   // ✅ CRITICAL FIX: Sort by urgency level BEFORE displaying
+//   const sortedData = [...data].sort((a, b) => {
+
+  function populateAllTab(data = allPatients) {
   const tableBody = document.getElementById("patientAll");
   tableBody.innerHTML = "";
 
+  // ✅ FILTER OUT PAST APPOINTMENTS - Only show today and future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of today
+  
+  const filteredData = data.filter(appointment => {
+    const apptDate = new Date(appointment.scheduledDate || appointment.date);
+    apptDate.setHours(0, 0, 0, 0); // Set to start of appointment day
+    return apptDate >= today; // Only show today or future appointments
+  });
+
   // ✅ CRITICAL FIX: Sort by urgency level BEFORE displaying
-  const sortedData = [...data].sort((a, b) => {
+  const sortedData = [...filteredData].sort((a, b) => {
     // Sort by urgency level: 1 (most urgent) to 4 (least urgent)
     if (a.urgencyLevel !== b.urgencyLevel) {
       return a.urgencyLevel - b.urgencyLevel; // 1, 2, 3, 4
