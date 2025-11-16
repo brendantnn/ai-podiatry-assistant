@@ -1386,7 +1386,7 @@ router.post("/chat-image", (req, res) => {
     console.log("ðŸŽ¯ Entered /chat-image AFTER busboy");
     
     // Small delay to ensure file reading completes (fixes race condition)
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
 
     try {
@@ -1603,36 +1603,58 @@ While you wait for your appointment, here's what you should do:<br>
         });
       }
 
-      let completion,
-        attempt = 0;
+      let completion;
+      let category, diagnosis, urgencyLevel, summary, display, internal = "";
+      let aiAnalysisFailed = false;
+      let attempt = 0;
+
       while (attempt < 2) {
         try {
+          console.log("🤖 Calling OpenAI for image analysis, attempt:", attempt + 1);
           completion = await callVLMOnce();
+          console.log("✅ OpenAI analysis succeeded");
           break;
         } catch (e) {
+          console.error("❌ OpenAI call failed, attempt:", attempt + 1);
+          console.error("Error:", e.message);
           attempt++;
-          if (attempt >= 2) throw e;
+          if (attempt >= 2) {
+            console.error("⚠️ OpenAI failed after 2 attempts, using fallback triage");
+            aiAnalysisFailed = true;
+            break;
+          }
         }
       }
 
-      const full = completion.choices?.[0]?.message?.content || "";
-      const { internal, display: rawDisplay } = splitInternalAndDisplay(full);
+
+      if (aiAnalysisFailed) {
+        // Fallback triage when AI fails
+        console.log("📋 Using fallback triage (no AI analysis)");
+        category = "Unknown";
+        diagnosis = "Unable to analyze image automatically";
+        urgencyLevel = 3;
+        summary = "Image received but automatic analysis unavailable. Podiatrist will review the image during your appointment.";
+        display = "I've received your image, but I'm having trouble analyzing it automatically. Don't worry - your image has been saved and will be reviewed by the podiatrist. I'll schedule you for a consultation so they can examine it properly.";
+      } else {
+        // Normal AI-based triage
+              const full = completion.choices?.[0]?.message?.content || "";
+      const parsed = splitInternalAndDisplay(full); internal = parsed.internal; const rawDisplay = parsed.display = splitInternalAndDisplay(full);
 
       // Parse internal (same as before)
       const rawCategory = grabLine(internal, /Category:\s*([^\n\r]+)/i, "Unknown");
-      let category = normalizeCategory(rawCategory);
-      const diagnosis = grabLine(internal, /Diagnosis:\s*([^\n\r]+)/i, "Unclear");
-      let urgencyLevel = normalizeUrgency(
+      category = normalizeCategory(rawCategory);
+      diagnosis = grabLine(internal, /Diagnosis:\s*([^\n\r]+)/i, "Unclear");
+      urgencyLevel = normalizeUrgency(
         grabLine(internal, /Urgency level:\s*(\d)/i, ""),
         category
       );
-      let summary =
+      summary =
         (internal.match(/Summary:\s*([\s\S]*?)$/i)?.[1] || "No summary available.").trim();
       if (typeof summary !== "string" || !summary.trim()) {
         summary = "No summary available.";
       }
 
-      let display = rawDisplay.replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
+      display = rawDisplay.replace(/\[DISPLAY MESSAGE[^\]]*\]/i, "").trim();
       if (!display) {
         const firstLine =
           urgencyLevel === 1
@@ -1643,6 +1665,8 @@ While you wait for your appointment, here's what you should do:<br>
             ? "This should be checked by a podiatrist."
             : "This is not urgent, but a podiatrist can help manage the issue.";
         display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>â€¢ Keep the area clean and dry<br>â€¢ Avoid tight footwear<br>â€¢ Reduce load and monitor symptoms`;
+      }
+
       }
 
       // ================= 3) RULE SAFETY LAYER (unchanged) =================
