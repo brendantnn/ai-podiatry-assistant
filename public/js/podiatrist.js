@@ -378,54 +378,6 @@ function updateDashboardDisplay(metrics) {
   }
 }
 
-// ========================================
-// REAL-TIME NOTIFICATIONS SYSTEM
-// ========================================
-
-// async function loadNotifications() {
-//   const podId = getCurrentPodId();;
-  
-//   try {
-//     // CHECK CACHE FIRST (INSTANT RESPONSE)
-//     if (isValidNotificationCache()) {
-//       console.log('⚡ CACHE HIT: Using cached notifications (INSTANT)');
-//       updateNotificationsDisplay(notificationCache.data.notifications);
-//       return;
-//     }
-    
-//     console.log('🔔 CACHE MISS: Loading fresh notifications...');
-    
-//     const response = await fetch("/get-notifications", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ podiatristId: podId })
-//     });
-    
-//     if (!response.ok) {
-//       throw new Error(`HTTP error! status: ${response.status}`);
-//     }
-    
-//     const data = await response.json();
-    
-//     if (data.success) {
-//       // CACHE THE RESULT FOR INSTANT FUTURE REQUESTS
-//       notificationCache.data = data;
-//       notificationCache.timestamp = Date.now();
-      
-//       updateNotificationsDisplay(data.notifications);
-//       console.log('✅ Notifications loaded and cached');
-//     } else {
-//       console.error('❌ Failed to load notifications:', data.error);
-//       showErrorNotifications();
-//     }
-    
-//   } catch (error) {
-//     console.error('❌ Notifications loading error:', error);
-//     showErrorNotifications();
-//   }
-// }
-
-// REPLACE your loadNotifications function with this FIXED version
 
 async function loadNotifications() {
   const podId = getCurrentPodId(); // 🔧 FIXED: Use proper function call without semicolons
