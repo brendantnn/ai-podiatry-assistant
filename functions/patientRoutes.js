@@ -675,6 +675,7 @@
 //         // Wound care – immediate
 //         const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
         //const currentHour = new Date(sgTime).getHours();
+        console.log("🕐 DEBUG: Singapore time:", sgTime, "| currentHour:", currentHour);
         
 //         // If it's after 4 PM (last slot at 5pm needs 1hr buffer) or before 8 AM
 //         if (currentHour >= 16 || currentHour < 8) {
@@ -4261,9 +4262,13 @@ While you wait for your appointment, here's what you should do:<br>
     {
       // const now = new Date();
       // let minDate = new Date(now);
-      const now = new Date();  // Current time for checking business hours
-      const todayMidnight = new Date();
-      todayMidnight.setHours(0, 0, 0, 0);  // Midnight for appointment filtering
+      // Get current time in Singapore
+      const nowSG = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
+      const now = new Date(nowSG);
+      
+      // Get midnight in Singapore timezone
+      const todayMidnight = new Date(nowSG);
+      todayMidnight.setHours(0, 0, 0, 0);
       let minDate = new Date();
       let maxDate = new Date();
 
@@ -4334,28 +4339,33 @@ While you wait for your appointment, here's what you should do:<br>
         //   minDate.setHours(8, 0, 0, 0);
         //   maxDate.setDate(now.getDate() + 2);
         if (currentHour >= 16 || currentHour < 8) {
-          const tomorrow = new Date();
+          // Use Singapore time for tomorrow calculation
+          const sgNow = new Date(sgTime);
+          const tomorrow = new Date(sgNow);
           tomorrow.setDate(tomorrow.getDate() + 1);
           tomorrow.setHours(8, 0, 0, 0);
           minDate = tomorrow;
           
-          const dayAfter = new Date();
+          const dayAfter = new Date(sgNow);
           dayAfter.setDate(dayAfter.getDate() + 2);
           maxDate = dayAfter;
         } else {
-          minDate = new Date();
+          // Use Singapore time for current time + 1 hour
+          const sgNow = new Date(sgTime);
+          minDate = new Date(sgNow);
           minDate.setHours(minDate.getHours() + 1);
-          const twoDaysLater = new Date();
+          const twoDaysLater = new Date(sgNow);
           twoDaysLater.setDate(twoDaysLater.getDate() + 2);
           maxDate = twoDaysLater;
         }
       }
       else if (urgencyLevel === 2) {
-        const tomorrow = new Date();
+        const sgNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+        const tomorrow = new Date(sgNow);
         tomorrow.setDate(tomorrow.getDate() + 1);
         minDate = tomorrow;
         
-        const oneWeekLater = new Date();
+        const oneWeekLater = new Date(sgNow);
         oneWeekLater.setDate(oneWeekLater.getDate() + 7);
         maxDate = oneWeekLater;
       } else if (urgencyLevel === 3) {
