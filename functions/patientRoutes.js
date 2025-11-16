@@ -674,7 +674,7 @@
 //       if (urgencyLevel === 1) {
 //         // Wound care – immediate
 //         const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
-        const currentHour = new Date(sgTime).getHours();
+        //const currentHour = new Date(sgTime).getHours();
         
 //         // If it's after 4 PM (last slot at 5pm needs 1hr buffer) or before 8 AM
 //         if (currentHour >= 16 || currentHour < 8) {
