@@ -1060,27 +1060,118 @@ router.post("/get-schedule-by-date", async (req, res) => {
 //       .where("podId", "==", podId)
 //       .get();
 
+// router.post("/get-all-appointments", async (req, res) => {
+//   const { podId } = req.body;
+//   console.log("📊 Fetching all appointments for pod:", podId);
+
+//   try {
+//     const apptSnapshot = await db.collection("Appointments")
+//       .where("podId", "==", podId)
+//       .get();
+
+//     // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future (in JavaScript)
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     let appointments = [];
+//     if (!apptSnapshot.empty) {
+//       const patientIds = [];
+
+//       apptSnapshot.docs.forEach(doc => {
+//         const appt = doc.data();
+//         patientIds.push(appt.patientId);
+
+//         const appointment = {
+//           apptId: doc.id,
+//           patientId: appt.patientId,
+//           scheduledDate: appt.scheduledDate.toDate().toISOString(),
+//           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { 
+//             year: 'numeric', 
+//             month: 'long', 
+//             day: 'numeric',
+//             timeZone: 'Asia/Singapore'
+//           }),
+//           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { 
+//             hour: '2-digit', 
+//             minute: '2-digit', 
+//             hour12: true,
+//             timeZone: 'Asia/Singapore'
+//           }),
+//           status: appt.status,
+//           urgencyLevel: appt.urgencyLevel,
+//           category: appt.category,
+//           initialDiagnosis: appt.initialDiagnosis,
+//           summary: appt.summary,
+//           imageUrl: appt.imageUrl || null,
+//           imageCaption: appt.imageCaption || null,
+//           podId: appt.podId
+//         };
+//         appointments.push(appointment);
+//       });
+
+//       if (patientIds.length > 0) {
+//         const userSnapshots = await db.collection("Users")
+//           .where("userId", "in", patientIds)
+//           .get();
+
+//         const userMap = {};
+//         userSnapshots.docs.forEach(userDoc => {
+//           const userData = userDoc.data();
+//           userMap[userData.userId] = userData.firstName + " " + userData.lastName;
+//         });
+
+//         appointments = appointments.map(appt => ({
+//           ...appt,
+//           name: userMap[appt.patientId] || "Unknown"
+//         }));
+//       }
+
+//       return res.json({ 
+//         success: true,
+//         appointments 
+//       });
+
+//     } else {
+//       console.log("❌ No Appointments found");
+//       return res.json({
+//         success: true,
+//         response: "No Appointments Found",
+//         appointments: []
+//       });
+//     }
+//   } catch (error) {
+//     console.error("❌ Error in /get-all-appointments:", error);
+//     res.status(500).json({ success: false, error: "Failed to fetch all appointments" });
+//   }
+// });
+
 router.post("/get-all-appointments", async (req, res) => {
   const { podId } = req.body;
   console.log("📊 Fetching all appointments for pod:", podId);
 
   try {
-    // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayTimestamp = admin.firestore.Timestamp.fromDate(today);
-
     const apptSnapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
-      .where("scheduledDate", ">=", todayTimestamp) // ✅ ONLY TODAY AND FUTURE
       .get();
 
     let appointments = [];
     if (!apptSnapshot.empty) {
       const patientIds = [];
+      
+      // ✅ FILTER OUT PAST APPOINTMENTS - Set up today's date for comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       apptSnapshot.docs.forEach(doc => {
         const appt = doc.data();
+        
+        // ✅ Filter out past appointments
+        const apptDate = appt.scheduledDate.toDate();
+        apptDate.setHours(0, 0, 0, 0);
+        if (apptDate < today) {
+          return; // Skip this appointment
+        }
+        
         patientIds.push(appt.patientId);
 
         const appointment = {
@@ -1147,6 +1238,7 @@ router.post("/get-all-appointments", async (req, res) => {
   }
 });
 
+
 /* ============================================================
    7) GET PODIATRIST APPOINTMENTS - ALL
    ============================================================ */
@@ -1159,27 +1251,106 @@ router.post("/get-all-appointments", async (req, res) => {
 //       .where("podId", "==", podId)
 //       .get();
 
+// router.post('/podiatrist-get-appointments-all', async (req, res) => {
+//   const { podId } = req.body;
+//   console.log("🔍 Fetching queue info for:", podId);
+
+//   try {
+//     // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+//     const todayTimestamp = admin.firestore.Timestamp.fromDate(today);
+
+//     const apptSnapshot = await db.collection("Appointments")
+//       .where("podId", "==", podId)
+//       .where("scheduledDate", ">=", todayTimestamp) // ✅ ONLY TODAY AND FUTURE
+//       .get();
+
+//     let appointments = [];
+//     if (!apptSnapshot.empty) {
+//       const patientIds = [];
+
+//       apptSnapshot.docs.forEach(doc => {
+//         const appt = doc.data();
+//         patientIds.push(appt.patientId);
+
+//         const appointment = {
+//           apptId: doc.id,
+//           patientId: appt.patientId,
+//           podId: appt.podId,
+//           scheduledDate: appt.scheduledDate.toDate().toISOString(),
+//           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' ,   timeZone: 'Asia/Singapore'}),
+//           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true,   timeZone: 'Asia/Singapore'}),
+//           status: appt.status,
+//           urgencyLevel: appt.urgencyLevel,
+//           category: appt.category,
+//           initialDiagnosis: appt.initialDiagnosis,
+//           summary: appt.summary,
+//           imageUrl: appt.imageUrl || null,
+//           imageCaption: null
+//         };
+//         appointments.push(appointment);
+//       });
+
+//       const userSnapshots = await db.collection("Users")
+//         .where("userId", "in", patientIds)
+//         .get();
+
+//       const userMap = {};
+//       userSnapshots.docs.forEach(userDoc => {
+//         const userData = userDoc.data();
+//         userMap[userData.userId] = userData.firstName + " " + userData.lastName;
+//       });
+
+//       appointments = appointments.map(appt => ({
+//         ...appt,
+//         name: userMap[appt.patientId] || "Unknown"
+//       }));
+
+//       return res.json({
+//         appointments
+//       });
+
+//     } else {
+//       console.log("❌ No Appointments found");
+//       return res.json({
+//         response: "No Appointments Found",
+//         appointments: null
+//       });
+//     }
+//   } catch (error) {
+//     console.error("❌ Error in /podiatrist-get-appointments-all:", error);
+//     res.status(500).json({ error: "Failed to fetch all appointments" });
+//   }
+// });
+
 router.post('/podiatrist-get-appointments-all', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching queue info for:", podId);
 
   try {
-    // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayTimestamp = admin.firestore.Timestamp.fromDate(today);
-
     const apptSnapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
-      .where("scheduledDate", ">=", todayTimestamp) // ✅ ONLY TODAY AND FUTURE
       .get();
 
     let appointments = [];
     if (!apptSnapshot.empty) {
       const patientIds = [];
+      
+      // ✅ FILTER OUT PAST APPOINTMENTS - Set up today's date for comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       apptSnapshot.docs.forEach(doc => {
         const appt = doc.data();
+        
+        // ✅ Filter out past appointments
+        const apptDate = appt.scheduledDate.toDate();
+        apptDate.setHours(0, 0, 0, 0);
+        if (apptDate < today) {
+          return; // Skip this appointment
+        }
+        
         patientIds.push(appt.patientId);
 
         const appointment = {
@@ -1216,12 +1387,15 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
       }));
 
       return res.json({
-        appointments
+        success: true,
+        appointments,
+        response: `Found ${appointments.length} appointments`
       });
 
     } else {
       console.log("❌ No Appointments found");
       return res.json({
+        success: true,
         response: "No Appointments Found",
         appointments: null
       });
