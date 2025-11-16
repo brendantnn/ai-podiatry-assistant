@@ -1051,13 +1051,28 @@ router.post("/get-schedule-by-date", async (req, res) => {
 /* ============================================================
    6) GET ALL APPOINTMENTS
    ============================================================ */
+// router.post("/get-all-appointments", async (req, res) => {
+//   const { podId } = req.body;
+//   console.log("📊 Fetching all appointments for pod:", podId);
+
+//   try {
+//     const apptSnapshot = await db.collection("Appointments")
+//       .where("podId", "==", podId)
+//       .get();
+
 router.post("/get-all-appointments", async (req, res) => {
   const { podId } = req.body;
   console.log("📊 Fetching all appointments for pod:", podId);
 
   try {
+    // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = admin.firestore.Timestamp.fromDate(today);
+
     const apptSnapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
+      .where("scheduledDate", ">=", todayTimestamp) // ✅ ONLY TODAY AND FUTURE
       .get();
 
     let appointments = [];
@@ -1135,13 +1150,28 @@ router.post("/get-all-appointments", async (req, res) => {
 /* ============================================================
    7) GET PODIATRIST APPOINTMENTS - ALL
    ============================================================ */
+// router.post('/podiatrist-get-appointments-all', async (req, res) => {
+//   const { podId } = req.body;
+//   console.log("🔍 Fetching queue info for:", podId);
+
+//   try {
+//     const apptSnapshot = await db.collection("Appointments")
+//       .where("podId", "==", podId)
+//       .get();
+
 router.post('/podiatrist-get-appointments-all', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching queue info for:", podId);
 
   try {
+    // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = admin.firestore.Timestamp.fromDate(today);
+
     const apptSnapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
+      .where("scheduledDate", ">=", todayTimestamp) // ✅ ONLY TODAY AND FUTURE
       .get();
 
     let appointments = [];
