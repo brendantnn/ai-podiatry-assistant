@@ -1866,10 +1866,25 @@ While you wait for your appointment, here's what you should do:<br>
       }
 
       // Urgency → window (same mapping)
+      // if (urgencyLevel === 1) {
+      //   minDate.setDate(now.getDate());
+      //   maxDate.setDate(now.getDate() + 2);
+      // } 
+
       if (urgencyLevel === 1) {
-        minDate.setDate(now.getDate());
-        maxDate.setDate(now.getDate() + 2);
-      } else if (urgencyLevel === 2) {
+        const currentHour = new Date().getHours();
+        
+        if (currentHour >= 16 || currentHour < 8) {
+          minDate.setDate(now.getDate() + 1);
+          minDate.setHours(8, 0, 0, 0);
+          maxDate.setDate(now.getDate() + 2);
+        } else {
+          minDate = new Date();
+          minDate.setHours(minDate.getHours() + 1);
+          maxDate.setDate(now.getDate() + 2);
+        }
+      }
+      else if (urgencyLevel === 2) {
         minDate.setDate(now.getDate() + 1);
         maxDate.setDate(now.getDate() + 7);
       } else if (urgencyLevel === 3) {
