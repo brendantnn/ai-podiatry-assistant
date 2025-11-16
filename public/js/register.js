@@ -280,6 +280,8 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 
     // // Show verification modal instead of proceeding with registration
     // showVerificationModal(phone);
+
+    completeRegistration();
     
   } catch (error) {
     console.error("Error during registration:", error);
@@ -320,7 +322,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 // });
 
 // CONTINUE WITH REGISTRATION AFTER VERIFICATION
-async function completeRegistration(phone) {
+async function completeRegistration() {
   const role = document.getElementById("role").value;
   const email = document.getElementById("email").value.trim().toLowerCase();
   const password = document.getElementById("password").value;
