@@ -192,10 +192,7 @@ Just return one word: "appointment", "triage", or "other".`
         delete s.proposed;
 
         // ===== Reuse your existing availability logic (same as after text classification) =====
-        // const now = new Date();
-        // let minDate = new Date();
         const now = new Date();
-        now.setHours(0, 0, 0, 0);  // Set to start of today
         let minDate = new Date();
         let maxDate = new Date();
         const urgencyLevelFinal = s.urgencyLevel;
@@ -205,7 +202,6 @@ Just return one word: "appointment", "triage", or "other".`
         const existingSnap = await db.collection("Appointments")
           .where("patientId", "==", userId)
           .where("status", "==", "scheduled")
-          .where("scheduledDate", ">=", now)
           .orderBy("scheduledDate")
           .get();
 
@@ -322,17 +318,14 @@ Just return one word: "appointment", "triage", or "other".`
 
         // Urgent booking window
         const now = new Date();
-        now.setHours(0, 0, 0, 0); 
         let minDate = new Date();
         let maxDate = new Date();
         minDate.setDate(now.getDate());
         maxDate.setDate(now.getDate() + 2);
-        
 
         const existingSnap = await db.collection("Appointments")
           .where("patientId", "==", userId)
           .where("status", "==", "scheduled")
-          .where("scheduledDate", ">=", now)
           .orderBy("scheduledDate")
           .get();
 
@@ -569,18 +562,13 @@ Do not show internal data to the patient.
       console.log("Summary:", summary);
 
       // Set appointemnt urgency
-      // const now = new Date();
-      // let minDate = new Date();
-      // Set appointemnt urgency
       const now = new Date();
-      now.setHours(0, 0, 0, 0);  // Set to start of today
       let minDate = new Date();
       let maxDate = new Date();
 
       const existingSnap = await db.collection("Appointments")
         .where("patientId", "==", userId)
         .where("status", "==", "scheduled")
-        .where("scheduledDate", ">=", now)
         .orderBy("scheduledDate")
         .get();
 
@@ -943,16 +931,10 @@ router.post('/chat-patient-details', async (req, res) => {
     const userData = userSnapshot.docs[0].data();
     console.log("✅ Found user:", userData.firstName, userData.lastName);
 
-    // // Get appointment
-    // const apptSnapshot = await db.collection("Appointments")
-      // Get next upcoming appointment (future only)
-      // Get next upcoming appointment (from today onwards)
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);  // Set to midnight (start of today)
-      const apptSnapshot = await db.collection("Appointments")
+    // Get appointment
+    const apptSnapshot = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
-      .where("scheduledDate", ">=", now)
       .orderBy("scheduledDate")
       .limit(1)
       .get();
@@ -981,16 +963,9 @@ router.post('/chat-patient-details', async (req, res) => {
     }
 
     // Fetch all scheduled appointments 
-    // const allApptsSnap = await db.collection("Appointments")
-    //   .where("patientId", "==", patientId)
-    //   .where("status", "==", "scheduled")
-    //   .orderBy("scheduledDate")
-    //   .get();
-
     const allApptsSnap = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
-      .where("scheduledDate", ">=", now)    // ← ADD THIS NEW LINE
       .orderBy("scheduledDate")
       .get();
 
@@ -1788,17 +1763,13 @@ While you wait for your appointment, here's what you should do:<br>
 
     // ================= 5) Availability & booking flow (IDENTICAL to yours) =================
     {
-      // const now = new Date();
-      // let minDate = new Date(now);
       const now = new Date();
-      now.setHours(0, 0, 0, 0);  // Set to start of today
       let minDate = new Date(now);
       let maxDate = new Date(now);
 
       const existingSnap = await db.collection("Appointments")
         .where("patientId", "==", userId)
         .where("status", "==", "scheduled")
-        .where("scheduledDate", ">=", now)
         .orderBy("scheduledDate")
         .get();
 
