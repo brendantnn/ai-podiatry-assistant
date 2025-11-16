@@ -192,10 +192,7 @@ Just return one word: "appointment", "triage", or "other".`
         delete s.proposed;
 
         // ===== Reuse your existing availability logic (same as after text classification) =====
-        // const now = new Date();
-        // let minDate = new Date();
         const now = new Date();
-        now.setHours(0, 0, 0, 0);  // Set to start of today
         let minDate = new Date();
         let maxDate = new Date();
         const urgencyLevelFinal = s.urgencyLevel;
@@ -205,7 +202,6 @@ Just return one word: "appointment", "triage", or "other".`
         const existingSnap = await db.collection("Appointments")
           .where("patientId", "==", userId)
           .where("status", "==", "scheduled")
-          .where("scheduledDate", ">=", now)
           .orderBy("scheduledDate")
           .get();
 
@@ -322,17 +318,14 @@ Just return one word: "appointment", "triage", or "other".`
 
         // Urgent booking window
         const now = new Date();
-        now.setHours(0, 0, 0, 0); 
         let minDate = new Date();
         let maxDate = new Date();
         minDate.setDate(now.getDate());
         maxDate.setDate(now.getDate() + 2);
-        
 
         const existingSnap = await db.collection("Appointments")
           .where("patientId", "==", userId)
           .where("status", "==", "scheduled")
-          .where("scheduledDate", ">=", now)
           .orderBy("scheduledDate")
           .get();
 
@@ -569,18 +562,13 @@ Do not show internal data to the patient.
       console.log("Summary:", summary);
 
       // Set appointemnt urgency
-      // const now = new Date();
-      // let minDate = new Date();
-      // Set appointemnt urgency
       const now = new Date();
-      now.setHours(0, 0, 0, 0);  // Set to start of today
       let minDate = new Date();
       let maxDate = new Date();
 
       const existingSnap = await db.collection("Appointments")
         .where("patientId", "==", userId)
         .where("status", "==", "scheduled")
-        .where("scheduledDate", ">=", now)
         .orderBy("scheduledDate")
         .get();
 
@@ -666,30 +654,11 @@ Do not show internal data to the patient.
 
       //Level 1: Book immediately, Level 2: Book starting tomorrow, Level 3: Book from 3 days later,Level 4: Book from 5 days later
 
-      // if (urgencyLevel === 1) {
-      //   // Wound care – immediate
-      //   minDate.setDate(now.getDate());       // today
-      //   maxDate.setDate(now.getDate() + 2);   // up to 2 days
-      // } 
       if (urgencyLevel === 1) {
         // Wound care – immediate
-        const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
-        const currentHour = new Date(sgTime).getHours();
-        
-        // If it's after 4 PM (last slot at 5pm needs 1hr buffer) or before 8 AM
-        if (currentHour >= 16 || currentHour < 8) {
-          // Too late for today, start from tomorrow 8 AM
-          minDate.setDate(now.getDate() + 1);
-          minDate.setHours(8, 0, 0, 0);  // Tomorrow at 8 AM
-          maxDate.setDate(now.getDate() + 2);
-        } else {
-          // Still within business hours - search from now + 1 hour
-          minDate = new Date();
-          minDate.setHours(minDate.getHours() + 1);  // At least 1 hour from now
-          maxDate.setDate(now.getDate() + 2);
-        }
-      }
-      else if (urgencyLevel === 2) {
+        minDate.setDate(now.getDate());       // today
+        maxDate.setDate(now.getDate() + 2);   // up to 2 days
+      } else if (urgencyLevel === 2) {
         // Nail surgery
         minDate.setDate(now.getDate() + 1);   // earliest tomorrow
         maxDate.setDate(now.getDate() + 7);   // up to 1 week
@@ -965,9 +934,7 @@ router.post('/chat-patient-details', async (req, res) => {
     // // Get appointment
     // const apptSnapshot = await db.collection("Appointments")
       // Get next upcoming appointment (future only)
-      // Get next upcoming appointment (from today onwards)
       const now = new Date();
-      now.setHours(0, 0, 0, 0);  // Set to midnight (start of today)
       const apptSnapshot = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
@@ -1807,22 +1774,13 @@ While you wait for your appointment, here's what you should do:<br>
 
     // ================= 5) Availability & booking flow (IDENTICAL to yours) =================
     {
-      // const now = new Date();
-      // let minDate = new Date(now);
-      // Get current time in Singapore
-      const nowSG = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
-      const now = new Date(nowSG);
-      
-      // Get midnight in Singapore timezone
-      const todayMidnight = new Date(nowSG);
-      todayMidnight.setHours(0, 0, 0, 0);
-      let minDate = new Date();
-      let maxDate = new Date();
+      const now = new Date();
+      let minDate = new Date(now);
+      let maxDate = new Date(now);
 
       const existingSnap = await db.collection("Appointments")
         .where("patientId", "==", userId)
         .where("status", "==", "scheduled")
-        .where("scheduledDate", ">=", todayMidnight)
         .orderBy("scheduledDate")
         .get();
 
@@ -1872,65 +1830,18 @@ While you wait for your appointment, here's what you should do:<br>
       }
 
       // Urgency → window (same mapping)
-      // if (urgencyLevel === 1) {
-      //   minDate.setDate(now.getDate());
-      //   maxDate.setDate(now.getDate() + 2);
-      // } 
-
       if (urgencyLevel === 1) {
-        const sgTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' });
-        const currentHour = new Date(sgTime).getHours();
-        
-        // if (currentHour >= 16 || currentHour < 8) {
-        //   minDate.setDate(now.getDate() + 1);
-        //   minDate.setHours(8, 0, 0, 0);
-        //   maxDate.setDate(now.getDate() + 2);
-        if (currentHour >= 16 || currentHour < 8) {
-          // Use Singapore time for tomorrow calculation
-          const sgNow = new Date(sgTime);
-          const tomorrow = new Date(sgNow);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(8, 0, 0, 0);
-          minDate = tomorrow;
-          
-          const dayAfter = new Date(sgNow);
-          dayAfter.setDate(dayAfter.getDate() + 2);
-          maxDate = dayAfter;
-        } else {
-          // Use Singapore time for current time + 1 hour
-          const sgNow = new Date(sgTime);
-          minDate = new Date(sgNow);
-          minDate.setHours(minDate.getHours() + 1);
-          const twoDaysLater = new Date(sgNow);
-          twoDaysLater.setDate(twoDaysLater.getDate() + 2);
-          maxDate = twoDaysLater;
-        }
-      }
-      else if (urgencyLevel === 2) {
-        const sgNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
-        const tomorrow = new Date(sgNow);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        minDate = tomorrow;
-        
-        const oneWeekLater = new Date(sgNow);
-        oneWeekLater.setDate(oneWeekLater.getDate() + 7);
-        maxDate = oneWeekLater;
+        minDate.setDate(now.getDate());
+        maxDate.setDate(now.getDate() + 2);
+      } else if (urgencyLevel === 2) {
+        minDate.setDate(now.getDate() + 1);
+        maxDate.setDate(now.getDate() + 7);
       } else if (urgencyLevel === 3) {
-        const threeDaysLater = new Date();
-        threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-        minDate = threeDaysLater;
-        
-        const twoWeeksLater = new Date();
-        twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
-        maxDate = twoWeeksLater;
+        minDate.setDate(now.getDate() + 3);
+        maxDate.setDate(now.getDate() + 14);
       } else {
-        const fiveDaysLater = new Date();
-        fiveDaysLater.setDate(fiveDaysLater.getDate() + 5);
-        minDate = fiveDaysLater;
-        
-        const threeWeeksLater = new Date();
-        threeWeeksLater.setDate(threeWeeksLater.getDate() + 21);
-        maxDate = threeWeeksLater;
+        minDate.setDate(now.getDate() + 5);
+        maxDate.setDate(now.getDate() + 21);
       }
 
       const slotQuery = await db.collection("Availability")
@@ -2416,21 +2327,11 @@ While you wait for your appointment, here's what you should do:<br>
         minDate.setDate(now.getDate() + 1);
         maxDate.setDate(now.getDate() + 7);
       } else if (urgencyLevel === 3) {
-        const threeDaysLater = new Date();
-        threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-        minDate = threeDaysLater;
-        
-        const twoWeeksLater = new Date();
-        twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
-        maxDate = twoWeeksLater;
+        minDate.setDate(now.getDate() + 3);
+        maxDate.setDate(now.getDate() + 14);
       } else {
-        const fiveDaysLater = new Date();
-        fiveDaysLater.setDate(fiveDaysLater.getDate() + 5);
-        minDate = fiveDaysLater;
-        
-        const threeWeeksLater = new Date();
-        threeWeeksLater.setDate(threeWeeksLater.getDate() + 21);
-        maxDate = threeWeeksLater;
+        minDate.setDate(now.getDate() + 5);
+        maxDate.setDate(now.getDate() + 21);
       }
 
       const slotQuery = await db.collection("Availability")
