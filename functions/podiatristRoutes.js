@@ -1060,25 +1060,24 @@ router.post("/get-schedule-by-date", async (req, res) => {
 //       .where("podId", "==", podId)
 //       .get();
 
-// router.post("/get-all-appointments", async (req, res) => {
-//   const { podId } = req.body;
-//   console.log("📊 Fetching all appointments for pod:", podId);
-
-//   try {
-//     const apptSnapshot = await db.collection("Appointments")
-//       .where("podId", "==", podId)
-//       .get();
-
-//     // ✅ FILTER OUT PAST APPOINTMENTS - Only get today and future (in JavaScript)
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-
 //     let appointments = [];
 //     if (!apptSnapshot.empty) {
 //       const patientIds = [];
+      
+//       // ✅ FILTER OUT PAST APPOINTMENTS - Set up today's date for comparison
+//       const today = new Date();
+//       today.setHours(0, 0, 0, 0);
 
 //       apptSnapshot.docs.forEach(doc => {
 //         const appt = doc.data();
+        
+//         // ✅ Filter out past appointments
+//         const apptDate = appt.scheduledDate.toDate();
+//         apptDate.setHours(0, 0, 0, 0);
+//         if (apptDate < today) {
+//           return; // Skip this appointment
+//         }
+        
 //         patientIds.push(appt.patientId);
 
 //         const appointment = {
@@ -1147,11 +1146,11 @@ router.post("/get-schedule-by-date", async (req, res) => {
 
 router.post("/get-all-appointments", async (req, res) => {
   const { podId } = req.body;
-  console.log("📊 Fetching all appointments for pod:", podId);
+  console.log("📊 Fetching all appointments (ALL PODIATRISTS)");
 
   try {
+    // ✅ NO podId FILTER - Get appointments from ALL podiatrists
     const apptSnapshot = await db.collection("Appointments")
-      .where("podId", "==", podId)
       .get();
 
     let appointments = [];
@@ -1197,7 +1196,7 @@ router.post("/get-all-appointments", async (req, res) => {
           summary: appt.summary,
           imageUrl: appt.imageUrl || null,
           imageCaption: appt.imageCaption || null,
-          podId: appt.podId
+          podId: appt.podId // ✅ Include podId so you can see which podiatrist it's assigned to
         };
         appointments.push(appointment);
       });
@@ -1219,6 +1218,8 @@ router.post("/get-all-appointments", async (req, res) => {
         }));
       }
 
+      console.log(`✅ Returning ${appointments.length} appointments from ALL podiatrists`);
+
       return res.json({ 
         success: true,
         appointments 
@@ -1237,7 +1238,6 @@ router.post("/get-all-appointments", async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to fetch all appointments" });
   }
 });
-
 
 /* ============================================================
    7) GET PODIATRIST APPOINTMENTS - ALL
