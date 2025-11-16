@@ -1138,9 +1138,19 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching queue info for:", podId);
 
+  // try {
+  //   const apptSnapshot = await db.collection("Appointments")
+  //     .where("podId", "==", podId)
+  //     .get();
+
   try {
+    // Get current date at start of day (Singapore timezone)
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     const apptSnapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(todayStart))
       .get();
 
     let appointments = [];
@@ -1149,6 +1159,8 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
 
       apptSnapshot.docs.forEach(doc => {
         const appt = doc.data();
+
+        if (appt.status !== "scheduled") return;
         patientIds.push(appt.patientId);
 
         const appointment = {
@@ -1208,10 +1220,21 @@ router.post('/podiatrist-get-appointments-scheduled', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching calendar info for:", podId);
 
+  // try {
+  //   const apptSnapshot = await db.collection("Appointments")
+  //     .where("podId", "==", podId)
+  //     .where("status", "==", "scheduled")
+  //     .get();
+
   try {
+    // Get current date at start of day (Singapore timezone)
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     const apptSnapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
       .where("status", "==", "scheduled")
+      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(todayStart))
       .get();
 
     let appointments = [];
