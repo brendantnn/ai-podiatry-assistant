@@ -324,30 +324,6 @@ Keep responses professional and evidence-based.`;
 /* ============================================================
    2) GET URGENT CASES
    ============================================================ */
-// router.post("/get-urgent-cases", async (req, res) => {
-//   const { podiatristId, podId } = req.body;
-//   const targetPodId = podId || podiatristId;
-  
-//   console.log('🚨 Fetching urgent cases for pod:', targetPodId);
-
-//   if (!targetPodId) {
-//     return res.status(400).json({
-//       success: false,
-//       error: "No podId provided",
-//       urgentCases: [],
-//       totalCount: 0
-//     });
-//   }
-
-//   try {
-//     const urgentCasesQuery = await db.collection("Appointments")
-//       .where("podId", "==", targetPodId)
-//       .where("status", "==", "scheduled")
-//       .where("urgencyLevel", "in", [1, 2])
-//       .orderBy("urgencyLevel", "asc")
-//       .orderBy("scheduledDate", "asc")
-//       .get();
-
 router.post("/get-urgent-cases", async (req, res) => {
   const { podiatristId, podId } = req.body;
   const targetPodId = podId || podiatristId;
@@ -364,17 +340,12 @@ router.post("/get-urgent-cases", async (req, res) => {
   }
 
   try {
-    // Get current date at start of day (Singapore timezone)
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
     const urgentCasesQuery = await db.collection("Appointments")
       .where("podId", "==", targetPodId)
       .where("status", "==", "scheduled")
       .where("urgencyLevel", "in", [1, 2])
-      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(todayStart))
-      .orderBy("scheduledDate", "asc")
       .orderBy("urgencyLevel", "asc")
+      .orderBy("scheduledDate", "asc")
       .get();
 
     console.log(`📊 Found ${urgentCasesQuery.size} urgent cases for pod ${targetPodId}`);
@@ -1735,26 +1706,6 @@ router.post("/get-upcoming-appointments", async (req, res) => {
 /* ============================================================
    14) GET DASHBOARD METRICS
    ============================================================ */
-// router.post("/get-dashboard-metrics", async (req, res) => {
-//   const { podiatristId, podId } = req.body;
-//   const targetPodId = podId || podiatristId;
-  
-//   console.log('📊 Fetching dashboard metrics for pod:', targetPodId);
-
-//   if (!targetPodId) {
-//     return res.status(400).json({
-//       success: false,
-//       error: "No podId provided"
-//     });
-//   }
-
-//   try {
-//     const snapshot = await db.collection("Appointments")
-//       .where("podId", "==", targetPodId)
-//       .get();
-
-//     const scheduled = snapshot.docs.filter(doc => doc.data().status === "scheduled");
-
 router.post("/get-dashboard-metrics", async (req, res) => {
   const { podiatristId, podId } = req.body;
   const targetPodId = podId || podiatristId;
@@ -1769,23 +1720,11 @@ router.post("/get-dashboard-metrics", async (req, res) => {
   }
 
   try {
-    // Get current date at start of day (Singapore timezone)
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
     const snapshot = await db.collection("Appointments")
       .where("podId", "==", targetPodId)
       .get();
 
-    // Filter for scheduled appointments on or after today
-    const scheduled = snapshot.docs.filter(doc => {
-      const data = doc.data();
-      if (data.status !== "scheduled") return false;
-      
-      const aptDate = data.scheduledDate.toDate();
-      return aptDate >= todayStart;
-    });
-
+    const scheduled = snapshot.docs.filter(doc => doc.data().status === "scheduled");
     const urgent = scheduled.filter(doc => {
       const urgency = doc.data().urgencyLevel;
       return urgency === 1 || urgency === 2;
@@ -1813,7 +1752,6 @@ router.post("/get-dashboard-metrics", async (req, res) => {
 /* ============================================================
    15) GET NOTIFICATIONS
    ============================================================ */
-
 // router.post("/get-notifications", async (req, res) => {
 //   const { podId } = req.body;
 //   console.log("🔔 Fetching notifications for pod:", podId);
@@ -1826,19 +1764,33 @@ router.post("/get-dashboard-metrics", async (req, res) => {
 //       .limit(5)
 //       .get();
 
+//     const notifications = snapshot.docs.map(doc => {
+//       const data = doc.data();
+//       return {
+//         id: doc.id,
+//         patientId: data.patientId,
+//         date: data.scheduledDate.toDate().toLocaleDateString('en-SG'),
+//         time: data.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }),
+//         urgency: data.urgencyLevel
+//       };
+//     });
+
+//     res.json({ success: true, notifications });
+
+//   } catch (error) {
+//     console.error("❌ Error fetching notifications:", error);
+//     res.status(500).json({ success: false, error: "Failed to fetch notifications" });
+//   }
+// });
+
 router.post("/get-notifications", async (req, res) => {
   const { podId } = req.body;
   console.log("🔔 Fetching notifications for pod:", podId);
 
   try {
-    // Get current date at start of day
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
     const snapshot = await db.collection("Appointments")
       .where("podId", "==", podId)
       .where("status", "==", "scheduled")
-      .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(todayStart))
       .orderBy("scheduledDate", "asc")
       .limit(5)
       .get();
