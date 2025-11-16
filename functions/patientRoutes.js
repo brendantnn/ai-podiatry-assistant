@@ -931,10 +931,14 @@ router.post('/chat-patient-details', async (req, res) => {
     const userData = userSnapshot.docs[0].data();
     console.log("✅ Found user:", userData.firstName, userData.lastName);
 
-    // Get appointment
-    const apptSnapshot = await db.collection("Appointments")
+    // // Get appointment
+    // const apptSnapshot = await db.collection("Appointments")
+      // Get next upcoming appointment (future only)
+      const now = new Date();
+      const apptSnapshot = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
+      .where("scheduledDate", ">=", now)
       .orderBy("scheduledDate")
       .limit(1)
       .get();
@@ -963,9 +967,16 @@ router.post('/chat-patient-details', async (req, res) => {
     }
 
     // Fetch all scheduled appointments 
+    // const allApptsSnap = await db.collection("Appointments")
+    //   .where("patientId", "==", patientId)
+    //   .where("status", "==", "scheduled")
+    //   .orderBy("scheduledDate")
+    //   .get();
+
     const allApptsSnap = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
+      .where("scheduledDate", ">=", now)    // ← ADD THIS NEW LINE
       .orderBy("scheduledDate")
       .get();
 
