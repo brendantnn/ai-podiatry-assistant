@@ -119,83 +119,83 @@ document.querySelector('#phoneVerificationModal .edit-modal-close').addEventList
   hideVerificationModal();
 });
 
-// SMS ROUTE TO SEND VERIFICATION CODE
-async function sendVerificationCode(phone, submitButton, originalText) {
-  try {
-    const response = await fetch('/sms/send-verification-code', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ phoneNumber: phone })
-    });
+// // SMS ROUTE TO SEND VERIFICATION CODE
+// async function sendVerificationCode(phone, submitButton, originalText) {
+//   try {
+//     const response = await fetch('/sms/send-verification-code', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json'
+//       },
+//       body: JSON.stringify({ phoneNumber: phone })
+//     });
 
-    const data = await response.json();
+//     const data = await response.json();
 
-    if (!data.success) {
-      alert("❌ Failed to send verification code. Please try again.");
-      if (submitButton) {
-        submitButton.textContent = originalText;
-        submitButton.disabled = false;
-      }
-      return;
-    }
+//     if (!data.success) {
+//       alert("❌ Failed to send verification code. Please try again.");
+//       if (submitButton) {
+//         submitButton.textContent = originalText;
+//         submitButton.disabled = false;
+//       }
+//       return;
+//     }
 
-    console.log("✅ Verification code sent:", data.details);
-    alert("✅ Verification code sent successfully! Please check your phone.");
+//     console.log("✅ Verification code sent:", data.details);
+//     alert("✅ Verification code sent successfully! Please check your phone.");
 
-  } catch (error) {
-    console.error("❌ Error sending verification code:", error);
-    alert("❌ An error occurred. Please try again.");
-  } finally {
-    if (submitButton) {
-      submitButton.textContent = originalText;
-      submitButton.disabled = false;
-    }
-  }
-}
+//   } catch (error) {
+//     console.error("❌ Error sending verification code:", error);
+//     alert("❌ An error occurred. Please try again.");
+//   } finally {
+//     if (submitButton) {
+//       submitButton.textContent = originalText;
+//       submitButton.disabled = false;
+//     }
+//   }
+// }
 
-// SMS ROUTE TO CHECK VERIFICATION STATUS
-async function checkVerificationStatus(phone, code, submitButton, originalText) {
-  try {
-    const response = await fetch('/sms/check-verification-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        phoneNumber: phone,
-        code: code
-      })
-    });
+// // SMS ROUTE TO CHECK VERIFICATION STATUS
+// async function checkVerificationStatus(phone, code, submitButton, originalText) {
+//   try {
+//     const response = await fetch('/sms/check-verification-status', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json'
+//       },
+//       body: JSON.stringify({
+//         phoneNumber: phone,
+//         code: code
+//       })
+//     });
 
-    const data = await response.json();
+//     const data = await response.json();
 
-    if (!data.success) {
-      alert("❌ Verification failed. Please check the code and try again.");
-      if (submitButton) {
-        submitButton.textContent = originalText;
-        submitButton.disabled = false;
-      }
-      return;
-    }
+//     if (!data.success) {
+//       alert("❌ Verification failed. Please check the code and try again.");
+//       if (submitButton) {
+//         submitButton.textContent = originalText;
+//         submitButton.disabled = false;
+//       }
+//       return;
+//     }
 
-    console.log("✅ Verification successful:", data.details);
-    alert("✅ Phone number verified successfully!");
+//     console.log("✅ Verification successful:", data.details);
+//     alert("✅ Phone number verified successfully!");
 
-    hideVerificationModal();
-    completeRegistration(phone);
+//     hideVerificationModal();
+//     completeRegistration(phone);
 
-  } catch (error) {
-    console.error("❌ Error verifying code:", error);
-    alert("❌ An error occurred during verification. Please try again.");
-  } finally {
-    if (submitButton) {
-      submitButton.textContent = originalText;
-      submitButton.disabled = false;
-    }
-  }
-}
+//   } catch (error) {
+//     console.error("❌ Error verifying code:", error);
+//     alert("❌ An error occurred during verification. Please try again.");
+//   } finally {
+//     if (submitButton) {
+//       submitButton.textContent = originalText;
+//       submitButton.disabled = false;
+//     }
+//   }
+// }
 
 // REGISTER HANDLER
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
@@ -275,11 +275,11 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       return;
     }
 
-    // Send Verification Code
-    await sendVerificationCode(phone, submitButton, originalText);
+    // // Send Verification Code
+    // await sendVerificationCode(phone, submitButton, originalText);
 
-    // Show verification modal instead of proceeding with registration
-    showVerificationModal(phone);
+    // // Show verification modal instead of proceeding with registration
+    // showVerificationModal(phone);
     
   } catch (error) {
     console.error("Error during registration:", error);
@@ -290,34 +290,34 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   }
 });
 
-// VERIFICATION BUTTON HANDLERS
-document.getElementById("verifyCodeBtn").addEventListener("click", async function() {
-  const phone = document.getElementById('phoneVerify').textContent;
-  const code = document.getElementById('verificationCode').value;
-  const submitButton = document.getElementById('verifyCodeBtn');
-  const originalText = submitButton.textContent;
+// // VERIFICATION BUTTON HANDLERS
+// document.getElementById("verifyCodeBtn").addEventListener("click", async function() {
+//   const phone = document.getElementById('phoneVerify').textContent;
+//   const code = document.getElementById('verificationCode').value;
+//   const submitButton = document.getElementById('verifyCodeBtn');
+//   const originalText = submitButton.textContent;
   
-  if (!code) {
-    alert("❌ Please enter the verification code.");
-    return;
-  }
+//   if (!code) {
+//     alert("❌ Please enter the verification code.");
+//     return;
+//   }
 
-  submitButton.textContent = '⏳ Verifying...';
-  submitButton.disabled = true;
+//   submitButton.textContent = '⏳ Verifying...';
+//   submitButton.disabled = true;
   
-  await checkVerificationStatus(phone, code, submitButton, originalText);
-});
+//   await checkVerificationStatus(phone, code, submitButton, originalText);
+// });
 
-document.getElementById("resendCodeBtn").addEventListener("click", async function() {
-  const phone = document.getElementById('phoneVerify').textContent;
-  const submitButton = document.getElementById('resendCodeBtn');
-  const originalText = submitButton.textContent;
+// document.getElementById("resendCodeBtn").addEventListener("click", async function() {
+//   const phone = document.getElementById('phoneVerify').textContent;
+//   const submitButton = document.getElementById('resendCodeBtn');
+//   const originalText = submitButton.textContent;
   
-  submitButton.textContent = '⏳ Sending...';
-  submitButton.disabled = true;
+//   submitButton.textContent = '⏳ Sending...';
+//   submitButton.disabled = true;
   
-  await sendVerificationCode(phone, submitButton, originalText);
-});
+//   // await sendVerificationCode(phone, submitButton, originalText);
+// });
 
 // CONTINUE WITH REGISTRATION AFTER VERIFICATION
 async function completeRegistration(phone) {
