@@ -4,11 +4,18 @@
   <title>Register - SGH Podiatry</title>
   <link rel="stylesheet" href="template.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* FORCE HIDE THE VERIFICATION MODAL */
+    #phoneVerificationModal {
+      display: none !important;
+      visibility: hidden !important;
+    }
+  </style>
 </head>
 <body>
   <div class="medical-container">
     <div class="medical-header">
-      <h1>📝 Register New Account</h1>
+      <h1>🏥 Register New Account</h1>
       <div class="subtitle">SGH Podiatry System - Secure Registration</div>
     </div>
 
@@ -24,12 +31,12 @@
         </div>
 
         <div class="form-group">
-          <label class="medical-label" for="firstName">🧍 First Name</label>
+          <label class="medical-label" for="firstName">🧑 First Name</label>
           <input type="text" id="firstName" class="medical-input" placeholder="Enter first name" required />
         </div>
 
         <div class="form-group">
-          <label class="medical-label" for="lastName">🧍 Last Name</label>
+          <label class="medical-label" for="lastName">🧑 Last Name</label>
           <input type="text" id="lastName" class="medical-input" placeholder="Enter last name" required />
         </div>
 
@@ -95,38 +102,6 @@
           <a href="login.html" class="text-primary">← Back to Login</a>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- Twilio Phone Verification Modal -->
-  <div id="phoneVerificationModal" class="edit-modal-overlay hidden">
-    <div class="edit-modal-content">
-      <div class="edit-modal-header">
-        <h3>📞 Phone Verification</h3>
-        <button type="button" class="edit-modal-close">&times;</button>
-      </div>
-      
-      <div class="edit-modal-body">
-        <p>We've sent a 6-digit verification code to <strong id="phoneVerify"></strong>.</p>
-        
-        <div class="form-group">
-          <label class="medical-label" for="verificationCode">🔑 Verification Code</label>
-          <input type="text" id="verificationCode" class="medical-input" placeholder="Enter 6-digit code" maxlength="6" required />
-        </div>
-        
-        <div id="verificationError" class="text-danger" style="display: none;">
-          Invalid verification code. Please try again.
-        </div>
-      </div>
-      
-      <div class="edit-modal-footer">
-        <button id="verifyCodeBtn" class="medical-btn medical-btn-primary">
-          ✅ Verify Code
-        </button>
-        <button id="resendCodeBtn" class="medical-btn medical-btn-secondary">
-          ⏳ Resend Code
-        </button>
-      </div>
     </div>
   </div>
 
