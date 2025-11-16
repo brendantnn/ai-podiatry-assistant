@@ -1134,93 +1134,14 @@ router.post("/get-all-appointments", async (req, res) => {
 /* ============================================================
    7) GET PODIATRIST APPOINTMENTS - ALL
    ============================================================ */
-// router.post('/podiatrist-get-appointments-all', async (req, res) => {
-//   const { podId } = req.body;
-//   console.log("🔍 Fetching queue info for:", podId);
-
-//   // try {
-//   //   const apptSnapshot = await db.collection("Appointments")
-//   //     .where("podId", "==", podId)
-//   //     .get();
-
-//   try {
-//     // Get current date at start of day (Singapore timezone)
-//     const now = new Date();
-//     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-//     const apptSnapshot = await db.collection("Appointments")
-//       .where("podId", "==", podId)
-//       .where("scheduledDate", ">=", admin.firestore.Timestamp.fromDate(todayStart))
-//       .get();
-
-//     let appointments = [];
-//     if (!apptSnapshot.empty) {
-//       const patientIds = [];
-
-//       apptSnapshot.docs.forEach(doc => {
-//         const appt = doc.data();
-
-//         if (appt.status !== "scheduled") return;
-//         patientIds.push(appt.patientId);
-
-//         const appointment = {
-//           apptId: doc.id,
-//           patientId: appt.patientId,
-//           podId: appt.podId,
-//           scheduledDate: appt.scheduledDate.toDate().toISOString(),
-//           date: appt.scheduledDate.toDate().toLocaleDateString('en-SG', { year: 'numeric', month: 'long', day: 'numeric' ,   timeZone: 'Asia/Singapore'}),
-//           time: appt.scheduledDate.toDate().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true,   timeZone: 'Asia/Singapore'}),
-//           status: appt.status,
-//           urgencyLevel: appt.urgencyLevel,
-//           category: appt.category,
-//           initialDiagnosis: appt.initialDiagnosis,
-//           summary: appt.summary,
-//           imageUrl: appt.imageUrl || null,
-//           imageCaption: null
-//         };
-//         appointments.push(appointment);
-//       });
-
-//       const userSnapshots = await db.collection("Users")
-//         .where("userId", "in", patientIds)
-//         .get();
-
-//       const userMap = {};
-//       userSnapshots.docs.forEach(userDoc => {
-//         const userData = userDoc.data();
-//         userMap[userData.userId] = userData.firstName + " " + userData.lastName;
-//       });
-
-//       appointments = appointments.map(appt => ({
-//         ...appt,
-//         name: userMap[appt.patientId] || "Unknown"
-//       }));
-
-//       return res.json({
-//         appointments
-//       });
-
-//     } else {
-//       console.log("❌ No Appointments found");
-//       return res.json({
-//         response: "No Appointments Found",
-//         appointments: null
-//       });
-//     }
-//   } catch (error) {
-//     console.error("❌ Error in /podiatrist-get-appointments-all:", error);
-//     res.status(500).json({ error: "Failed to fetch all appointments" });
-//   }
-// });
-
-// ========================================
-// CORRECTED: PODIATRIST-GET-APPOINTMENTS-ALL
-// Replace the entire endpoint starting at line 1137
-// ========================================
-
 router.post('/podiatrist-get-appointments-all', async (req, res) => {
   const { podId } = req.body;
   console.log("🔍 Fetching queue info for:", podId);
+
+  // try {
+  //   const apptSnapshot = await db.collection("Appointments")
+  //     .where("podId", "==", podId)
+  //     .get();
 
   try {
     // Get current date at start of day (Singapore timezone)
@@ -1239,9 +1160,7 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
       apptSnapshot.docs.forEach(doc => {
         const appt = doc.data();
 
-        // Only include scheduled appointments
         if (appt.status !== "scheduled") return;
-        
         patientIds.push(appt.patientId);
 
         const appointment = {
@@ -1261,14 +1180,6 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
         };
         appointments.push(appointment);
       });
-
-      // ✅ FIX: Check if we have any patient IDs before querying Users
-      if (patientIds.length === 0) {
-        console.log("ℹ️ No scheduled appointments found for this podiatrist");
-        return res.json({
-          appointments: []
-        });
-      }
 
       const userSnapshots = await db.collection("Users")
         .where("userId", "in", patientIds)
@@ -1293,7 +1204,7 @@ router.post('/podiatrist-get-appointments-all', async (req, res) => {
       console.log("❌ No Appointments found");
       return res.json({
         response: "No Appointments Found",
-        appointments: []
+        appointments: null
       });
     }
   } catch (error) {
