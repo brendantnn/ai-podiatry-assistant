@@ -666,11 +666,29 @@ Do not show internal data to the patient.
 
       //Level 1: Book immediately, Level 2: Book starting tomorrow, Level 3: Book from 3 days later,Level 4: Book from 5 days later
 
+      // if (urgencyLevel === 1) {
+      //   // Wound care – immediate
+      //   minDate.setDate(now.getDate());       // today
+      //   maxDate.setDate(now.getDate() + 2);   // up to 2 days
+      // } 
       if (urgencyLevel === 1) {
         // Wound care – immediate
-        minDate.setDate(now.getDate());       // today
-        maxDate.setDate(now.getDate() + 2);   // up to 2 days
-      } else if (urgencyLevel === 2) {
+        const currentHour = new Date().getHours();
+        
+        // If it's after 4 PM (last slot at 5pm needs 1hr buffer) or before 8 AM
+        if (currentHour >= 16 || currentHour < 8) {
+          // Too late for today, start from tomorrow 8 AM
+          minDate.setDate(now.getDate() + 1);
+          minDate.setHours(8, 0, 0, 0);  // Tomorrow at 8 AM
+          maxDate.setDate(now.getDate() + 2);
+        } else {
+          // Still within business hours - search from now + 1 hour
+          minDate = new Date();
+          minDate.setHours(minDate.getHours() + 1);  // At least 1 hour from now
+          maxDate.setDate(now.getDate() + 2);
+        }
+      }
+      else if (urgencyLevel === 2) {
         // Nail surgery
         minDate.setDate(now.getDate() + 1);   // earliest tomorrow
         maxDate.setDate(now.getDate() + 7);   // up to 1 week
