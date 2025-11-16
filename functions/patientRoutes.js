@@ -934,7 +934,9 @@ router.post('/chat-patient-details', async (req, res) => {
     // // Get appointment
     // const apptSnapshot = await db.collection("Appointments")
       // Get next upcoming appointment (future only)
+      // Get next upcoming appointment (from today onwards)
       const now = new Date();
+      now.setHours(0, 0, 0, 0);  // Set to midnight (start of today)
       const apptSnapshot = await db.collection("Appointments")
       .where("patientId", "==", patientId)
       .where("status", "==", "scheduled")
