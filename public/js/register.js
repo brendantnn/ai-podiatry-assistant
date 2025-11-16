@@ -77,7 +77,7 @@ document.getElementById("phone").addEventListener("input", function(e) {
   }
   
   // Hide warning when user is typing correctly
-  if (phoneWarning.style.display === 'block') {
+  if (phoneWarning && phoneWarning.style.display === 'block') {
     phoneWarning.style.display = 'none';
   }
 });
@@ -85,14 +85,14 @@ document.getElementById("phone").addEventListener("input", function(e) {
 // PASSWORD INPUT HANDLER - Hide warning when user types
 document.getElementById("password").addEventListener("input", function(e) {
   const passwordWarning = document.getElementById("passwordWarning");
-  if (passwordWarning.style.display === 'block') {
+  if (passwordWarning && passwordWarning.style.display === 'block') {
     passwordWarning.style.display = 'none';
   }
 });
 
 document.getElementById("confirmPassword").addEventListener("input", function(e) {
   const passwordWarning = document.getElementById("passwordWarning");
-  if (passwordWarning.style.display === 'block') {
+  if (passwordWarning && passwordWarning.style.display === 'block') {
     passwordWarning.style.display = 'none';
   }
 });
@@ -131,7 +131,8 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 
   // Validate phone
   if (!isValidPhone(phone)) {
-    document.getElementById("phoneWarning").style.display = 'block';
+    const phoneWarning = document.getElementById("phoneWarning");
+    if (phoneWarning) phoneWarning.style.display = 'block';
     alert("❌ Please enter a valid phone number. Singapore numbers should start with +65 followed by 8 digits (6, 8, or 9).");
     return;
   }
@@ -139,7 +140,8 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   // Check if phone is Singapore number and has correct format
   if (phone.startsWith('+65')) {
     if (phone.length !== 11) {
-      document.getElementById("phoneWarning").style.display = 'block';
+      const phoneWarning = document.getElementById("phoneWarning");
+      if (phoneWarning) phoneWarning.style.display = 'block';
       alert("❌ Singapore phone number must be exactly 8 digits after +65.");
       return;
     }
@@ -147,14 +149,16 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 
   // Validate password match
   if (password !== confirmPassword) {
-    document.getElementById("passwordWarning").style.display = 'block';
+    const passwordWarning = document.getElementById("passwordWarning");
+    if (passwordWarning) passwordWarning.style.display = 'block';
     alert("❌ Passwords do not match.");
     return;
   }
 
   // Validate password strength
   if (!isPasswordValid(password)) {
-    document.getElementById("passwordWarning").style.display = 'block';
+    const passwordWarning = document.getElementById("passwordWarning");
+    if (passwordWarning) passwordWarning.style.display = 'block';
     alert("❌ Password must be at least 8 characters long and include:\n• At least one uppercase letter\n• At least one symbol (!@#$%^&*)\n• Letters and numbers (alphanumeric)");
     return;
   }
@@ -175,7 +179,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       return;
     }
 
-    // Skip SMS verification and proceed directly to registration
+    // Proceed directly to registration (NO SMS verification)
     submitButton.textContent = '⏳ Creating account...';
     await completeRegistration(phone);
     
@@ -187,7 +191,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   }
 });
 
-// CONTINUE WITH REGISTRATION (NO VERIFICATION NEEDED)
+// COMPLETE REGISTRATION (NO VERIFICATION NEEDED)
 async function completeRegistration(phone) {
   const role = document.getElementById("role").value;
   const email = document.getElementById("email").value.trim().toLowerCase();
