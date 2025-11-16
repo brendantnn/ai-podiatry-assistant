@@ -281,7 +281,6 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     // // Show verification modal instead of proceeding with registration
     // showVerificationModal(phone);
 
-    completeRegistration();
     
   } catch (error) {
     console.error("Error during registration:", error);
@@ -290,6 +289,9 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     submitButton.textContent = originalText;
     submitButton.disabled = false;
   }
+
+    completeRegistration();
+    
 });
 
 // // VERIFICATION BUTTON HANDLERS
