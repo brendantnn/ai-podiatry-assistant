@@ -1,4 +1,3 @@
-
 // ************** SENDING AND DISPLAYING MESSAGES IN CHATBOT *****************************
 
 // Called when user clicks send button in HTML page
@@ -108,9 +107,9 @@
 //             });
 
 //             const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
-//             appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
+//             appointmentText = `ðŸ—“ï¸ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
 
-//             appointmentTextTwo = `📅 Next appointment: ${formattedDate} with <span class="notranslate">${doctor}</span>`;
+//             appointmentTextTwo = `ðŸ“… Next appointment: ${formattedDate} with <span class="notranslate">${doctor}</span>`;
 
 //         }
 
@@ -118,7 +117,7 @@
 //         const introTemplate = [
 //             `Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.`,
 //             appointmentText,
-//             `Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?`
+//             `Would you like help checking any foot concerns today â€” or would you prefer to just view your upcoming appointment details?`
 //         ];
 
 //         const translatedIntro = await translateBatchFast(introTemplate, userLanguage);
@@ -126,7 +125,7 @@
 
 //         chatbox.innerHTML += `
 //     <div class="bot">
-//         <b>🤖 Digital Nurse Assistant:</b> <br>${translatedIntro[0]}
+//         <b>ðŸ¤– Digital Nurse Assistant:</b> <br>${translatedIntro[0]}
 //         <br><br>
 //         ${translatedIntro[1]}
 //         <br><br>
@@ -142,7 +141,7 @@
 
 //         // Apply translation in background if needed (much faster now!)
 //         if (userLanguage !== 'en') {
-//             console.log('🌐 Applying fast translation for:', userLanguage);
+//             console.log('ðŸŒ Applying fast translation for:', userLanguage);
 //             // This now happens after page is shown, so no loading delay!
 //             setTimeout(() => {
 //                 translatePageElements(userLanguage);
@@ -150,10 +149,10 @@
 //         }
 
 //     } catch (err) {
-//         console.error("❌ Failed to fetch patient details:", err);
+//         console.error("âŒ Failed to fetch patient details:", err);
 //         chatbox.innerHTML += `
 //             <div class="bot">
-//                 <b>🤖 Digital Nurse Assistant:</b><br>⚠️ Unable to fetch patient details.
+//                 <b>ðŸ¤– Digital Nurse Assistant:</b><br>âš ï¸ Unable to fetch patient details.
 //             </div>
 //         `;
 //         loadingScreen.style.display = "none";
@@ -233,22 +232,22 @@ window.onload = async () => {
                 hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Singapore"
             });
             const doctor = appointment.podiatrist || appointment.doctor || "your podiatrist";
-            appointmentText = `🗓️ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
+            appointmentText = `ðŸ—“ï¸ You have an upcoming appointment on <b>${formattedDate}</b> with <b><span class="notranslate">${doctor}</span></b>.`;
         }
 
-        // 🚀 SPEED: Translate and display welcome message in parallel
+        // ðŸš€ SPEED: Translate and display welcome message in parallel
         const introTemplate = [
             `Hello <b>${name}</b>! I'm here to help you with anything related to your foot health.`,
             appointmentText,
-            `Would you like help checking any foot concerns today — or would you prefer to just view your upcoming appointment details?`
+            `Would you like help checking any foot concerns today â€” or would you prefer to just view your upcoming appointment details?`
         ];
 
         // Show page FIRST, then translate in background
         loadingScreen.style.display = "none";
 
-        // 🚀 FAST: If not English, translate everything in background
+        // ðŸš€ FAST: If not English, translate everything in background
         if (userLanguage !== 'en') {
-            console.log('🌍 Applying fast background translation for:', userLanguage);
+            console.log('ðŸŒ Applying fast background translation for:', userLanguage);
             
             // Show loading message immediately
             showLanguageUpdateNotification('Loading translations...', 'info');
@@ -258,7 +257,7 @@ window.onload = async () => {
             document.getElementById("appointment").innerHTML = translatedIntro[1];
             chatbox.innerHTML = `
                 <div class="bot">
-                    <b>🤖 Digital Nurse Assistant:</b> <br>${translatedIntro[0]}
+                    <b>ðŸ¤– Digital Nurse Assistant:</b> <br>${translatedIntro[0]}
                     <br><br>
                     ${translatedIntro[1]}
                     <br><br>
@@ -276,7 +275,7 @@ window.onload = async () => {
             document.getElementById("appointment").innerHTML = appointmentText;
             chatbox.innerHTML = `
                 <div class="bot">
-                    <b>🤖 Digital Nurse Assistant:</b> <br>${introTemplate[0]}
+                    <b>ðŸ¤– Digital Nurse Assistant:</b> <br>${introTemplate[0]}
                     <br><br>
                     ${introTemplate[1]}
                     <br><br>
@@ -288,13 +287,13 @@ window.onload = async () => {
         chatbox.scrollTop = chatbox.scrollHeight;
 
     } catch (err) {
-        console.error("❌ Failed to fetch patient details:", err);
-        chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>⚠️ Unable to fetch patient details.</div>`;
+        console.error("âŒ Failed to fetch patient details:", err);
+        chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>âš ï¸ Unable to fetch patient details.</div>`;
         loadingScreen.style.display = "none";
     }
 };
 
-// 🚀 SPEED OPTIMIZATION: Preload common translations
+// ðŸš€ SPEED OPTIMIZATION: Preload common translations
 async function preloadTranslations() {
   const languages = ['zh', 'ms', 'ta']; // Skip 'en' since no translation needed
   
@@ -310,7 +309,7 @@ async function preloadTranslations() {
     'Emergency Contacts'
   ];
   
-  console.log('🚀 Preloading translations for faster switching...');
+  console.log('ðŸš€ Preloading translations for faster switching...');
   
   // Preload translations for all languages
   for (const lang of languages) {
@@ -320,9 +319,9 @@ async function preloadTranslations() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texts: commonTexts, targetLanguage: lang })
       });
-      console.log(`📦 Preloaded ${lang} translations`);
+      console.log(`ðŸ“¦ Preloaded ${lang} translations`);
     } catch (error) {
-      console.log(`⚠️ Failed to preload ${lang} translations`);
+      console.log(`âš ï¸ Failed to preload ${lang} translations`);
     }
   }
 }
@@ -363,14 +362,14 @@ async function sendMessage() {
         const data = await response.json();
 
         // Display the chatbot's reply in chatbox, then scroll chatbot down to show latest message
-        chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br> ${data.reply}</div>`;
+        chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br> ${data.reply}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
 
     }
     // Catch any errors 
     catch (err) {
-        console.error("❌ Chat request failed:", err);
-        chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b> <br>Error talking to server.</div>`;
+        console.error("âŒ Chat request failed:", err);
+        chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b> <br>Error talking to server.</div>`;
     }
 }
 
@@ -389,12 +388,12 @@ async function sendImage() {
 
   // Basic guards
   if (!file.type.startsWith("image/")) {
-    chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Please upload an image file.</div>`;
+    chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>Please upload an image file.</div>`;
     fileInput.value = "";
     return;
   }
   if (file.size > 7 * 1024 * 1024) {
-    chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Image too large (max 7MB).</div>`;
+    chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>Image too large (max 7MB).</div>`;
     fileInput.value = "";
     return;
   }
@@ -425,7 +424,7 @@ async function sendImage() {
   const analyzingId = `analyzing-${Date.now()}`;
   chatbox.innerHTML += `
     <div id="${analyzingId}" class="bot">
-      <b>🤖 Digital Nurse Assistant:</b><br>Analyzing photo…
+      <b>ðŸ¤– Digital Nurse Assistant:</b><br>Analyzing photoâ€¦
     </div>
   `;
   chatbox.scrollTop = chatbox.scrollHeight;
@@ -468,21 +467,21 @@ if (contentType.includes("application/json")) {
 
     const analyzingEl = document.getElementById(analyzingId);
     if (analyzingEl) {
-      analyzingEl.outerHTML = `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>${data.reply}</div>`;
+      analyzingEl.outerHTML = `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>${data.reply}</div>`;
     } else {
-      chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>${data.reply}</div>`;
+      chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>${data.reply}</div>`;
     }
     chatbox.scrollTop = chatbox.scrollHeight;
   } catch (err) {
-    console.error("❌ Image chat failed:", err);
+    console.error("âŒ Image chat failed:", err);
     const analyzingEl = document.getElementById(analyzingId);
     if (analyzingEl) {
-      analyzingEl.outerHTML = `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Image upload failed.</div>`;
+      analyzingEl.outerHTML = `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>Image upload failed.</div>`;
     } else {
-      chatbox.innerHTML += `<div class="bot"><b>🤖 Digital Nurse Assistant:</b><br>Image upload failed.</div>`;
+      chatbox.innerHTML += `<div class="bot"><b>ðŸ¤– Digital Nurse Assistant:</b><br>Image upload failed.</div>`;
     }
   } finally {
-    URL.revokeObjectURL(url);
+    // Dont revoke blob URL - let browser clean it up
     fileInput.value = "";
     fileInput.disabled = false;
   }
@@ -500,7 +499,7 @@ function showLanguageUpdateNotification(message, type = 'success') {
 
     // Set styles based on type
     const backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
-    const icon = type === 'success' ? '✅' : '❌';
+    const icon = type === 'success' ? 'âœ…' : 'âŒ';
 
     notification.style.cssText = `
         position: fixed;
@@ -631,7 +630,7 @@ function storeOriginalContent() {
 //     }
 
 //     isTranslating = true;
-//     console.log('🧹 Clean translation to:', targetLanguage);
+//     console.log('ðŸ§¹ Clean translation to:', targetLanguage);
 //     storeOriginalContent();
 
 //     showTranslationLoading(true);
@@ -642,7 +641,7 @@ function storeOriginalContent() {
 //         let patientName = '';
 //         if (welcomeElement) {
 //             const text = welcomeElement.textContent || '';
-//             const nameMatch = text.match(/(?:Welcome|欢迎|வரவேற்கிறோம்|Selamat Datang)[,\s]*(.+)/i);
+//             const nameMatch = text.match(/(?:Welcome|æ¬¢è¿Ž|à®µà®°à®µà¯‡à®±à¯à®•à®¿à®±à¯‹à®®à¯|Selamat Datang)[,\s]*(.+)/i);
 //             if (nameMatch && nameMatch[1]) {
 //                 patientName = nameMatch[1].trim();
 //             }
@@ -671,13 +670,13 @@ function storeOriginalContent() {
 //             originalContent.noAppointments            // 18
 //         ];
 
-//         console.log('🚀 Batch translating...');
+//         console.log('ðŸš€ Batch translating...');
 //         const translations = await translateBatchFast(textsToTranslate, targetLanguage);
 
 //         // Apply translations cleanly
 //         applyCleanTranslations(translations, patientName);
 
-//         console.log('✅ Clean translation completed');
+//         console.log('âœ… Clean translation completed');
 
 //     } catch (error) {
 //         console.error('Translation error:', error);
@@ -697,10 +696,10 @@ async function translatePageElements(targetLanguage) {
   }
 
   isTranslating = true;
-  console.log('🧹 FAST clean translation to:', targetLanguage);
+  console.log('ðŸ§¹ FAST clean translation to:', targetLanguage);
   storeOriginalContent();
 
-  // 🚀 SPEED IMPROVEMENT: Show immediate feedback
+  // ðŸš€ SPEED IMPROVEMENT: Show immediate feedback
   showTranslationLoading(true, 'fast');
 
   try {
@@ -709,7 +708,7 @@ async function translatePageElements(targetLanguage) {
     let patientName = '';
     if (welcomeElement) {
       const text = welcomeElement.textContent || '';
-      const nameMatch = text.match(/(?:Welcome|欢迎|வரவேற்கிறோம்|Selamat Datang)[,\s]*(.+)/i);
+      const nameMatch = text.match(/(?:Welcome|æ¬¢è¿Ž|à®µà®°à®µà¯‡à®±à¯à®•à®¿à®±à¯‹à®®à¯|Selamat Datang)[,\s]*(.+)/i);
       if (nameMatch && nameMatch[1]) {
         patientName = nameMatch[1].trim();
       }
@@ -738,15 +737,15 @@ async function translatePageElements(targetLanguage) {
       originalContent.noAppointments
     ];
 
-    console.log('🚀 FAST batch translating...');
+    console.log('ðŸš€ FAST batch translating...');
     
-    // 🚀 SPEED: Single batch API call instead of 19 individual calls
+    // ðŸš€ SPEED: Single batch API call instead of 19 individual calls
     const translations = await translateBatchFast(textsToTranslate, targetLanguage);
 
     // Apply translations cleanly (same as before)
     applyCleanTranslations(translations, patientName);
 
-    console.log('✅ FAST translation completed');
+    console.log('âœ… FAST translation completed');
 
   } catch (error) {
     console.error('Translation error:', error);
@@ -766,19 +765,19 @@ async function translatePageElements(targetLanguage) {
 //     ] = translations;
 
 //     requestAnimationFrame(() => {
-//         console.log('🎯 Applying clean translations...');
+//         console.log('ðŸŽ¯ Applying clean translations...');
 
 //         // 1. Header section - very specific
 //         const headerEl = document.querySelector('.medical-header h1');
 //         if (headerEl) {
-//             headerEl.textContent = `🏥 ${header}`;
-//             console.log('✓ Header updated');
+//             headerEl.textContent = `ðŸ¥ ${header}`;
+//             console.log('âœ“ Header updated');
 //         }
 
 //         const subtitleEl = document.querySelector('.medical-header .subtitle');
 //         if (subtitleEl) {
 //             subtitleEl.textContent = subtitle;
-//             console.log('✓ Subtitle updated');
+//             console.log('âœ“ Subtitle updated');
 //         }
 
 //         // 2. Welcome section - target ONLY the first card's title
@@ -786,8 +785,8 @@ async function translatePageElements(targetLanguage) {
 //         if (allCards.length > 0) {
 //             const firstCardTitle = allCards[0].querySelector('.medical-card-title');
 //             if (firstCardTitle && patientName) {
-//                 firstCardTitle.innerHTML = `👤 ${welcomePrefix}<span id="patient-name">${patientName}</span>`;
-//                 console.log('✓ Welcome message updated');
+//                 firstCardTitle.innerHTML = `ðŸ‘¤ ${welcomePrefix}<span id="patient-name">${patientName}</span>`;
+//                 console.log('âœ“ Welcome message updated');
 //             }
 //         }
 
@@ -795,14 +794,14 @@ async function translatePageElements(targetLanguage) {
 //         const languageLabelEl = document.querySelector('label[for="language-select"]');
 //         if (languageLabelEl) {
 //             languageLabelEl.textContent = languageLabel;
-//             console.log('✓ Language label updated');
+//             console.log('âœ“ Language label updated');
 //         }
 
 //         // 4. Logout button - exact selector
 //         const logoutBtnEl = document.querySelector('button[onclick="handleLogout()"]');
 //         if (logoutBtnEl) {
-//             logoutBtnEl.textContent = `🚪 ${logoutBtn}`;
-//             console.log('✓ Logout button updated');
+//             logoutBtnEl.textContent = `ðŸšª ${logoutBtn}`;
+//             console.log('âœ“ Logout button updated');
 //         }
 
 //         // 5. Chat section - find the SPECIFIC chat card
@@ -810,8 +809,8 @@ async function translatePageElements(targetLanguage) {
 //             const title = card.querySelector('.medical-card-header .medical-card-title');
 //             return title && (
 //                 title.textContent.includes('Digital Nurse') ||
-//                 title.textContent.includes('数字护士') ||
-//                 title.textContent.includes('டிஜிட்டல்') ||
+//                 title.textContent.includes('æ•°å­—æŠ¤å£«') ||
+//                 title.textContent.includes('à®Ÿà®¿à®œà®¿à®Ÿà¯à®Ÿà®²à¯') ||
 //                 title.textContent.includes('Jururawat')
 //             );
 //         });
@@ -819,14 +818,14 @@ async function translatePageElements(targetLanguage) {
 //         if (chatCard) {
 //             const chatTitleEl = chatCard.querySelector('.medical-card-header .medical-card-title');
 //             if (chatTitleEl) {
-//                 chatTitleEl.textContent = `🤖 ${chatTitle}`;
-//                 console.log('✓ Chat title updated');
+//                 chatTitleEl.textContent = `ðŸ¤– ${chatTitle}`;
+//                 console.log('âœ“ Chat title updated');
 //             }
 
 //             const chatSubtitleEl = chatCard.querySelector('.medical-card-subtitle');
 //             if (chatSubtitleEl) {
 //                 chatSubtitleEl.textContent = chatSubtitle;
-//                 console.log('✓ Chat subtitle updated');
+//                 console.log('âœ“ Chat subtitle updated');
 //             }
 //         }
 
@@ -834,21 +833,21 @@ async function translatePageElements(targetLanguage) {
 //         const messageInput = document.getElementById('message');
 //         if (messageInput) {
 //             messageInput.placeholder = messagePlaceholder;
-//             console.log('✓ Message placeholder updated');
+//             console.log('âœ“ Message placeholder updated');
 //         }
 
 //         // 7. Send button
 //         const sendBtnEl = document.querySelector('button[onclick="sendMessage()"]');
 //         if (sendBtnEl) {
-//             sendBtnEl.textContent = `📤 ${sendBtn}`;
-//             console.log('✓ Send button updated');
+//             sendBtnEl.textContent = `ðŸ“¤ ${sendBtn}`;
+//             console.log('âœ“ Send button updated');
 //         }
 
 //         // 8. Appointments section - target the widget specifically
 //         const appointmentsWidget = document.querySelector('.dashboard-widget .widget-title');
 //         if (appointmentsWidget) {
-//             appointmentsWidget.textContent = `📅 ${appointmentsTitle}`;
-//             console.log('✓ Appointments title updated');
+//             appointmentsWidget.textContent = `ðŸ“… ${appointmentsTitle}`;
+//             console.log('âœ“ Appointments title updated');
 //         }
 
 //         // 9. Emergency section - target the main emergency header
@@ -856,8 +855,8 @@ async function translatePageElements(targetLanguage) {
 //             const h3 = card.querySelector('h3');
 //             return h3 && (
 //                 h3.textContent.includes('Emergency') ||
-//                 h3.textContent.includes('紧急') ||
-//                 h3.textContent.includes('அவசர') ||
+//                 h3.textContent.includes('ç´§æ€¥') ||
+//                 h3.textContent.includes('à®…à®µà®šà®°') ||
 //                 h3.textContent.includes('Kecemasan')
 //             );
 //         });
@@ -865,16 +864,16 @@ async function translatePageElements(targetLanguage) {
 //         if (emergencyCard) {
 //             const emergencyH3 = emergencyCard.querySelector('h3');
 //             if (emergencyH3) {
-//                 emergencyH3.textContent = `🚨 ${emergencyTitle}`;
-//                 console.log('✓ Emergency title updated');
+//                 emergencyH3.textContent = `ðŸš¨ ${emergencyTitle}`;
+//                 console.log('âœ“ Emergency title updated');
 //             }
 
 //             // Update ONLY the dashboard widgets inside this emergency card
 //             const widgets = emergencyCard.querySelectorAll('.dashboard-widget .widget-title');
 //             if (widgets.length >= 2) {
-//                 widgets[0].textContent = `📞 ${hospitalContactsTitle}`;
-//                 widgets[1].textContent = `ℹ️ ${importantNotesTitle}`;
-//                 console.log('✓ Widget titles updated');
+//                 widgets[0].textContent = `ðŸ“ž ${hospitalContactsTitle}`;
+//                 widgets[1].textContent = `â„¹ï¸ ${importantNotesTitle}`;
+//                 console.log('âœ“ Widget titles updated');
 //             }
 
 //             // Update contact info - be VERY specific to avoid duplicates
@@ -885,13 +884,13 @@ async function translatePageElements(targetLanguage) {
 //                     const text = span.textContent;
 //                     if (text.includes('6222 3322')) {
 //                         span.textContent = sghMainLine;
-//                         console.log('✓ SGH contact updated');
+//                         console.log('âœ“ SGH contact updated');
 //                     } else if (text.includes('6321 4377')) {
 //                         span.textContent = podiatryClinic;
-//                         console.log('✓ Podiatry contact updated');
+//                         console.log('âœ“ Podiatry contact updated');
 //                     } else if (text.includes('995')) {
 //                         span.textContent = emergency;
-//                         console.log('✓ Emergency contact updated');
+//                         console.log('âœ“ Emergency contact updated');
 //                     }
 //                 }
 //             });
@@ -901,7 +900,7 @@ async function translatePageElements(targetLanguage) {
 //             if (paras.length >= 2) {
 //                 paras[0].textContent = severePainText;
 //                 paras[1].textContent = urgentConcernsText;
-//                 console.log('✓ Emergency instructions updated');
+//                 console.log('âœ“ Emergency instructions updated');
 //             }
 //         }
 
@@ -909,10 +908,10 @@ async function translatePageElements(targetLanguage) {
 //         const noApptEl = document.querySelector('#appointment-list .text-muted');
 //         if (noApptEl && noApptEl.textContent.includes('No upcoming')) {
 //             noApptEl.textContent = noAppointments;
-//             console.log('✓ No appointments text updated');
+//             console.log('âœ“ No appointments text updated');
 //         }
 
-//         console.log('🎯 All clean translations applied successfully');
+//         console.log('ðŸŽ¯ All clean translations applied successfully');
 //     });
 // }
 
@@ -926,13 +925,13 @@ function applyCleanTranslations(translations, patientName) {
   ] = translations;
 
   requestAnimationFrame(() => {
-    console.log('🎯 Applying COMPLETE translations...');
+    console.log('ðŸŽ¯ Applying COMPLETE translations...');
 
     try {
       // 1. Header section
       const headerEl = document.querySelector('.medical-header h1');
       if (headerEl) {
-        headerEl.textContent = `🏥 ${header}`;
+        headerEl.textContent = `ðŸ¥ ${header}`;
       }
 
       const subtitleEl = document.querySelector('.medical-header .subtitle');
@@ -943,7 +942,7 @@ function applyCleanTranslations(translations, patientName) {
       // 2. Welcome section
       const firstCardTitle = document.querySelector('.medical-card .medical-card-title');
       if (firstCardTitle && patientName) {
-        firstCardTitle.innerHTML = `👤 ${welcomePrefix}<span id="patient-name">${patientName}</span>`;
+        firstCardTitle.innerHTML = `ðŸ‘¤ ${welcomePrefix}<span id="patient-name">${patientName}</span>`;
       }
 
       // 3. Language and logout
@@ -954,13 +953,13 @@ function applyCleanTranslations(translations, patientName) {
 
       const logoutBtnEl = document.querySelector('button[onclick="handleLogout()"]');
       if (logoutBtnEl) {
-        logoutBtnEl.textContent = `🚪 ${logoutBtn}`;
+        logoutBtnEl.textContent = `ðŸšª ${logoutBtn}`;
       }
 
       // 4. Chat section
     //   const chatTitleEl = document.querySelector('.medical-card-header .medical-card-title');
     //   if (chatTitleEl) {
-    //     chatTitleEl.textContent = `🤖 ${chatTitle}`;
+    //     chatTitleEl.textContent = `ðŸ¤– ${chatTitle}`;
     //   }
 
     //   const chatSubtitleEl = document.querySelector('.medical-card-subtitle');
@@ -973,7 +972,7 @@ function applyCleanTranslations(translations, patientName) {
     if (chatCard) {
     const chatTitleEl = chatCard.querySelector('.medical-card-header .medical-card-title');
     if (chatTitleEl) {
-        chatTitleEl.textContent = `🤖 ${chatTitle}`;
+        chatTitleEl.textContent = `ðŸ¤– ${chatTitle}`;
     }
 
     const chatSubtitleEl = chatCard.querySelector('.medical-card-header + * .medical-card-subtitle, .medical-card-subtitle');
@@ -982,13 +981,13 @@ function applyCleanTranslations(translations, patientName) {
     }
     }
 
-    // 🔧 CRITICAL FIX: Remove any duplicate English chat subtitles
+    // ðŸ”§ CRITICAL FIX: Remove any duplicate English chat subtitles
     const allElements = document.querySelectorAll('*');
     allElements.forEach(el => {
     if (el.textContent && el.textContent.includes('Talk to our digital nurse assistant to get help with your foot health concerns')) {
         if (el.tagName !== 'P' || !el.classList.contains('medical-card-subtitle')) {
         el.remove(); // Remove duplicate English text
-        console.log('✅ Removed duplicate English chat subtitle');
+        console.log('âœ… Removed duplicate English chat subtitle');
         }
     }
     });
@@ -1001,72 +1000,72 @@ function applyCleanTranslations(translations, patientName) {
 
       const sendBtnEl = document.querySelector('button[onclick="sendMessage()"]');
       if (sendBtnEl) {
-        sendBtnEl.textContent = `📤 ${sendBtn}`;
+        sendBtnEl.textContent = `ðŸ“¤ ${sendBtn}`;
       }
 
       // 6. Appointments section
       const appointmentsWidget = document.querySelector('.dashboard-widget .widget-title');
       if (appointmentsWidget) {
-        appointmentsWidget.textContent = `📅 ${appointmentsTitle}`;
+        appointmentsWidget.textContent = `ðŸ“… ${appointmentsTitle}`;
       }
 
-      // 7. 🔧 FIX: Emergency section - more specific targeting
+      // 7. ðŸ”§ FIX: Emergency section - more specific targeting
       // Find all h3 elements and check their text content
       const allH3Elements = document.querySelectorAll('h3, .medical-card-title');
       allH3Elements.forEach(h3 => {
         const text = h3.textContent || '';
-        if (text.includes('Emergency') || text.includes('紧急') || text.includes('அவசர') || text.includes('Kecemasan')) {
-          h3.textContent = `🚨 ${emergencyTitle}`;
-          console.log('✅ Emergency title updated');
+        if (text.includes('Emergency') || text.includes('ç´§æ€¥') || text.includes('à®…à®µà®šà®°') || text.includes('Kecemasan')) {
+          h3.textContent = `ðŸš¨ ${emergencyTitle}`;
+          console.log('âœ… Emergency title updated');
         }
       });
 
-      // 8. 🔧 FIX: Widget titles - find by text content
+      // 8. ðŸ”§ FIX: Widget titles - find by text content
       const allWidgetTitles = document.querySelectorAll('.widget-title, h4');
       allWidgetTitles.forEach(title => {
         const text = title.textContent || '';
-        if (text.includes('Hospital') || text.includes('医院') || text.includes('மருத்துவமனை') || text.includes('Hospital')) {
-          title.textContent = `📞 ${hospitalContactsTitle}`;
-          console.log('✅ Hospital contacts title updated');
-        } else if (text.includes('Important') || text.includes('重要') || text.includes('முக்கியமான') || text.includes('Penting')) {
-          title.textContent = `ℹ️ ${importantNotesTitle}`;
-          console.log('✅ Important notes title updated');
+        if (text.includes('Hospital') || text.includes('åŒ»é™¢') || text.includes('à®®à®°à¯à®¤à¯à®¤à¯à®µà®®à®©à¯ˆ') || text.includes('Hospital')) {
+          title.textContent = `ðŸ“ž ${hospitalContactsTitle}`;
+          console.log('âœ… Hospital contacts title updated');
+        } else if (text.includes('Important') || text.includes('é‡è¦') || text.includes('à®®à¯à®•à¯à®•à®¿à®¯à®®à®¾à®©') || text.includes('Penting')) {
+          title.textContent = `â„¹ï¸ ${importantNotesTitle}`;
+          console.log('âœ… Important notes title updated');
         }
       });
 
-      // 9. 🔧 FIX: Contact information - find by phone numbers
+      // 9. ðŸ”§ FIX: Contact information - find by phone numbers
       const allSpans = document.querySelectorAll('span');
       allSpans.forEach(span => {
         const text = span.textContent || '';
         if (text.includes('6222 3322')) {
           span.textContent = sghMainLine;
-          console.log('✅ SGH contact updated');
+          console.log('âœ… SGH contact updated');
         } else if (text.includes('6321 4377')) {
           span.textContent = podiatryClinic;
-          console.log('✅ Podiatry contact updated');
+          console.log('âœ… Podiatry contact updated');
         } else if (text.includes('995') && text.includes('Emergency')) {
           span.textContent = emergency;
-          console.log('✅ Emergency contact updated');
+          console.log('âœ… Emergency contact updated');
         }
       });
 
-      // 10. 🔧 FIX: Emergency instruction paragraphs
+      // 10. ðŸ”§ FIX: Emergency instruction paragraphs
       const allTextMuted = document.querySelectorAll('.text-muted');
       allTextMuted.forEach(para => {
         const text = para.textContent || '';
         if (text.includes('severe pain') || text.includes('bleeding')) {
           para.textContent = severePainText;
-          console.log('✅ Severe pain text updated');
+          console.log('âœ… Severe pain text updated');
         } else if (text.includes('urgent concerns') || text.includes('Emergency Department')) {
           para.textContent = urgentConcernsText;
-          console.log('✅ Urgent concerns text updated');
+          console.log('âœ… Urgent concerns text updated');
         } else if (text.includes('No upcoming appointments')) {
           para.textContent = noAppointments;
-          console.log('✅ No appointments text updated');
+          console.log('âœ… No appointments text updated');
         }
       });
 
-      console.log('🎯 COMPLETE translations applied successfully');
+      console.log('ðŸŽ¯ COMPLETE translations applied successfully');
 
     } catch (error) {
       console.error('Translation application error:', error);
@@ -1087,7 +1086,7 @@ function applyCleanTranslations(translations, patientName) {
 //             border-radius: 6px; z-index: 10000; font-size: 14px;
 //             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 //         `;
-//         loading.innerHTML = '🧹 Cleaning & translating...';
+//         loading.innerHTML = 'ðŸ§¹ Cleaning & translating...';
 //         document.body.appendChild(loading);
 //     } else if (!show && indicator) {
 //         indicator.remove();
@@ -1108,11 +1107,11 @@ function showTranslationLoading(show, speed = 'normal') {
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     `;
     
-    // 🚀 Different messages based on speed
+    // ðŸš€ Different messages based on speed
     if (speed === 'fast') {
-      loading.innerHTML = '⚡ Fast translating...';
+      loading.innerHTML = 'âš¡ Fast translating...';
     } else {
-      loading.innerHTML = '🧹 Cleaning & translating...';
+      loading.innerHTML = 'ðŸ§¹ Cleaning & translating...';
     }
     
     document.body.appendChild(loading);
@@ -1129,7 +1128,7 @@ function resetToEnglish() {
     let patientName = '';
     if (welcomeEl) {
         const text = welcomeEl.textContent || '';
-        const match = text.match(/(?:Welcome|欢迎|வரவேற்கிறோம்|Selamat Datang)[,\s]*(.+)/i);
+        const match = text.match(/(?:Welcome|æ¬¢è¿Ž|à®µà®°à®µà¯‡à®±à¯à®•à®¿à®±à¯‹à®®à¯|Selamat Datang)[,\s]*(.+)/i);
         if (match) patientName = match[1].trim();
     }
 
@@ -1145,7 +1144,7 @@ function resetToEnglish() {
 
 //     const patientId = sessionStorage.getItem("userId");
 
-//     console.log("🧹 Clean language change to:", newLanguage);
+//     console.log("ðŸ§¹ Clean language change to:", newLanguage);
 
 //     languageSelect.disabled = true;
 
@@ -1168,7 +1167,7 @@ function resetToEnglish() {
 
 
 //     } catch (err) {
-//         console.error("❌ Error:", err);
+//         console.error("âŒ Error:", err);
 //         showLanguageUpdateNotification('Translation failed', 'error');
 //     } finally {
 //         languageSelect.disabled = false;
@@ -1184,12 +1183,12 @@ async function handleLanguageChange() {
 
   const patientId = sessionStorage.getItem("userId");
 
-  console.log("🧹 FAST language change to:", newLanguage);
+  console.log("ðŸ§¹ FAST language change to:", newLanguage);
 
   languageSelect.disabled = true;
 
   try {
-    // 🚀 SPEED: Only update database, then refresh immediately
+    // ðŸš€ SPEED: Only update database, then refresh immediately
     showLanguageUpdateNotification('Changing language...', 'info');
     
     await fetch("/patient/update-language", {
@@ -1198,7 +1197,7 @@ async function handleLanguageChange() {
       body: JSON.stringify({ patientId, language: newLanguage })
     });
 
-    // 🚀 FAST REFRESH: Refresh immediately without waiting
+    // ðŸš€ FAST REFRESH: Refresh immediately without waiting
     showLanguageUpdateNotification('Language updated! Refreshing...', 'success');
     
     // Small delay to show the success message, then refresh
@@ -1207,7 +1206,7 @@ async function handleLanguageChange() {
     }, 500); // Just 0.5 second delay
 
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error("âŒ Error:", err);
     showLanguageUpdateNotification('Translation failed', 'error');
     languageSelect.disabled = false;
   }
@@ -1218,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Small delay to ensure all elements are rendered
     setTimeout(() => {
         //mapTranslatableElements();
-        console.log('🗺️ Element mapping initialized');
+        console.log('ðŸ—ºï¸ Element mapping initialized');
     }, 500);
 });
 
@@ -1227,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const languageSelect = document.getElementById("language-select");
     if (languageSelect) {
         languageSelect.addEventListener('change', handleLanguageChange);
-        console.log("🇸🇬 Language change listener added");
+        console.log("ðŸ‡¸ðŸ‡¬ Language change listener added");
     }
 });
 
@@ -1245,7 +1244,7 @@ let recognition = null;
             ta: 'ta-IN'
         };
         recognition.lang = langMap[langCode] || 'en-SG';
-        console.log("🎙️ Voice recognition language set to:", recognition.lang);
+        console.log("ðŸŽ™ï¸ Voice recognition language set to:", recognition.lang);
     }
 
 
@@ -1260,7 +1259,7 @@ if (SpeechRecognition) {
         const messageInput = document.getElementById('message');
 
         if (!micBtn || !messageInput) {
-            console.warn("🎤 mic-btn or message input not found.");
+            console.warn("ðŸŽ¤ mic-btn or message input not found.");
             return;
         }
 
@@ -1268,7 +1267,7 @@ if (SpeechRecognition) {
     const currentLang = document.getElementById("language-select")?.value || "en";
     updateRecognitionLanguage(currentLang); // set correct recognition language
     recognition.start();
-    micBtn.textContent = '🎙️ Listening...';
+    micBtn.textContent = 'ðŸŽ™ï¸ Listening...';
     micBtn.disabled = true;
 });
 
@@ -1280,13 +1279,13 @@ if (SpeechRecognition) {
         };
 
         recognition.onend = () => {
-            micBtn.textContent = '🎤';
+            micBtn.textContent = 'ðŸŽ¤';
             micBtn.disabled = false;
         };
 
         recognition.onerror = (event) => {
-            console.error("🎤 Voice error:", event.error);
-            micBtn.textContent = '🎤';
+            console.error("ðŸŽ¤ Voice error:", event.error);
+            micBtn.textContent = 'ðŸŽ¤';
             micBtn.disabled = false;
         };
     });

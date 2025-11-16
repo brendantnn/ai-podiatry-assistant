@@ -16,7 +16,7 @@ const openai = new OpenAI({
 });
 
 if (!process.env.OPENAI_API_KEY) {
-  console.warn("⚠️ OPENAI_API_KEY is not set. OpenAI calls will fail until the secret is configured in Cloud Functions.");
+  console.warn("âš ï¸ OPENAI_API_KEY is not set. OpenAI calls will fail until the secret is configured in Cloud Functions.");
 }
 
 // key = fake session ID (for now, assume 1 user)
@@ -84,7 +84,7 @@ function applyTriageRules({ category, urgency, summary, freeText, probs }) {
     urg = Math.min(urg, 1);
   }
 
-  // 5) MSK cues to MSK if nothing urgent triggered (helps MSK↔️others confusion)
+  // 5) MSK cues to MSK if nothing urgent triggered (helps MSKâ†”ï¸others confusion)
   if (hit(freeText, WORDS.msk) || hit(summary, WORDS.msk)) {
     if (urg > 2 && cat !== "wound care") cat = "MSK";
   }
@@ -104,7 +104,7 @@ async function translateReply(text, lang) {
     const translated = await translate(text, { to: normalizedLang });
     return translated;
   } catch (err) {
-    console.error("❌ Translation error:", err);
+    console.error("âŒ Translation error:", err);
     return text;
   }
 }
@@ -123,7 +123,7 @@ router.post("/chat", async (req, res) => {
   const userId = patientId;
   const messageText = message.toLowerCase(); // same result as before
   const userLanguage = language || 'en'; // fallback to 'en' if not provided
-  console.log("🌐 Language for translation:", userLanguage);
+  console.log("ðŸŒ Language for translation:", userLanguage);
 
 
 
@@ -138,9 +138,9 @@ router.post("/chat", async (req, res) => {
         content: `You are an intent classifier for a podiatry chatbot.
 
 The user may be asking about:
-1. "appointment" → checking existing appointments or viewing upcoming schedules (e.g. "When is my next visit?", "Do I have anything booked?")
-2. "triage" → describing symptoms, foot concerns, or trying to book a new appointment (e.g. "My heel hurts", "I want to book an appointment", "Can I see a podiatrist?")
-3. "other" → small talk or questions unrelated to podiatry
+1. "appointment" â†’ checking existing appointments or viewing upcoming schedules (e.g. "When is my next visit?", "Do I have anything booked?")
+2. "triage" â†’ describing symptoms, foot concerns, or trying to book a new appointment (e.g. "My heel hurts", "I want to book an appointment", "Can I see a podiatrist?")
+3. "other" â†’ small talk or questions unrelated to podiatry
 
 Just return one word: "appointment", "triage", or "other".`
       },
@@ -152,7 +152,7 @@ Just return one word: "appointment", "triage", or "other".`
   });
   // Gets response from the array returned by GPT - "appointment", "triage", "other"
   const intent = intentResponse.choices[0].message.content.trim().toLowerCase();
-  console.log("🧠 Detected intent:", intent);
+  console.log("ðŸ§  Detected intent:", intent);
 
   // Create session object that stores conversation state, symptom message, appointment slot info
   session[userId] = session[userId] || {
@@ -168,17 +168,17 @@ Just return one word: "appointment", "triage", or "other".`
 
 
 
-  console.log("🆕 Incoming message:", message);
-  console.log("📦 Session state at start:", s);
+  console.log("ðŸ†• Incoming message:", message);
+  console.log("ðŸ“¦ Session state at start:", s);
 
   try {
     // *************** STEP 2: TRIAGE INTENT *******************
 
-    // ✅ Handle the infection confirmation follow-up from the image flow
+    // âœ… Handle the infection confirmation follow-up from the image flow
     if (s.state === "confirm_infection_check") {
       const answer = (message || "").toLowerCase();
 
-      // If the patient says YES → they confirm NO infection signs → proceed with non–wound care plan
+      // If the patient says YES â†’ they confirm NO infection signs â†’ proceed with nonâ€“wound care plan
       if (answer.includes("yes")) {
         const { category, diagnosis, urgencyLevel, summary, display, language } = s.proposed || {};
         s.category = category || s.category;
@@ -210,7 +210,7 @@ Just return one word: "appointment", "triage", or "other".`
           const existingUrgency = existingAppt?.urgencyLevel ?? 4;
 
           if (existingSnap.size > 1) {
-            cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+            cleanedDisplay = `âš ï¸ You have ${existingSnap.size} upcoming appointments.<br>` +
               `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
           }
 
@@ -238,7 +238,7 @@ Just return one word: "appointment", "triage", or "other".`
 
               return res.json({
                 reply: await translateReply(
-                  `${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                  `${cleanedDisplay}<br><br>ðŸ“Œ You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
                   lang
                 )
               });
@@ -273,7 +273,7 @@ Just return one word: "appointment", "triage", or "other".`
         if (slotQuery.empty) {
           s.state = "idle";
           return res.json({
-            reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+            reply: await translateReply(`${cleanedDisplay}\n\nâš ï¸ Sorry no appointments slots are found, please contact us.`, lang)
           });
         }
 
@@ -293,13 +293,13 @@ Just return one word: "appointment", "triage", or "other".`
 
         return res.json({
           reply: await translateReply(
-            `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
+            `${cleanedDisplay.trim()}<br><br>ðŸ“… I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
             lang
           )
         });
       }
 
-      // If the patient says NO (i.e., they DO have infection/wound signs) → upgrade to wound care level 1
+      // If the patient says NO (i.e., they DO have infection/wound signs) â†’ upgrade to wound care level 1
       if (answer.includes("no")) {
         s.state = "idle";
         s.triageStage = null;
@@ -310,7 +310,7 @@ Just return one word: "appointment", "triage", or "other".`
 
 
         let cleanedDisplay =
-          `⚠️ Since you may have symptoms of a wound or infection, I’ll treat this as urgent wound care.<br>` +
+          `âš ï¸ Since you may have symptoms of a wound or infection, Iâ€™ll treat this as urgent wound care.<br>` +
           `You need to see a podiatrist urgently. Let me find the soonest available slot.`;
 
         const lang = s.proposed?.language || userLanguage;
@@ -330,7 +330,7 @@ Just return one word: "appointment", "triage", or "other".`
           .get();
 
         if (!existingSnap.empty && existingSnap.size > 1) {
-          cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+          cleanedDisplay = `âš ï¸ You have ${existingSnap.size} upcoming appointments.<br>` +
             `Please ensure this new issue is necessary to book.<br><br>` + cleanedDisplay;
         }
 
@@ -345,7 +345,7 @@ Just return one word: "appointment", "triage", or "other".`
         if (slotQuery.empty) {
           s.state = "idle";
           return res.json({
-            reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, lang)
+            reply: await translateReply(`${cleanedDisplay}\n\nâš ï¸ Sorry no appointments slots are found, please contact us.`, lang)
           });
         }
 
@@ -365,32 +365,32 @@ Just return one word: "appointment", "triage", or "other".`
 
         return res.json({
           reply: await translateReply(
-            `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
+            `${cleanedDisplay.trim()}<br><br>ðŸ“… I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`,
             lang
           )
         });
       }
 
       // Not a clear yes/no
-      return res.json({ reply: await translateReply("❓ Please reply with 'yes' or 'no'.", userLanguage) });
+      return res.json({ reply: await translateReply("â“ Please reply with 'yes' or 'no'.", userLanguage) });
     }
 
 
     // IF USER WANTS TRIAGE AND NO MESSAGE SENT YET, set state to triage and triageStage to initial_query
     if (intent === "triage" && s.state === "idle") {
-      console.log("🧠 Detected intent=triage and state=idle, user want to triage and has sent no msgs yet");
+      console.log("ðŸ§  Detected intent=triage and state=idle, user want to triage and has sent no msgs yet");
       s.state = "triage";
       s.triageStage = "initial_query";
       s.messages = []; // clear convo history
 
-      console.log("🟢 Updated session (triage start):", s);
+      console.log("ðŸŸ¢ Updated session (triage start):", s);
     }
 
     // IF IN TRIAGE STATE AND IN INITIAL QUERY STAGE
     if (s.state === "triage" && s.triageStage === "initial_query") {
       console.log("Detected state=triage and triageStage=initial query, clarifying stage now");
       s.messages.push({ role: "user", content: message });
-      console.log("📝 Current messages:", s.messages);
+      console.log("ðŸ“ Current messages:", s.messages);
 
       // Use openai to ask follow up questions, store reply into clarification
       const clarification = await openai.chat.completions.create({
@@ -400,7 +400,7 @@ Just return one word: "appointment", "triage", or "other".`
             role: "system",
             content: `You are a warm, professional podiatry triage assistant. A patient has just shared their foot-related concern.
 
-Start by thanking them and letting them know you’ll ask a few short questions to understand the issue better and help arrange the right appointment.
+Start by thanking them and letting them know youâ€™ll ask a few short questions to understand the issue better and help arrange the right appointment.
 
 Then ask follow-up questions to detect:
 - Pus, discharge, bleeding
@@ -416,7 +416,7 @@ The urgency categories are
 3. high risk footcare: callus, corns, warts, pathological toenails
 4 (least urgent). MSK: foot pain, foot wear, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus / bunions, metatarsalgia
 
-You should ONLY categorize as “urgent” if symptoms clearly suggest infection, active wound, diabetic complications, trauma, or signs of rapid worsening.
+You should ONLY categorize as â€œurgentâ€ if symptoms clearly suggest infection, active wound, diabetic complications, trauma, or signs of rapid worsening.
 
 Arch pain or flat feet without alarming symptoms should NOT be urgent. These fall under MSK and are not considered emergencies.
             
@@ -425,7 +425,7 @@ Arch pain or flat feet without alarming symptoms should NOT be urgent. These fal
 If the patient already answered clearly, you can still confirm: 
 > "Is there any visible swelling, wound, or pus?"
 
-Respond with 1–3 concise, specific follow-up questions.`
+Respond with 1â€“3 concise, specific follow-up questions.`
           },
           { role: "user", content: message }
         ]
@@ -442,10 +442,10 @@ Respond with 1–3 concise, specific follow-up questions.`
 
     // IF IN TRIAGE STATE AND CLARIFICATION TRIAGE STAGE
     if (s.state === "triage" && s.triageStage === "clarification") {
-      console.log("🔍 Handling clarification response...");
+      console.log("ðŸ” Handling clarification response...");
 
       s.messages.push({ role: "user", content: message }); // update user message to session message history
-      console.log("📝 Updated userMessage history:", s.messages);
+      console.log("ðŸ“ Updated userMessage history:", s.messages);
 
       // Combines all user messages into single string so openAI knows full context
       const fullSymptomHistory = s.messages.map(m => m.content).join(" ");
@@ -471,7 +471,7 @@ Respond with 1–3 concise, specific follow-up questions.`
     - A sentence offering an appointment
     - A sentence giving basic care advice while they wait
 
-🧠 GPT response MUST follow this exact format with three dashes (---) on its own line between the internal data and the display message. Do NOT omit the separator.
+ðŸ§  GPT response MUST follow this exact format with three dashes (---) on its own line between the internal data and the display message. Do NOT omit the separator.
 
 [INTERNAL DATA]
 Category: <MSK / wound care / nail surgery, high risk footcare>
@@ -488,16 +488,16 @@ Summary: A brief but informative clinical-style description for the podiatrist, 
 [DISPLAY MESSAGE, SH]
 Write a message that starts with an appropriate sentence based on the urgency level and use <br> for line breaks:
 
-- If urgency level = 1 → "You need to see a podiatrist urgently."
-- If urgency level = 2 → "You should see a podiatrist soon."
-- If urgency level = 3 → "This should be checked by a podiatrist."
-- If urgency level = 4 → "This is not urgent, but a podiatrist can help manage the issue."
+- If urgency level = 1 â†’ "You need to see a podiatrist urgently."
+- If urgency level = 2 â†’ "You should see a podiatrist soon."
+- If urgency level = 3 â†’ "This should be checked by a podiatrist."
+- If urgency level = 4 â†’ "This is not urgent, but a podiatrist can help manage the issue."
 <br><br>
 
 While you wait for your appointment, here's what you should do:<br>
-• Tip 1<br>
-• Tip 2<br>
-• Tip 3<br>
+â€¢ Tip 1<br>
+â€¢ Tip 2<br>
+â€¢ Tip 3<br>
 
 Do not show internal data to the patient.
       `
@@ -507,7 +507,7 @@ Do not show internal data to the patient.
       });
 
       const fullReply = classification.choices[0].message.content;
-      console.log("🧠 Full GPT reply:\n", fullReply);
+      console.log("ðŸ§  Full GPT reply:\n", fullReply);
 
 
       // Split based on the last valid separator in case multiple '---' blocks exist
@@ -554,11 +554,11 @@ Do not show internal data to the patient.
       s.cleanedDisplay = cleanedDisplay;
       s.summary = summary;
 
-      console.log("🧠 Full GPT reply:\n", fullReply);
-      console.log("✅ GPT classification reply:\n", cleanedDisplay);
-      console.log("📊 Parsed category:", category);
-      console.log("➡️ Diagnosis:", diagnosis);
-      console.log("⚠️  Parsed urgency:", urgencyLevel);
+      console.log("ðŸ§  Full GPT reply:\n", fullReply);
+      console.log("âœ… GPT classification reply:\n", cleanedDisplay);
+      console.log("ðŸ“Š Parsed category:", category);
+      console.log("âž¡ï¸ Diagnosis:", diagnosis);
+      console.log("âš ï¸  Parsed urgency:", urgencyLevel);
       console.log("Summary:", summary);
 
       // Set appointemnt urgency
@@ -578,8 +578,8 @@ Do not show internal data to the patient.
 
 
 
-      console.log(`📋 Checking existing appointments for user ${userId}`);
-      console.log(`📋 Found ${existingSnap.size} existing appointment(s)`);
+      console.log(`ðŸ“‹ Checking existing appointments for user ${userId}`);
+      console.log(`ðŸ“‹ Found ${existingSnap.size} existing appointment(s)`);
 
       // IF THERE ARE EXISTING APPOINTMENTS
       if (hasExistingAppt) {
@@ -588,20 +588,20 @@ Do not show internal data to the patient.
 
         // IF THERE ARE 2 OR MORE EXISTING APPOINTMENTS
         if (existingSnap.size > 1) {
-          console.log("⚠️ Patient has multiple appointments. Adding warning to chatbot reply.");
-          cleanedDisplay = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+          console.log("âš ï¸ Patient has multiple appointments. Adding warning to chatbot reply.");
+          cleanedDisplay = `âš ï¸ You have ${existingSnap.size} upcoming appointments.<br>` +
             `Please ensure this new issue is necessary to book.<br><br>` +
             cleanedDisplay;
         }
 
-        console.log(`📊 Existing urgency: ${existingUrgency}, New urgency: ${urgencyLevel}`);
+        console.log(`ðŸ“Š Existing urgency: ${existingUrgency}, New urgency: ${urgencyLevel}`);
 
         // IF NEW ISSUE IS NOT MORE URENT, BOOK APPOINTMENT RIGHT AFTER EXISTING ONE
         if (urgencyLevel >= existingUrgency) {
-          console.log("🔁 New issue is not more urgent. Attempting to book 30 minutes after existing appointment.");
+          console.log("ðŸ” New issue is not more urgent. Attempting to book 30 minutes after existing appointment.");
 
           const nextHalfHour = new Date(existingAppt.scheduledDate.toDate().getTime() + 30 * 60 * 1000);
-          console.log(`🔎 Looking for slot at: ${nextHalfHour.toLocaleString("en-SG")}`);
+          console.log(`ðŸ”Ž Looking for slot at: ${nextHalfHour.toLocaleString("en-SG")}`);
 
 
           // Query for available slot 30mins after existing slot
@@ -635,27 +635,27 @@ Do not show internal data to the patient.
             s.pendingSlotData = slotData;
 
             return res.json({
-              reply: await translateReply(`${cleanedDisplay}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`, userLanguage)
+              reply: await translateReply(`${cleanedDisplay}<br><br>ðŸ“Œ You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`, userLanguage)
             });
           }
 
-          // No follow-up slot → set minDate to after current appointment
+          // No follow-up slot â†’ set minDate to after current appointment
           const existingDate = existingAppt.scheduledDate.toDate();
           minDate = new Date(existingDate);
         } else {
-          // New issue is more urgent → allow earlier booking
-          console.log("✅ More urgent issue, allow earlier slots.");
+          // New issue is more urgent â†’ allow earlier booking
+          console.log("âœ… More urgent issue, allow earlier slots.");
         }
       }
 
       // IF BOOK SLOT BASED ON NEW APPOINTMENT
-      console.log(`🕒 Setting min/max booking range based on urgency level ${urgencyLevel}`);
+      console.log(`ðŸ•’ Setting min/max booking range based on urgency level ${urgencyLevel}`);
 
 
       //Level 1: Book immediately, Level 2: Book starting tomorrow, Level 3: Book from 3 days later,Level 4: Book from 5 days later
 
       if (urgencyLevel === 1) {
-        // Wound care – immediate
+        // Wound care â€“ immediate
         minDate.setDate(now.getDate());       // today
         maxDate.setDate(now.getDate() + 2);   // up to 2 days
       } else if (urgencyLevel === 2) {
@@ -673,9 +673,9 @@ Do not show internal data to the patient.
       }
 
 
-      console.log("✅ GPT classification reply:\n", cleanedDisplay);
-      console.log("📊 Parsed category:", category);
-      console.log("⚠️  Parsed urgency:", urgencyLevel);
+      console.log("âœ… GPT classification reply:\n", cleanedDisplay);
+      console.log("ðŸ“Š Parsed category:", category);
+      console.log("âš ï¸  Parsed urgency:", urgencyLevel);
 
       try {
         const slotQuery = await db.collection("Availability")
@@ -689,7 +689,7 @@ Do not show internal data to the patient.
         if (slotQuery.empty) {
           s.state = "idle";
           s.triageStage = null;
-          return res.json({ reply: await translateReply(`${cleanedDisplay}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage) });
+          return res.json({ reply: await translateReply(`${cleanedDisplay}\n\nâš ï¸ Sorry no appointments slots are found, please contact us.`, userLanguage) });
 
         }
 
@@ -713,16 +713,16 @@ Do not show internal data to the patient.
         s.pendingSlot = slotDoc;
         s.pendingSlotData = slotData;
         s.cleanedDisplay = cleanedDisplay;
-        const responseMessage = `${cleanedDisplay.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
+        const responseMessage = `${cleanedDisplay.trim()}<br><br>ðŸ“… I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
 
         return res.json({ reply: await translateReply(responseMessage, userLanguage) });
 
 
       } catch (err) {
-        console.error("❌ Error finding available slot:", err);
+        console.error("âŒ Error finding available slot:", err);
         s.state = "idle";
         s.triageStage = null;
-        return res.json({ reply: `${cleanedDisplay}\n\n⚠️ An error occurred while checking availability.` });
+        return res.json({ reply: `${cleanedDisplay}\n\nâš ï¸ An error occurred while checking availability.` });
       }
     }
 
@@ -756,15 +756,15 @@ Do not show internal data to the patient.
           initialDiagnosis: diagnosisToSave,
           summary: summaryToSave,
           triageDateTime: admin.firestore.Timestamp.now(),
-          imageUrl: s.imageUrl || null,        // ← ADD THIS
-          imageCaption: null,        // ← ADD THIS
+          imageUrl: s.imageUrl || null,        // â† ADD THIS
+          imageCaption: s.imageCaption || null,        // â† ADD THIS
         };
 
 
         // If user has 2 or more appointments, mark this as highlighted
         if (existingAppts.size >= 2) {
           appointmentData.highlighted = true;
-          console.log("🌟 Marking this appointment as highlighted because patient has 2 or more.");
+          console.log("ðŸŒŸ Marking this appointment as highlighted because patient has 2 or more.");
         }
 
         await db.collection("Appointments").add(appointmentData);
@@ -790,7 +790,7 @@ Do not show internal data to the patient.
         s.pendingSlotData = null;
 
         return res.json({
-          reply: await translateReply(`✅ Appointment confirmed for <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.`, userLanguage)
+          reply: await translateReply(`âœ… Appointment confirmed for <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.`, userLanguage)
         });
 
       }
@@ -799,10 +799,10 @@ Do not show internal data to the patient.
         s.state = "idle";
         s.pendingSlot = null;
         s.pendingSlotData = null;
-        return res.json({ reply: await translateReply("❌ No worries. Let me know if you'd like me to check another slot or start over.", userLanguage) });
+        return res.json({ reply: await translateReply("âŒ No worries. Let me know if you'd like me to check another slot or start over.", userLanguage) });
       }
 
-      return res.json({ reply: await translateReply("❓ Please reply with 'yes' or 'no' to confirm your appointment.", userLanguage) });
+      return res.json({ reply: await translateReply("â“ Please reply with 'yes' or 'no' to confirm your appointment.", userLanguage) });
     }
 
     // ****** Appointment query patient *******
@@ -822,7 +822,7 @@ Do not show internal data to the patient.
 
         if (apptSnapshot.empty) {
           return res.json({
-            reply: await translateReply("📅 You don't have any upcoming appointments at the moment.", userLanguage)
+            reply: await translateReply("ðŸ“… You don't have any upcoming appointments at the moment.", userLanguage)
           });
 
         }
@@ -852,7 +852,7 @@ Do not show internal data to the patient.
             timeZone: "Asia/Singapore"
           });
 
-          const template = await translateReply("📅 You have an appointment on <b>{date}</b> - <b>{name}</b>.", userLanguage);
+          const template = await translateReply("ðŸ“… You have an appointment on <b>{date}</b> - <b>{name}</b>.", userLanguage);
           const reply = template.replace("{date}", formattedDate).replace("{name}", podiatristName);
 
           return res.json({ reply });
@@ -870,11 +870,11 @@ Do not show internal data to the patient.
               hour12: true,
               timeZone: "Asia/Singapore"
             });
-            return `📅 ${formattedDate} - ${podiatristName}`;
+            return `ðŸ“… ${formattedDate} - ${podiatristName}`;
           }));
 
           const template = await translateReply(
-            "📋 Here are your upcoming appointments:<br><br>{list}<br><br>Let me know if you have a foot symptom and want to make another appointment!",
+            "ðŸ“‹ Here are your upcoming appointments:<br><br>{list}<br><br>Let me know if you have a foot symptom and want to make another appointment!",
             userLanguage
           );
           const reply = template.replace("{list}", replies.join("<br>"));
@@ -886,9 +886,9 @@ Do not show internal data to the patient.
 
 
       } catch (error) {
-        console.error("❌ Error fetching appointment:", error);
+        console.error("âŒ Error fetching appointment:", error);
         return res.json({
-          reply: "⚠️ An error occurred while retrieving your appointment details."
+          reply: "âš ï¸ An error occurred while retrieving your appointment details."
         });
       }
     }
@@ -902,7 +902,7 @@ Do not show internal data to the patient.
   } catch (err) {
     console.error("Chat error (patient):", err);
     return res.status(500).json({
-      reply: await translateReply("⚠️ Something went wrong on the server.", userLanguage)
+      reply: await translateReply("âš ï¸ Something went wrong on the server.", userLanguage)
     });
 
   }
@@ -911,7 +911,7 @@ Do not show internal data to the patient.
 // Fetch patient appointment and
 router.post('/chat-patient-details', async (req, res) => {
   const { patientId } = req.body;
-  console.log("🔍 Fetching patient info for:", patientId);
+  console.log("ðŸ” Fetching patient info for:", patientId);
 
   try {
     // Get user info using where instead of doc()
@@ -921,7 +921,7 @@ router.post('/chat-patient-details', async (req, res) => {
       .get();
 
     if (userSnapshot.empty) {
-      console.log("❌ No matching user found");
+      console.log("âŒ No matching user found");
       return res.json({
         name: "Name not found",
         appointment: null
@@ -929,7 +929,7 @@ router.post('/chat-patient-details', async (req, res) => {
     }
 
     const userData = userSnapshot.docs[0].data();
-    console.log("✅ Found user:", userData.firstName, userData.lastName);
+    console.log("âœ… Found user:", userData.firstName, userData.lastName);
 
     // Get appointment
     const apptSnapshot = await db.collection("Appointments")
@@ -1007,7 +1007,7 @@ router.post('/chat-patient-details', async (req, res) => {
     });
 
   } catch (error) {
-    console.error("❌ Error in /chat-patient-details:", error);
+    console.error("âŒ Error in /chat-patient-details:", error);
     res.status(500).json({ error: "Failed to fetch patient details" });
   }
 });
@@ -1015,12 +1015,12 @@ router.post('/chat-patient-details', async (req, res) => {
 // Update patient language preference
 router.post('/update-language', async (req, res) => {
   const { patientId, language } = req.body;
-  console.log("🇸🇬 Updating language preference for patient:", patientId, "to:", language);
+  console.log("ðŸ‡¸ðŸ‡¬ Updating language preference for patient:", patientId, "to:", language);
 
   // Validate Singapore languages
   const validLanguages = ['en', 'zh', 'ms', 'ta'];
   if (!validLanguages.includes(language)) {
-    console.log("❌ Invalid language code");
+    console.log("âŒ Invalid language code");
     return res.json({ success: false, error: "Invalid language for Singapore" });
   }
 
@@ -1032,7 +1032,7 @@ router.post('/update-language', async (req, res) => {
       .get();
 
     if (userSnapshot.empty) {
-      console.log("❌ No matching user found");
+      console.log("âŒ No matching user found");
       return res.json({ success: false, error: "User not found" });
     }
 
@@ -1040,11 +1040,11 @@ router.post('/update-language', async (req, res) => {
     const userDoc = userSnapshot.docs[0];
     await userDoc.ref.update({ language: language });
 
-    console.log("✅ Language preference updated successfully");
+    console.log("âœ… Language preference updated successfully");
     res.json({ success: true, language: language });
 
   } catch (error) {
-    console.error("❌ Error updating language preference:", error);
+    console.error("âŒ Error updating language preference:", error);
     res.status(500).json({ success: false, error: "Failed to update language preference" });
   }
 });
@@ -1070,7 +1070,7 @@ router.post('/update-language', async (req, res) => {
 
 //     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
 
-//     console.log(`🌐 Batch translating ${texts.length} texts to: ${targetLanguage}`);
+//     console.log(`ðŸŒ Batch translating ${texts.length} texts to: ${targetLanguage}`);
 
 //     // Filter out empty texts and store mapping
 //     const textMapping = [];
@@ -1091,7 +1091,7 @@ router.post('/update-language', async (req, res) => {
 
 //     // Always use individual translations for maximum reliability
 //     // This avoids all separator/marker extraction issues
-//     console.log('📝 Using individual translations for maximum reliability');
+//     console.log('ðŸ“ Using individual translations for maximum reliability');
 
 //     const translatedTexts = await Promise.all(
 //       nonEmptyTexts.map(async (text, index) => {
@@ -1102,10 +1102,10 @@ router.post('/update-language', async (req, res) => {
 //           }
 
 //           const result = await translate(text, { to: googleLangCode });
-//           console.log(`✓ Translated ${index + 1}/${nonEmptyTexts.length}: "${text}" -> "${result}"`);
+//           console.log(`âœ“ Translated ${index + 1}/${nonEmptyTexts.length}: "${text}" -> "${result}"`);
 //           return result;
 //         } catch (err) {
-//           console.error(`✗ Translation failed for "${text}":`, err);
+//           console.error(`âœ— Translation failed for "${text}":`, err);
 //           return text; // Return original if translation fails
 //         }
 //       })
@@ -1122,7 +1122,7 @@ router.post('/update-language', async (req, res) => {
 //       }
 //     });
 
-//     console.log(`✅ All individual translations completed successfully`);
+//     console.log(`âœ… All individual translations completed successfully`);
 //     res.json({ translations: fullTranslations });
 
 //   } catch (error) {
@@ -1149,7 +1149,7 @@ router.post('/update-language', async (req, res) => {
 
 //     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
 
-//     console.log(`🌍 CACHED batch translating ${texts.length} texts to: ${targetLanguage}`);
+//     console.log(`ðŸŒ CACHED batch translating ${texts.length} texts to: ${targetLanguage}`);
 
 //     const results = [];
 //     const toTranslate = [];
@@ -1167,7 +1167,7 @@ router.post('/update-language', async (req, res) => {
       
 //       if (cached && (Date.now() - cached.timestamp) < CACHE_EXPIRY) {
 //         results[index] = cached.translation;
-//         console.log(`📦 Cache hit: "${text.trim()}"`);
+//         console.log(`ðŸ“¦ Cache hit: "${text.trim()}"`);
 //       } else {
 //         toTranslate.push(text.trim());
 //         translateIndices.push(index);
@@ -1176,7 +1176,7 @@ router.post('/update-language', async (req, res) => {
 
 //     // Translate uncached texts
 //     if (toTranslate.length > 0) {
-//       console.log(`🔄 Translating ${toTranslate.length} new texts`);
+//       console.log(`ðŸ”„ Translating ${toTranslate.length} new texts`);
       
 //       const translations = await Promise.all(
 //         toTranslate.map(async (text) => {
@@ -1204,7 +1204,7 @@ router.post('/update-language', async (req, res) => {
 //       });
 //     }
 
-//     console.log(`⚡ CACHED translation completed (${toTranslate.length} new, ${texts.length - toTranslate.length} cached)`);
+//     console.log(`âš¡ CACHED translation completed (${toTranslate.length} new, ${texts.length - toTranslate.length} cached)`);
 //     res.json({ translations: results });
 
 //   } catch (error) {
@@ -1230,7 +1230,7 @@ router.post('/translate-batch', async (req, res) => {
 
     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
 
-    console.log(`🌍 TURBO batch translating ${texts.length} texts to: ${targetLanguage}`);
+    console.log(`ðŸŒ TURBO batch translating ${texts.length} texts to: ${targetLanguage}`);
 
     const results = [];
     const toTranslate = [];
@@ -1254,9 +1254,9 @@ router.post('/translate-batch', async (req, res) => {
       }
     });
 
-    // 🚀 TURBO: Translate all uncached texts in full parallel (no batching)
+    // ðŸš€ TURBO: Translate all uncached texts in full parallel (no batching)
     if (toTranslate.length > 0) {
-      console.log(`🚀 TURBO translating ${toTranslate.length} texts in full parallel`);
+      console.log(`ðŸš€ TURBO translating ${toTranslate.length} texts in full parallel`);
       
       const translations = await Promise.all(
         toTranslate.map(async (text, index) => {
@@ -1287,7 +1287,7 @@ router.post('/translate-batch', async (req, res) => {
       });
     }
 
-    console.log(`⚡ TURBO translation completed (${toTranslate.length} new, ${texts.length - toTranslate.length} cached)`);
+    console.log(`âš¡ TURBO translation completed (${toTranslate.length} new, ${texts.length - toTranslate.length} cached)`);
     res.json({ translations: results });
 
   } catch (error) {
@@ -1327,14 +1327,14 @@ router.post('/translate', async (req, res) => {
 
 // ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
 router.post("/chat-image", (req, res) => {
-  console.log("🔥 Hit /patient/chat-image (Busboy version). Content-Type:", req.headers["content-type"]);
+  console.log("ðŸ”¥ Hit /patient/chat-image (Busboy version). Content-Type:", req.headers["content-type"]);
 
   const contentType = req.headers["content-type"] || "";
   if (!contentType.startsWith("multipart/form-data")) {
     return res.status(400).json({ error: "Expected multipart/form-data" });
   }
 
-  // Values we’ll fill from Busboy
+  // Values weâ€™ll fill from Busboy
   let imageBuffer = null;
   let imageMime = "";
   let caption = "";
@@ -1346,7 +1346,7 @@ router.post("/chat-image", (req, res) => {
   // ---- FILE FIELD ----
   busboy.on("file", (fieldname, file, info) => {
   const { filename, encoding, mimeType } = info;
-  console.log("📷 Busboy got file field:", fieldname, filename, mimeType);
+  console.log("ðŸ“· Busboy got file field:", fieldname, filename, mimeType);
 
   if (fieldname !== "image") {
     // Ignore any other file fields
@@ -1363,42 +1363,46 @@ router.post("/chat-image", (req, res) => {
 
   file.on("end", () => {
     imageBuffer = Buffer.concat(chunks);
-    console.log("✅ Finished reading image, size:", imageBuffer.length);
+    console.log("âœ… Finished reading image, size:", imageBuffer.length);
   });
 });
 
 
   // ---- NORMAL FIELDS ----
   busboy.on("field", (fieldname, val) => {
-    console.log("✏️ Busboy field:", fieldname, "=", val);
+    console.log("âœï¸ Busboy field:", fieldname, "=", val);
     if (fieldname === "caption") caption = val;
     if (fieldname === "patientId") patientId = val;
     if (fieldname === "language") language = val || "en";
   });
 
   busboy.on("error", (err) => {
-    console.error("❌ Busboy error in /chat-image:", err);
+    console.error("âŒ Busboy error in /chat-image:", err);
     return res.status(500).json({ error: "Upload error" });
   });
 
   // ---- WHEN ALL PARTS ARE READ ----
   busboy.on("finish", async () => {
-    console.log("🎯 Entered /chat-image AFTER busboy");
+    console.log("ðŸŽ¯ Entered /chat-image AFTER busboy");
+    
+    // Small delay to ensure file reading completes (fixes race condition)
+    await new Promise(resolve => setTimeout(resolve, 100));
+
 
     try {
       const userLanguage = language || "en";
       const userId = patientId;
 
       if (!imageBuffer) {
-        console.log("🛑 [/chat-image] No file in request.");
+        console.log("ðŸ›‘ [/chat-image] No file in request.");
         return res.json({
-          reply: await translateReply("⚠️ No image received.", userLanguage),
+          reply: await translateReply("âš ï¸ No image received.", userLanguage),
         });
       }
       if (!imageMime || !imageMime.startsWith("image/")) {
-        console.log("🛑 [/chat-image] Uploaded file is not an image. Mimetype:", imageMime);
+        console.log("ðŸ›‘ [/chat-image] Uploaded file is not an image. Mimetype:", imageMime);
         return res.json({
-          reply: await translateReply("⚠️ Please upload a valid image file.", userLanguage),
+          reply: await translateReply("âš ï¸ Please upload a valid image file.", userLanguage),
         });
       }
 
@@ -1516,7 +1520,7 @@ Be strict. Output JSON only.`,
 
       if (gateJSON.valid !== true) {
         const askForProperPhoto =
-          "⚠️ I can’t clearly see a foot in this photo. Please upload a clear, well-lit photo of the affected foot. " +
+          "âš ï¸ I canâ€™t clearly see a foot in this photo. Please upload a clear, well-lit photo of the affected foot. " +
           "Show the area of concern (wound/redness/nail) and avoid socks or heavy filters.";
         return res.json({
           reply: await translateReply(askForProperPhoto, userLanguage),
@@ -1532,17 +1536,17 @@ Classify into exactly one:
 - high risk footcare: callus, corns, warts, pathological toenails
 - MSK: foot pain, footwear issues, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus/bunions, metatarsalgia
 
-If the photo shows no obvious pathology, state that plainly (e.g., “No visible wound or infection on the photo”), and use MSK (level 4) unless the caption suggests otherwise.
+If the photo shows no obvious pathology, state that plainly (e.g., â€œNo visible wound or infection on the photoâ€), and use MSK (level 4) unless the caption suggests otherwise.
 
 IMPORTANT: Do NOT set Urgency=1 unless at least ONE of these is visibly/clearly present OR stated by the caption:
 open wound OR drainage/pus OR necrosis/black tissue OR spreading redness (lymphangitic streaks) OR malodour OR fever/chills. 
 General redness/swelling alone is NOT enough for Urgency 1.
 
 Assign urgency:
-- wound care → 1 (most urgent)
-- nail surgery → 2
-- high risk footcare → 3
-- MSK → 4 (least urgent)
+- wound care â†’ 1 (most urgent)
+- nail surgery â†’ 2
+- high risk footcare â†’ 3
+- MSK â†’ 4 (least urgent)
 Also provide an Initial diagnosis.
 
 Return EXACTLY this format with three dashes (---) separating sections:
@@ -1569,15 +1573,15 @@ Confidence: <0.0-1.0>
 
 [DISPLAY MESSAGE, SH]
 Start with:
-- 1 → "You need to see a podiatrist urgently."
-- 2 → "You should see a podiatrist soon."
-- 3 → "This should be checked by a podiatrist."
-- 4 → "This is not urgent, but a podiatrist can help manage the issue."
+- 1 â†’ "You need to see a podiatrist urgently."
+- 2 â†’ "You should see a podiatrist soon."
+- 3 â†’ "This should be checked by a podiatrist."
+- 4 â†’ "This is not urgent, but a podiatrist can help manage the issue."
 <br><br>
 While you wait for your appointment, here's what you should do:<br>
-• Tip 1<br>
-• Tip 2<br>
-• Tip 3<br>
+â€¢ Tip 1<br>
+â€¢ Tip 2<br>
+â€¢ Tip 3<br>
 (Do not display internal data to the patient.)`; 
 
       const triageMsgsBase = [
@@ -1638,7 +1642,7 @@ While you wait for your appointment, here's what you should do:<br>
             : urgencyLevel === 3
             ? "This should be checked by a podiatrist."
             : "This is not urgent, but a podiatrist can help manage the issue.";
-        display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>• Keep the area clean and dry<br>• Avoid tight footwear<br>• Reduce load and monitor symptoms`;
+        display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>â€¢ Keep the area clean and dry<br>â€¢ Avoid tight footwear<br>â€¢ Reduce load and monitor symptoms`;
       }
 
       // ================= 3) RULE SAFETY LAYER (unchanged) =================
@@ -1684,7 +1688,7 @@ While you wait for your appointment, here's what you should do:<br>
 
       if (urgencyLevel === 1 && !strongInfection) {
         console.log(
-          "🧯 Downgrading Urgency 1 (no strong infection evidence). Evidence:",
+          "ðŸ§¯ Downgrading Urgency 1 (no strong infection evidence). Evidence:",
           evidence
         );
 
@@ -1699,11 +1703,11 @@ While you wait for your appointment, here's what you should do:<br>
         };
 
         const confirmMsg =
-          "❓ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
+          "â“ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
         return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
       }
 
-      console.log("🔎 Evidence flags:", evidence, "| strongInfection:", strongInfection);
+      console.log("ðŸ”Ž Evidence flags:", evidence, "| strongInfection:", strongInfection);
 
       if (typeof summary !== "string" || !summary.trim()) {
         summary = "No summary available.";
@@ -1715,7 +1719,7 @@ While you wait for your appointment, here's what you should do:<br>
       s.summary = summary;
       s.cleanedDisplay = display;
 
-      console.log("🧠 Image triage result:");
+      console.log("ðŸ§  Image triage result:");
       console.log("Category:", category);
       console.log("Diagnosis:", diagnosis);
       console.log("Urgency level:", urgencyLevel);
@@ -1723,6 +1727,12 @@ While you wait for your appointment, here's what you should do:<br>
       console.log("=========================");
 
       // ================= UPLOAD IMAGE TO FIREBASE STORAGE =================
+      console.log("📤 Starting image upload...");
+      console.log("Image buffer size:", imageBuffer ? imageBuffer.length : "NULL");
+      console.log("Image MIME:", imageMime);
+      console.log("User ID:", userId);
+      console.log("Caption:", caption);
+      
       let imageUrl = null;
       try {
         const timestamp = Date.now();
@@ -1744,9 +1754,19 @@ While you wait for your appointment, here's what you should do:<br>
         await file.makePublic();
         imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
         s.imageUrl = imageUrl;
-        console.log("✅ Image uploaded:", imageUrl);
+        s.imageCaption = caption; // Save caption to session
+        console.log("âœ… Image uploaded:", imageUrl);
+        console.log("✅ Image caption saved:", caption);
       } catch (err) {
         console.error("⚠️ Storage upload failed:", err);
+        console.error("Error details:", {
+          message: err.message,
+          code: err.code,
+          stack: err.stack,
+          userId: userId,
+          fileSize: imageBuffer.length,
+          mimeType: imageMime
+        });
       }
 
       // ================= 4) Confirm infection if NOT urgent (unchanged behavior) =================
@@ -1755,10 +1775,13 @@ While you wait for your appointment, here's what you should do:<br>
       s.proposed = { category, diagnosis, urgencyLevel, summary, display, language: userLanguage };
 
       const confirmMsg =
-        "❓ I don’t clearly see an open wound, pus, black tissue, red streaks, or fever/chills. " +
+        "â“ I donâ€™t clearly see an open wound, pus, black tissue, red streaks, or fever/chills. " +
         "Can you confirm you do NOT have ANY of these symptoms right now? (yes/no)";
 
-      return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+      return res.json({ 
+        reply: await translateReply(confirmMsg, userLanguage),
+        imageUrl: s.imageUrl || null
+      });
     }
 
     // ================= 5) Availability & booking flow (IDENTICAL to yours) =================
@@ -1778,7 +1801,7 @@ While you wait for your appointment, here's what you should do:<br>
         const existingUrgency = existingAppt?.urgencyLevel ?? 4;
 
         if (existingSnap.size > 1) {
-          display = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+          display = `âš ï¸ You have ${existingSnap.size} upcoming appointments.<br>` +
             `Please ensure this new issue is necessary to book.<br><br>` +
             display;
         }
@@ -1808,7 +1831,7 @@ While you wait for your appointment, here's what you should do:<br>
 
             return res.json({
               reply: await translateReply(
-                `${display}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                `${display}<br><br>ðŸ“Œ You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
                 userLanguage
               )
             });
@@ -1818,7 +1841,7 @@ While you wait for your appointment, here's what you should do:<br>
         }
       }
 
-      // Urgency → window (same mapping)
+      // Urgency â†’ window (same mapping)
       if (urgencyLevel === 1) {
         minDate.setDate(now.getDate());
         maxDate.setDate(now.getDate() + 2);
@@ -1845,7 +1868,7 @@ While you wait for your appointment, here's what you should do:<br>
         s.state = "idle";
         s.triageStage = null;
         return res.json({
-          reply: await translateReply(`${display}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage)
+          reply: await translateReply(`${display}\n\nâš ï¸ Sorry no appointments slots are found, please contact us.`, userLanguage)
         });
       }
 
@@ -1871,13 +1894,13 @@ While you wait for your appointment, here's what you should do:<br>
       s.pendingSlotData = slotData;
       s.cleanedDisplay = display;
 
-      const responseMessage = `${display.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
+      const responseMessage = `${display.trim()}<br><br>ðŸ“… I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
       return res.json({ reply: await translateReply(responseMessage, userLanguage) });
     }
 
     } catch (err) {
-      console.error("❌ /patient/chat-image error:", err);
-      return res.json({ reply: "⚠️ Image analysis failed on the server." });
+      console.error("âŒ /patient/chat-image error:", err);
+      return res.json({ reply: "âš ï¸ Image analysis failed on the server." });
     }
   });
 
@@ -1893,9 +1916,9 @@ While you wait for your appointment, here's what you should do:<br>
 /*
 // ---------------- IMAGE CHAT ROUTE ----------------------------------------------------------------------------------------------------------------------------------------------****
 router.post("/chat-image", async (req, res) => {
-  console.log("🎯 Entered /chat-image AFTER multer");
-  console.log("📸 multer file:", req.file ? "YES" : "NO FILE");
-  console.log("📝 body:", req.body);
+  console.log("ðŸŽ¯ Entered /chat-image AFTER multer");
+  console.log("ðŸ“¸ multer file:", req.file ? "YES" : "NO FILE");
+  console.log("ðŸ“ body:", req.body);
         console.log("Entered chat image route!!!!!!!!!");
   try {
     const { patientId, language, caption = "" } = req.body;
@@ -1903,12 +1926,12 @@ router.post("/chat-image", async (req, res) => {
     const userId = patientId;
 
     if (!req.file) {
-      console.log("🛑 [/chat-image] No file in request.");
-      return res.json({ reply: await translateReply("⚠️ No image received.", userLanguage) });
+      console.log("ðŸ›‘ [/chat-image] No file in request.");
+      return res.json({ reply: await translateReply("âš ï¸ No image received.", userLanguage) });
     }
     if (!req.file.mimetype || !req.file.mimetype.startsWith("image/")) {
-      console.log("🛑 [/chat-image] Uploaded file is not an image. Mimetype:", req.file.mimetype);
-      return res.json({ reply: await translateReply("⚠️ Please upload a valid image file.", userLanguage) });
+      console.log("ðŸ›‘ [/chat-image] Uploaded file is not an image. Mimetype:", req.file.mimetype);
+      return res.json({ reply: await translateReply("âš ï¸ Please upload a valid image file.", userLanguage) });
     }
 
     // Session (unchanged)
@@ -1977,7 +2000,7 @@ router.post("/chat-image", async (req, res) => {
       return u;
     }
 
-    // Convert image → data URL (unchanged)
+    // Convert image â†’ data URL (unchanged)
     const b64 = req.file.buffer.toString("base64");
     const dataUrl = `data:${req.file.mimetype};base64,${b64}`;
 
@@ -2016,7 +2039,7 @@ Be strict. Output JSON only.`
 
     if (gateJSON.valid !== true) {
       const askForProperPhoto =
-        "⚠️ I can’t clearly see a foot in this photo. " +
+        "âš ï¸ I canâ€™t clearly see a foot in this photo. " +
         "Please upload a clear, well-lit photo of the affected foot. " +
         "Show the area of concern (wound/redness/nail) and avoid socks or heavy filters.";
       return res.json({ reply: await translateReply(askForProperPhoto, userLanguage) });
@@ -2032,17 +2055,17 @@ Classify into exactly one:
 - high risk footcare: callus, corns, warts, pathological toenails
 - MSK: foot pain, footwear issues, plantar fasciitis, posterior tibial tendon dysfunction, limb length discrepancy, hallux valgus/bunions, metatarsalgia
 
-If the photo shows no obvious pathology, state that plainly (e.g., “No visible wound or infection on the photo”), and use MSK (level 4) unless the caption suggests otherwise.
+If the photo shows no obvious pathology, state that plainly (e.g., â€œNo visible wound or infection on the photoâ€), and use MSK (level 4) unless the caption suggests otherwise.
 
 IMPORTANT: Do NOT set Urgency=1 unless at least ONE of these is visibly/clearly present OR stated by the caption:
 open wound OR drainage/pus OR necrosis/black tissue OR spreading redness (lymphangitic streaks) OR malodour OR fever/chills. 
 General redness/swelling alone is NOT enough for Urgency 1.
 
 Assign urgency:
-- wound care → 1 (most urgent)
-- nail surgery → 2
-- high risk footcare → 3
-- MSK → 4 (least urgent)
+- wound care â†’ 1 (most urgent)
+- nail surgery â†’ 2
+- high risk footcare â†’ 3
+- MSK â†’ 4 (least urgent)
 Also provide an Initial diagnosis.
 
 Return EXACTLY this format with three dashes (---) separating sections:
@@ -2069,15 +2092,15 @@ Confidence: <0.0-1.0>
 
 [DISPLAY MESSAGE, SH]
 Start with:
-- 1 → "You need to see a podiatrist urgently."
-- 2 → "You should see a podiatrist soon."
-- 3 → "This should be checked by a podiatrist."
-- 4 → "This is not urgent, but a podiatrist can help manage the issue."
+- 1 â†’ "You need to see a podiatrist urgently."
+- 2 â†’ "You should see a podiatrist soon."
+- 3 â†’ "This should be checked by a podiatrist."
+- 4 â†’ "This is not urgent, but a podiatrist can help manage the issue."
 <br><br>
 While you wait for your appointment, here's what you should do:<br>
-• Tip 1<br>
-• Tip 2<br>
-• Tip 3<br>
+â€¢ Tip 1<br>
+â€¢ Tip 2<br>
+â€¢ Tip 3<br>
 (Do not display internal data to the patient.)`;
 
 
@@ -2129,7 +2152,7 @@ While you wait for your appointment, here's what you should do:<br>
           urgencyLevel === 2 ? "You should see a podiatrist soon." :
             urgencyLevel === 3 ? "This should be checked by a podiatrist." :
               "This is not urgent, but a podiatrist can help manage the issue.";
-      display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>• Keep the area clean and dry<br>• Avoid tight footwear<br>• Reduce load and monitor symptoms`;
+      display = `${firstLine}<br><br>While you wait for your appointment, here's what you should do:<br>â€¢ Keep the area clean and dry<br>â€¢ Avoid tight footwear<br>â€¢ Reduce load and monitor symptoms`;
     }
 
     // ================= 3) RULE SAFETY LAYER (same as yours) =================
@@ -2177,19 +2200,19 @@ While you wait for your appointment, here's what you should do:<br>
     // If the model set level 1 but we don't have strong infection evidence,
     // don't auto-escalate. Ask the user to confirm like your non-urgent flow.
     if (urgencyLevel === 1 && !strongInfection) {
-      console.log("🧯 Downgrading Urgency 1 (no strong infection evidence). Evidence:", evidence);
+      console.log("ðŸ§¯ Downgrading Urgency 1 (no strong infection evidence). Evidence:", evidence);
 
       s.state = "confirm_infection_check";
       // propose a cautious level 2 by default
       s.proposed = { category, diagnosis, urgencyLevel: 2, summary, display, language: userLanguage };
 
       const confirmMsg =
-        "❓ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
+        "â“ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
       return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
     }
 
     // Debug: show what the model 'saw'
-    console.log("🔎 Evidence flags:", evidence, "| strongInfection:", strongInfection);
+    console.log("ðŸ”Ž Evidence flags:", evidence, "| strongInfection:", strongInfection);
 
 
     // Make sure the summary is valid before saving to session
@@ -2205,7 +2228,7 @@ While you wait for your appointment, here's what you should do:<br>
 
 
     // ===== DEBUG LOGGING =====
-    console.log("🧠 Image triage result:");
+    console.log("ðŸ§  Image triage result:");
     console.log("Category:", category);
     console.log("Diagnosis:", diagnosis);
     console.log("Urgency level:", urgencyLevel);
@@ -2234,9 +2257,9 @@ While you wait for your appointment, here's what you should do:<br>
       await file.makePublic();
       imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
       s.imageUrl = imageUrl;
-      console.log("✅ Image uploaded:", imageUrl);
+      console.log("âœ… Image uploaded:", imageUrl);
     } catch (err) {
-      console.error("⚠️ Storage upload failed:", err);
+      console.error("âš ï¸ Storage upload failed:", err);
     }
 
     // ================= 4) Confirm infection if NOT urgent (unchanged behavior) =================
@@ -2245,10 +2268,10 @@ While you wait for your appointment, here's what you should do:<br>
       s.proposed = { category, diagnosis, urgencyLevel, summary, display, language: userLanguage };
 
       const confirmMsg =
-        "❓ I don’t clearly see an open wound, pus, black tissue, red streaks, or fever/chills. " +
+        "â“ I donâ€™t clearly see an open wound, pus, black tissue, red streaks, or fever/chills. " +
         "Can you confirm you do NOT have ANY of these symptoms right now? (yes/no)";
 
-      return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+      return res.json({ reply: await translateReply(confirmMsg, userLanguage), imageUrl: s.imageUrl || null });
     }
 
     // ================= 5) Availability & booking flow (IDENTICAL to yours) =================
@@ -2268,7 +2291,7 @@ While you wait for your appointment, here's what you should do:<br>
         const existingUrgency = existingAppt?.urgencyLevel ?? 4;
 
         if (existingSnap.size > 1) {
-          display = `⚠️ You have ${existingSnap.size} upcoming appointments.<br>` +
+          display = `âš ï¸ You have ${existingSnap.size} upcoming appointments.<br>` +
             `Please ensure this new issue is necessary to book.<br><br>` +
             display;
         }
@@ -2298,7 +2321,7 @@ While you wait for your appointment, here's what you should do:<br>
 
             return res.json({
               reply: await translateReply(
-                `${display}<br><br>📌 You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
+                `${display}<br><br>ðŸ“Œ You already have an appointment scheduled. I found a follow-up slot right after it on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>.<br>Would you like to book this additional slot?`,
                 userLanguage
               )
             });
@@ -2308,7 +2331,7 @@ While you wait for your appointment, here's what you should do:<br>
         }
       }
 
-      // Urgency → window (same mapping)
+      // Urgency â†’ window (same mapping)
       if (urgencyLevel === 1) {
         minDate.setDate(now.getDate());
         maxDate.setDate(now.getDate() + 2);
@@ -2335,7 +2358,7 @@ While you wait for your appointment, here's what you should do:<br>
         s.state = "idle";
         s.triageStage = null;
         return res.json({
-          reply: await translateReply(`${display}\n\n⚠️ Sorry no appointments slots are found, please contact us.`, userLanguage)
+          reply: await translateReply(`${display}\n\nâš ï¸ Sorry no appointments slots are found, please contact us.`, userLanguage)
         });
       }
 
@@ -2361,13 +2384,13 @@ While you wait for your appointment, here's what you should do:<br>
       s.pendingSlotData = slotData;
       s.cleanedDisplay = display;
 
-      const responseMessage = `${display.trim()}<br><br>📅 I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
+      const responseMessage = `${display.trim()}<br><br>ðŸ“… I found a slot on <b>${formattedDate}</b> with podiatrist <b>${slotData.podId}</b>. Would you like to book this appointment?`;
       return res.json({ reply: await translateReply(responseMessage, userLanguage) });
     }
 
   } catch (err) {
-    console.error("❌ /patient/chat-image error:", err);
-    return res.json({ reply: "⚠️ Image analysis failed on the server." });
+    console.error("âŒ /patient/chat-image error:", err);
+    return res.json({ reply: "âš ï¸ Image analysis failed on the server." });
   }
 });
 
