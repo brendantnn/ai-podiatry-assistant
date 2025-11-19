@@ -1075,169 +1075,6 @@ router.post('/update-language', async (req, res) => {
 });
 
 
-// // Smooth batch translation endpoint
-// router.post('/translate-batch', async (req, res) => {
-//   const { texts, targetLanguage } = req.body;
-
-//   try {
-//     // Skip translation if target is English
-//     if (targetLanguage === 'en') {
-//       return res.json({ translations: texts });
-//     }
-
-//     // Map language codes
-//     const languageMap = {
-//       'en': 'en',
-//       'zh': 'zh-cn',
-//       'ms': 'ms',
-//       'ta': 'ta'
-//     };
-
-//     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
-
-//     console.log(`🌐 Batch translating ${texts.length} texts to: ${targetLanguage}`);
-
-//     // Filter out empty texts and store mapping
-//     const textMapping = [];
-//     const nonEmptyTexts = [];
-
-//     texts.forEach((text, index) => {
-//       if (text && text.trim()) {
-//         textMapping.push({ originalIndex: index, textIndex: nonEmptyTexts.length });
-//         nonEmptyTexts.push(text.trim());
-//       } else {
-//         textMapping.push({ originalIndex: index, textIndex: -1, isEmpty: true });
-//       }
-//     });
-
-//     if (nonEmptyTexts.length === 0) {
-//       return res.json({ translations: texts });
-//     }
-
-//     // Always use individual translations for maximum reliability
-//     // This avoids all separator/marker extraction issues
-//     console.log('📝 Using individual translations for maximum reliability');
-
-//     const translatedTexts = await Promise.all(
-//       nonEmptyTexts.map(async (text, index) => {
-//         try {
-//           // Add small delay between requests to avoid rate limiting
-//           if (index > 0) {
-//             await new Promise(resolve => setTimeout(resolve, 50));
-//           }
-
-//           const result = await translate(text, { to: googleLangCode });
-//           console.log(`✓ Translated ${index + 1}/${nonEmptyTexts.length}: "${text}" -> "${result}"`);
-//           return result;
-//         } catch (err) {
-//           console.error(`✗ Translation failed for "${text}":`, err);
-//           return text; // Return original if translation fails
-//         }
-//       })
-//     );
-
-//     // Reconstruct the full translations array
-//     const fullTranslations = new Array(texts.length);
-
-//     textMapping.forEach(({ originalIndex, textIndex, isEmpty }) => {
-//       if (isEmpty) {
-//         fullTranslations[originalIndex] = texts[originalIndex]; // Keep empty as is
-//       } else {
-//         fullTranslations[originalIndex] = translatedTexts[textIndex] || texts[originalIndex];
-//       }
-//     });
-
-//     console.log(`✅ All individual translations completed successfully`);
-//     res.json({ translations: fullTranslations });
-
-//   } catch (error) {
-//     console.error('Translation error:', error);
-//     // Return original texts if everything fails
-//     res.json({ translations: texts });
-//   }
-// });
-
-// router.post('/translate-batch', async (req, res) => {
-//   const { texts, targetLanguage } = req.body;
-
-//   try {
-//     if (targetLanguage === 'en') {
-//       return res.json({ translations: texts });
-//     }
-
-//     const languageMap = {
-//       'en': 'en',
-//       'zh': 'zh-cn', 
-//       'ms': 'ms',
-//       'ta': 'ta'
-//     };
-
-//     const googleLangCode = languageMap[targetLanguage] || targetLanguage;
-
-//     console.log(`🌍 CACHED batch translating ${texts.length} texts to: ${targetLanguage}`);
-
-//     const results = [];
-//     const toTranslate = [];
-//     const translateIndices = [];
-
-//     // Check cache first
-//     texts.forEach((text, index) => {
-//       if (!text || !text.trim()) {
-//         results[index] = text;
-//         return;
-//       }
-
-//       const cacheKey = `${text.trim()}_${googleLangCode}`;
-//       const cached = translationCache.get(cacheKey);
-      
-//       if (cached && (Date.now() - cached.timestamp) < CACHE_EXPIRY) {
-//         results[index] = cached.translation;
-//         console.log(`📦 Cache hit: "${text.trim()}"`);
-//       } else {
-//         toTranslate.push(text.trim());
-//         translateIndices.push(index);
-//       }
-//     });
-
-//     // Translate uncached texts
-//     if (toTranslate.length > 0) {
-//       console.log(`🔄 Translating ${toTranslate.length} new texts`);
-      
-//       const translations = await Promise.all(
-//         toTranslate.map(async (text) => {
-//           try {
-//             const translated = await translate(text, { to: googleLangCode });
-            
-//             // Cache the result
-//             const cacheKey = `${text}_${googleLangCode}`;
-//             translationCache.set(cacheKey, {
-//               translation: translated,
-//               timestamp: Date.now()
-//             });
-            
-//             return translated;
-//           } catch (err) {
-//             console.error(`Translation failed for "${text}":`, err.message);
-//             return text;
-//           }
-//         })
-//       );
-
-//       // Fill in translated results
-//       translateIndices.forEach((originalIndex, i) => {
-//         results[originalIndex] = translations[i];
-//       });
-//     }
-
-//     console.log(`⚡ CACHED translation completed (${toTranslate.length} new, ${texts.length - toTranslate.length} cached)`);
-//     res.json({ translations: results });
-
-//   } catch (error) {
-//     console.error('Translation error:', error);
-//     res.json({ translations: texts });
-//   }
-// });
-
 router.post('/translate-batch', async (req, res) => {
   const { texts, targetLanguage } = req.body;
 
@@ -1707,11 +1544,59 @@ While you wait for your appointment, here's what you should do:<br>
         evidence.malodour ||
         evidence.feverChills;
 
+      // if (urgencyLevel === 1 && !strongInfection) {
+      //   console.log(
+      //     "🧯 Downgrading Urgency 1 (no strong infection evidence). Evidence:",
+      //     evidence
+      //   );
+
+      //   s.state = "confirm_infection_check";
+      //   s.proposed = {
+      //     category,
+      //     diagnosis,
+      //     urgencyLevel: 2,
+      //     summary,
+      //     display,
+      //     language: userLanguage,
+      //   };
+
+      //   const confirmMsg =
+      //     "❓ Can you confirm you do NOT have ANY open wounds, pus, signs of infections, fever/chills?";
+      //   return res.json({ reply: await translateReply(confirmMsg, userLanguage) });
+      // }
+
       if (urgencyLevel === 1 && !strongInfection) {
         console.log(
           "🧯 Downgrading Urgency 1 (no strong infection evidence). Evidence:",
           evidence
         );
+
+        // MOVE IMAGE UPLOAD HERE - BEFORE returning early
+        let imageUrl = null;
+        try {
+          const timestamp = Date.now();
+          const fileExtension = imageMime.split("/")[1];
+          const fileName = `patient_images/${userId}_${timestamp}.${fileExtension}`;
+          const file = bucket.file(fileName);
+
+          await file.save(imageBuffer, {
+            metadata: {
+              contentType: imageMime,
+              metadata: {
+                patientId: userId,
+                uploadedAt: new Date().toISOString(),
+                caption: caption || "",
+              },
+            },
+          });
+
+          await file.makePublic();
+          imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+          s.imageUrl = imageUrl;
+          console.log("✅ Image uploaded (downgrade path):", imageUrl);
+        } catch (err) {
+          console.error("⚠️ Storage upload failed (downgrade path):", err);
+        }
 
         s.state = "confirm_infection_check";
         s.proposed = {
