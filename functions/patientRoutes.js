@@ -195,8 +195,9 @@ Just return one word: "appointment", "triage", or "other".`
         // const now = new Date();
         // let minDate = new Date();
         const now = new Date();
-        now.setHours(0, 0, 0, 0);  // Set to start of today
-        let minDate = new Date();
+        now.setHours(0, 0, 0, 0);
+        const currentTime = new Date();
+        let minDate = new Date(currentTime);
         let maxDate = new Date();
         const urgencyLevelFinal = s.urgencyLevel;
         let cleanedDisplay = s.cleanedDisplay;
@@ -323,11 +324,11 @@ Just return one word: "appointment", "triage", or "other".`
         // Urgent booking window
         const now = new Date();
         now.setHours(0, 0, 0, 0); 
-        let minDate = new Date();
+        const currentTime = new Date();
+        let minDate = new Date(currentTime);
         let maxDate = new Date();
-        minDate.setDate(now.getDate());
-        maxDate.setDate(now.getDate() + 2);
-        
+        maxDate.setDate(currentTime.getDate() + 2);
+                
 
         const existingSnap = await db.collection("Appointments")
           .where("patientId", "==", userId)
@@ -573,8 +574,9 @@ Do not show internal data to the patient.
       // let minDate = new Date();
       // Set appointemnt urgency
       const now = new Date();
-      now.setHours(0, 0, 0, 0);  // Set to start of today
-      let minDate = new Date();
+      now.setHours(0, 0, 0, 0);
+      const currentTime = new Date();
+      let minDate = new Date(currentTime);
       let maxDate = new Date();
 
       const existingSnap = await db.collection("Appointments")
@@ -668,8 +670,7 @@ Do not show internal data to the patient.
 
       if (urgencyLevel === 1) {
         // Wound care – immediate
-        minDate.setDate(now.getDate());       // today
-        maxDate.setDate(now.getDate() + 2);   // up to 2 days
+        maxDate.setDate(currentTime.getDate() + 2);  // up to 2 days
       } else if (urgencyLevel === 2) {
         // Nail surgery
         minDate.setDate(now.getDate() + 1);   // earliest tomorrow
@@ -1677,7 +1678,8 @@ While you wait for your appointment, here's what you should do:<br>
       // let minDate = new Date(now);
       const now = new Date();
       now.setHours(0, 0, 0, 0);  // Set to start of today
-      let minDate = new Date(now);
+      const currentTime = new Date();
+      let minDate = new Date(currentTime);
       let maxDate = new Date(now);
 
       const existingSnap = await db.collection("Appointments")
@@ -1734,8 +1736,7 @@ While you wait for your appointment, here's what you should do:<br>
 
       // Urgency → window (same mapping)
       if (urgencyLevel === 1) {
-        minDate.setDate(now.getDate());
-        maxDate.setDate(now.getDate() + 2);
+        maxDate.setDate(currentTime.getDate() + 2);
       } else if (urgencyLevel === 2) {
         minDate.setDate(now.getDate() + 1);
         maxDate.setDate(now.getDate() + 7);
