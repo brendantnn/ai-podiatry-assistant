@@ -27,3 +27,7 @@ env
 functions/.env
 .env
 
+
+.env
+.env.*
+!.env.example
