@@ -94,3 +94,144 @@ flowchart LR
     API --> SMS[Twilio SMS and Verify]
     CLOCK[Scheduled reminder function] --> DB
     CLOCK --> SMS
+```
+
+Firebase Hosting serves the frontend and rewrites `/patient/**`, `/api/**`, and `/sms/**` to the `api` Cloud Function. Functions are configured for `asia-southeast1`, using Node.js 22.
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | HTML, CSS, JavaScript, browser SpeechRecognition |
+| Backend | Node.js 22, Express, Firebase Cloud Functions v2 |
+| AI | OpenAI SDK, text and vision Chat Completions |
+| Persistence | Cloud Firestore, Firebase Storage |
+| Authentication | Firebase Authentication |
+| Messaging | Twilio SMS and Verify |
+| Translation | `translate-google`, in-memory cache |
+| Delivery | Firebase Hosting, GitHub Actions |
+
+## Repository guide
+
+```text
+public/
+  patient.html                    Patient interface
+  podiatrist.html                 Clinician interface
+  login.html / register.html      Authentication screens
+  js/
+    patient.js                    Patient chat, uploads, translation, voice input
+    podiatrist_aichat.js           Clinician chat and appointment-edit workflows
+    config/firebase-config.js     Browser Firebase configuration
+    utils/                        Browser session and page-access helpers
+functions/
+  index.js                        Cloud Function entry point and route mounting
+  patientRoutes.js                Patient agent and image triage orchestration
+  podiatristRoutes.js             Clinician assistant and appointment APIs
+  firebase.js                     Firebase Admin and Storage initialization
+  smsService.js / smsRoutes.js     Messaging and verification integration
+  seedAvailability.js             Availability data helper
+firebase.json                     Hosting rewrites and Functions configuration
+.github/workflows/                Firebase deployment workflow
+```
+
+The deployed backend entry point is `functions/index.js`. The root `server.js` is a legacy server file with imports that do not match the current layout; use the Firebase Functions workflow below.
+
+## Setup
+
+### Prerequisites
+
+- Node.js **22** and npm.
+- Firebase CLI and a Firebase development project with Authentication, Firestore, and Storage enabled.
+- An OpenAI API key with access to the configured models.
+- Twilio credentials for exercising SMS and verification features.
+
+### 1. Install dependencies
+
+```bash
+git clone https://github.com/brendantnn/ai-podiatry-assistant.git
+cd ai-podiatry-assistant
+npm install
+npm install --prefix functions
+npm install -g firebase-tools
+```
+
+`functions/patientRoutes.js` imports Busboy, which is currently declared only in the root package. Add it to the Functions package before deploying an independently packaged backend:
+
+```bash
+npm install --prefix functions busboy@^1.6.0
+```
+
+### 2. Configure your Firebase project
+
+```bash
+firebase login
+firebase use --add
+```
+
+Select your own development project and update:
+
+- `public/js/config/firebase-config.js` with its web app configuration.
+- `functions/firebase.js` with its Storage bucket name.
+- `.firebaserc` with the selected project alias.
+- The deployment workflow's project ID and credentials if enabling automated deployment.
+
+Enable email/password authentication. Configure Firestore access rules and any composite indexes required by the queries; rules and index definitions are not included in this repository.
+
+### 3. Configure local secrets and credentials
+
+Create `functions/.secret.local` for emulator-only secret overrides:
+
+```dotenv
+OPENAI_API_KEY=your_openai_api_key
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
+TWILIO_VERIFY_SERVICE_SID=your_twilio_verify_service_sid
+```
+
+Add `functions/.secret.local` to `.gitignore` before saving credentials. For Firebase Admin access to development cloud services, configure Application Default Credentials; see [Firebase's local Functions guide](https://firebase.google.com/docs/functions/local-emulator). The [Firebase configuration guide](https://firebase.google.com/docs/functions/config-env#secrets_and_credentials_in_the_cloud_functions_emulator) documents local secret overrides.
+
+### 4. Prepare demo data
+
+Register synthetic patient and podiatrist accounts through the application. Registration creates role-specific profiles and identifiers such as `patient_1` and `pod_1`.
+
+Add future appointment slots to the `Availability` collection:
+
+| Field | Type | Example |
+| --- | --- | --- |
+| `podId` | String | `pod_1` |
+| `availableDate` | Firestore Timestamp | A future appointment date and time |
+| `status` | String | `available` |
+
+The included `functions/seedAvailability.js` helper uses a fixed end date of **2025-12-31** and a local service-account file. Update its date range, podiatrist ID, and credential handling before using it for a new demo.
+
+### 5. Run locally
+
+From the repository root:
+
+```bash
+firebase emulators:start --only hosting,functions
+```
+
+Open the Hosting URL printed by the CLI and navigate to `/login.html`.
+
+This starts local Hosting and Functions. Authentication, Firestore, and Storage still use the configured cloud project: the browser's Auth/Firestore emulator connections are commented out, and a complete local data-emulator configuration is not included. Use a dedicated development project and synthetic data.
+
+### Deployment configuration
+
+`functions/index.js` binds the OpenAI and Twilio credentials using `defineSecret`. Configure the five corresponding secrets with `firebase functions:secrets:set SECRET_NAME` in your selected project before deployment. The existing GitHub Actions workflow expects a `FIREBASE_TOKEN` repository secret and targets the original project; adapt it before enabling deployment for another project.
+
+## Suggested demo walkthrough
+
+1. Sign in as a demo patient and submit a synthetic foot concern.
+2. Answer the agent's follow-up questions and inspect the assessment and proposed appointment.
+3. Confirm the slot and verify that the appointment appears in Firestore with its summary and urgency fields.
+4. Start a fresh session and upload a synthetic or appropriately licensed foot image to demonstrate image gating and the vision workflow.
+5. Sign in as a demo podiatrist, ask for today's schedule, and review a selected case.
+6. Open the appointment-edit workflow and demonstrate a reschedule using demo records.
+
+## Current limitations and next steps
+
+- **Session persistence:** patient conversation state is held in process memory; it does not persist across restarts or synchronize between Function instances.
+- **Booking consistency:** appointment creation and slot updates are separate writes. Transactional booking and idempotency are needed to handle concurrent requests reliably.
+- **Access and image privacy:** browser role checks are present, but the shown agent routes do not verify Firebase ID tokens or enforce record ownership. Image uploads currently call `makePublic()`. Server-side authorization and private image access are necessary before handling real patient data.
+- **Assessment reliability:** model responses are parsed from formatted text. Structured schemas, broader error handling, and a reproducible evaluation dataset would strengthen the workflow. No clinical accuracy benchmark is reported here.
+- **Demo integrations:** Singpass screens simulate a login flow; they do not establish a production Singpass integration. Speech recognition depends on browser support.
