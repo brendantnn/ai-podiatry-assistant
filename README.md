@@ -83,6 +83,29 @@ Schedule and edit requests are routed using application-side pattern matching. D
 
 ## Architecture
 
+### Patient intake and booking
+
+```mermaid
+flowchart TD
+    P["👤 Patient sends a message"]
+    I["🤖 Intent classifier · GPT-3.5 Turbo"]
+    G["🔍 Image check · GPT-4o mini"]
+    T["🤖 Triage assistant · Text or vision"]
+    B["📅 Booking backend"]
+    D[("Firestore")]
+    C["🩺 Podiatrist dashboard and assistant"]
+
+    P -->|Text message| I
+    P -->|Foot photo| G
+    I -->|Symptoms or new booking| T
+    G -->|Suitable photo| T
+    T -->|Category, urgency, summary| B
+    B <-->|Read slots · Save after confirmation| D
+    D -->|Load saved case| C
+```
+
+Text triage uses GPT-3.5 Turbo. Vision triage uses a second GPT-4o mini call after the image check passes.
+
 ```mermaid
 flowchart LR
     UI[Patient and podiatrist web interfaces] --> AUTH[Firebase Authentication]
